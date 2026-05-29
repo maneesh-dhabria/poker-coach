@@ -48,6 +48,27 @@ export interface HeroSpot {
   stackBb: number;
 }
 
+export interface TableSeatView {
+  seat: number;
+  name: string;
+  isHero: boolean;
+  position: Position;
+  stack: number;
+  folded: boolean;
+  isButton: boolean;
+  cards: Card[] | null; // hero always; opponents only at showdown
+}
+
+export interface TableView {
+  seats: TableSeatView[];
+  board: Card[];
+  pot: number;
+  legal: LegalActions;
+  isHeroTurn: boolean;
+  isOver: boolean;
+  heroNet: number | null;
+}
+
 export class HandFlow {
   private h: Hand;
   private input: StartFlowInput;
@@ -195,6 +216,38 @@ export class HandFlow {
 
   decisions(): HeroDecisionRecord[] {
     return this.heroDecisions;
+  }
+
+  /** A render-ready snapshot of the table for the UI (presentational components consume this). */
+  tableView(): TableView {
+    const over = this.isOver();
+    const result = over ? this.h.result() : null;
+    const contenders = new Set(this.h.contenders());
+    const buttonSeat = this.input.seats[this.input.buttonIndex].seat;
+    const seats: TableSeatView[] = this.input.seats.map((s, i) => {
+      const folded = !contenders.has(s.seat);
+      const revealed =
+        s.isHero || (over && !!result?.endedAtShowdown && contenders.has(s.seat));
+      return {
+        seat: s.seat,
+        name: s.name,
+        isHero: s.isHero,
+        position: this.positions[i],
+        stack: this.h.stackOf(s.seat),
+        folded,
+        isButton: s.seat === buttonSeat,
+        cards: revealed ? (this.h.holeOf(s.seat) as Card[]) : null,
+      };
+    });
+    return {
+      seats,
+      board: this.h.board,
+      pot: this.h.pot(),
+      legal: this.h.legalActions(),
+      isHeroTurn: this.isHeroTurn(),
+      isOver: over,
+      heroNet: result ? (result.net[this.heroSeatId] ?? 0) : null,
+    };
   }
 
   /** Build the persisted HandRecord (call once the hand is over). */
