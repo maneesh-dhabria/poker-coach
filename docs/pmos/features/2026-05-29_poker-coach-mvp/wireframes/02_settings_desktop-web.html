@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="pmos:skill" content="wireframes">
+<title>Poker Coach — Session Setup (wireframe)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="./assets/wireframe.css">
+<link rel="stylesheet" href="./assets/design-overlay.css">
+</head>
+<body class="min-h-screen">
+<div class="max-w-[760px] mx-auto p-6">
+  <h1 class="text-2xl font-extrabold mb-1">New practice session</h1>
+  <p class="wf-muted mb-6">Set up the table and how much coaching you want. You can change coaching depth mid-session.</p>
+
+  <!-- table size -->
+  <section class="wf-panel p-5 mb-4">
+    <h2 id="table-size" class="font-bold mb-3">Opponents <span class="wf-muted font-normal text-sm">(1–5 · true 6-max)</span></h2>
+    <div class="flex gap-2">
+      <button class="btn">1</button><button class="btn">2</button><button class="btn">3</button>
+      <button class="btn">4</button><button class="btn btn-primary">5</button>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <span class="wf-muted text-sm self-center mr-1">Quick fill:</span>
+      <button class="btn text-sm">All TAG</button>
+      <button class="btn text-sm">Mixed table</button>
+      <button class="btn text-sm">Loose & wild</button>
+      <button class="btn text-sm">Tough regs</button>
+    </div>
+  </section>
+
+  <!-- per seat -->
+  <section class="wf-panel p-5 mb-4">
+    <h2 id="opponents" class="font-bold mb-3">Per-seat style &amp; skill</h2>
+    <div class="space-y-2">
+      <!-- row template -->
+      <div class="wf-panel-2 p-3 flex items-center gap-3">
+        <span class="font-semibold w-16">Seat 1</span>
+        <label class="text-xs wf-muted">Style</label>
+        <select class="btn text-sm"><option>TAG (tight-aggressive)</option><option>LAG</option><option>Nit</option><option>Calling Station</option></select>
+        <label class="text-xs wf-muted ml-2">Skill</label>
+        <select class="btn text-sm"><option>Beginner</option><option selected>Intermediate</option><option>Advanced</option></select>
+      </div>
+      <div class="wf-panel-2 p-3 flex items-center gap-3">
+        <span class="font-semibold w-16">Seat 2</span>
+        <label class="text-xs wf-muted">Style</label>
+        <select class="btn text-sm"><option>TAG</option><option selected>LAG (loose-aggressive)</option><option>Nit</option><option>Calling Station</option></select>
+        <label class="text-xs wf-muted ml-2">Skill</label>
+        <select class="btn text-sm"><option>Beginner</option><option>Intermediate</option><option selected>Advanced</option></select>
+      </div>
+      <p class="wf-muted text-xs">…seats 3–5 follow the same row. Style = how they play; Skill = how well.</p>
+    </div>
+  </section>
+
+  <!-- coaching -->
+  <section class="wf-panel p-5 mb-4">
+    <h2 id="coaching" class="font-bold mb-3">Coaching</h2>
+    <label class="text-sm wf-muted">Depth</label>
+    <div class="flex gap-2 mt-1 mb-4">
+      <button class="btn">Conceptual<br><span class="text-xs wf-muted">plain ideas, few numbers</span></button>
+      <button class="btn btn-primary">Equity + Heuristics<br><span class="text-xs" style="color:#2a200a">numbers, explained</span></button>
+      <button class="btn">Strict (charts)<br><span class="text-xs wf-muted">exact preflop charts</span></button>
+    </div>
+    <div class="flex items-center justify-between wf-panel-2 p-3">
+      <div><div class="font-semibold">Instant feedback while I play</div>
+        <div class="text-xs wf-muted">Show a verdict + reason right after each of your actions.</div></div>
+      <button role="switch" aria-checked="true" class="chip" style="background:var(--good); color:#08220f">ON</button>
+    </div>
+  </section>
+
+  <div class="flex justify-end gap-3">
+    <button class="btn">Cancel</button>
+    <button class="btn btn-primary">Deal first hand →</button>
+  </div>
+</div>
+<footer class="text-center text-xs wf-muted py-4">Session Setup · desktop-web · file 02 · 2026-05-29</footer>
+</body>
+</html>

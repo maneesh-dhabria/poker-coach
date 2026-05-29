@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="pmos:skill" content="wireframes">
+<title>Poker Coach — Coaching Viewer (wireframe)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="./assets/wireframe.css">
+<link rel="stylesheet" href="./assets/design-overlay.css">
+<style>.state{display:none}.state.on{display:block}.tabbtn.on{background:var(--gold);color:#2a200a}</style>
+</head>
+<body class="min-h-screen">
+<div class="flex items-center gap-2 px-4 py-3" style="background:var(--panel)">
+  <span class="wf-muted text-sm mr-2">State:</span>
+  <button class="btn tabbtn on" data-s="report">Report ready</button>
+  <button class="btn tabbtn" data-s="empty">No hands yet</button>
+  <span class="wf-muted text-xs ml-auto">desktop-web · renders /poker-coach markdown</span>
+</div>
+
+<div class="max-w-[760px] mx-auto p-6">
+
+  <!-- STATE: report -->
+  <div class="state on" data-s="report">
+    <div class="flex items-center justify-between mb-4">
+      <h1 class="text-2xl font-extrabold">Session coaching</h1>
+      <span class="tag">12 hands reviewed · depth: Equity</span>
+    </div>
+
+    <section class="wf-panel p-5 mb-4">
+      <h2 id="leaks" class="font-bold mb-3">Your top leaks this session</h2>
+      <ul class="space-y-3">
+        <li class="flex gap-3"><span class="badge badge-mistake shrink-0">❌ ×4</span>
+          <div><b>Calling river bets too wide.</b> Four times you called the last bet without enough chance to win. Plainly: you were paying $50 to win $100 but only winning about 1 in 4 — that loses money over time. <span class="wf-muted">Try folding these unless you beat a bluff.</span></div></li>
+        <li class="flex gap-3"><span class="badge badge-thin shrink-0">🟡 ×3</span>
+          <div><b>Missing value on the end.</b> With strong hands you checked instead of betting 3 times — leaving money on the table when worse hands would have paid you.</div></li>
+        <li class="flex gap-3"><span class="badge badge-good shrink-0">✅</span>
+          <div><b>Good preflop discipline.</b> Your opening hands matched a solid baseline almost every time. Keep it up.</div></li>
+      </ul>
+    </section>
+
+    <section class="wf-panel p-5">
+      <h2 id="hand-by-hand" class="font-bold mb-3">Hand-by-hand</h2>
+
+      <div class="wf-panel-2 p-4 mb-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-semibold">Hand #128 — A♣J♥ (BB)</span>
+          <span class="badge badge-good">✅ Well played</span>
+        </div>
+        <p class="text-sm mb-2"><b>Preflop:</b> called Mia's button raise. Right call — A♣J♥ is comfortably ahead of a button opener and you were getting a good price ($4 to win $15).</p>
+        <p class="text-sm mb-2"><b>Flop A♠7♥2♣:</b> you bet $7 with top pair. Good — you want worse aces and pairs to pay you.</p>
+        <p class="text-sm"><b>Result:</b> won $23 at showdown vs K♠Q♠.</p>
+      </div>
+
+      <div class="wf-panel-2 p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-semibold">Hand #131 — T♦9♦ (CO)</span>
+          <span class="badge badge-mistake">❌ River call</span>
+        </div>
+        <p class="text-sm mb-2"><b>River:</b> you called a $48 bet into a $60 pot with just a busted draw.</p>
+        <div class="plain-line text-sm">It cost <b>$48</b> to win <b>$108</b> — you needed to win about <b>31%</b> of the time. With only a missed draw you almost never win here, so this call loses money. <b>A fold is better.</b></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- STATE: empty -->
+  <div class="state" data-s="empty">
+    <div class="wf-panel p-10 text-center">
+      <div class="text-5xl mb-4">🃏</div>
+      <h1 class="text-xl font-bold mb-2">No hands to coach yet</h1>
+      <p class="wf-muted mb-5 max-w-md mx-auto">Play a few hands first — each one is saved automatically. Then come back here, or run <code class="font-mono" style="color:var(--gold)">/poker-coach</code> in your terminal.</p>
+      <button class="btn btn-primary">Start a session →</button>
+    </div>
+  </div>
+
+</div>
+<footer class="text-center text-xs wf-muted py-4">Coaching Viewer · desktop-web · file 03 · 2026-05-29</footer>
+<script>
+  document.querySelectorAll('.tabbtn').forEach(b=>b.addEventListener('click',()=>{
+    const s=b.dataset.s;
+    document.querySelectorAll('.tabbtn').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.state').forEach(el=>el.classList.toggle('on',el.dataset.s===s));
+  }));
+</script>
+</body>
+</html>

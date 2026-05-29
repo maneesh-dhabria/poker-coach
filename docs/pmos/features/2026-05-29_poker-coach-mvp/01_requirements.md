@@ -225,6 +225,23 @@ chosen before a session.
 |---|---|
 | — | None outstanding. All review questions resolved above. |
 
+## Wireframes
+
+Generated: 2026-05-29 (desktop-web, low-rigor — personal tool)
+Folder: `wireframes/` · Index: `wireframes/index.html`
+
+| # | Component | Devices | States | File |
+|---|---|---|---|---|
+| 01 | Table + instant feedback rail | desktop-web | your-turn / verdict / showdown | `wireframes/01_table_desktop-web.html` |
+| 02 | Session setup | desktop-web | default | `wireframes/02_settings_desktop-web.html` |
+| 03 | Coaching viewer | desktop-web | report / empty | `wireframes/03_coaching_desktop-web.html` |
+
+**Carry into /spec (from wireframe review):** use proper semantic selection controls in the real
+app — `radiogroup`/`role=tab` with `aria-selected`/`aria-pressed` for the state switchers, opponent
+count, and coaching-depth pickers (the mid-fi wireframes only color the active choice). Contrast
+tokens already corrected (hearts `#c62f2f`, muted `#b8c4bc`). MSF/PSYCH (Phase 6) and canvas
+(Phase 7) intentionally skipped for this solo build.
+
 ---
 
 **Review Log**

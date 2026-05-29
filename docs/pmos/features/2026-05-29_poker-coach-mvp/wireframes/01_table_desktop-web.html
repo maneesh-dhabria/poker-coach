@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!-- Review Log: low-rigor pass — aria on icon buttons OK; contrast checked vs felt; verdict colors per tokens. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="pmos:skill" content="wireframes">
+<title>Poker Coach — Table + Feedback (wireframe)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="./assets/wireframe.css">
+<link rel="stylesheet" href="./assets/design-overlay.css">
+<style>
+  .state{display:none} .state.on{display:block}
+  .tabbtn.on{background:var(--gold); color:#2a200a}
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- state switcher -->
+<div class="flex items-center gap-2 px-4 py-3" style="background:var(--panel)">
+  <span class="wf-muted text-sm mr-2">State:</span>
+  <button class="btn tabbtn on" data-s="turn">Your turn</button>
+  <button class="btn tabbtn" data-s="verdict">After you act (verdict)</button>
+  <button class="btn tabbtn" data-s="showdown">Showdown</button>
+  <span class="wf-muted text-xs ml-auto">desktop-web · 1280×800</span>
+</div>
+
+<div class="grid" style="grid-template-columns:1fr 360px; gap:16px; padding:16px; max-width:1280px; margin:0 auto;">
+
+  <!-- TABLE -->
+  <section class="wf-felt rounded-2xl p-6 relative" style="min-height:600px;">
+    <div class="flex justify-between items-start">
+      <div class="text-sm wf-muted">Blinds 1 / 2 · Cash · Hand #128</div>
+      <div class="text-sm"><span class="wf-muted">Coaching depth:</span> <span class="tag">Equity + Heuristics</span></div>
+    </div>
+
+    <!-- opponents arc -->
+    <div class="flex justify-center gap-3 mt-4 flex-wrap">
+      <div class="seat folded text-center"><div class="font-semibold">Nora</div><div class="text-xs wf-muted">Nit · Adv</div><span class="chip mt-1">38 bb</span><div class="text-xs mt-1">folded</div></div>
+      <div class="seat text-center"><div class="font-semibold">Leo</div><div class="text-xs wf-muted">LAG · Int</div><span class="chip mt-1">52 bb</span><div class="text-xs mt-1 wf-muted">— </div></div>
+      <div class="seat active text-center"><div class="font-semibold">Mia (BTN)</div><div class="text-xs wf-muted">TAG · Adv</div><span class="chip mt-1">61 bb</span><div class="text-xs mt-1" style="color:var(--gold)">raised to 6</div></div>
+      <div class="seat folded text-center"><div class="font-semibold">Sam</div><div class="text-xs wf-muted">Station · Beg</div><span class="chip mt-1">25 bb</span><div class="text-xs mt-1">folded</div></div>
+      <div class="seat text-center"><div class="font-semibold">Ace</div><div class="text-xs wf-muted">TAG · Int</div><span class="chip mt-1">44 bb</span><div class="text-xs mt-1 wf-muted">—</div></div>
+    </div>
+
+    <!-- board + pot -->
+    <div class="flex flex-col items-center justify-center mt-8 mb-6">
+      <div class="text-sm wf-muted mb-1">Pot</div>
+      <div class="text-2xl font-extrabold mb-4" style="color:var(--gold)">$19</div>
+      <div class="flex gap-2">
+        <div class="card-face"><span class="suit-s">A</span><span class="suit-s self-end">♠</span></div>
+        <div class="card-face"><span class="suit-h">7</span><span class="suit-h self-end">♥</span></div>
+        <div class="card-face"><span class="suit-s">2</span><span class="suit-s self-end">♣</span></div>
+        <div class="card-face state showdown" style="opacity:.35"><span class="suit-s">K</span><span class="suit-s self-end">♦</span></div>
+        <div class="card-face state showdown" style="opacity:.35"><span class="suit-s">9</span><span class="suit-s self-end">♣</span></div>
+      </div>
+    </div>
+
+    <!-- hero seat -->
+    <div class="absolute left-1/2 -translate-x-1/2 bottom-6 text-center">
+      <div class="flex gap-2 justify-center mb-2">
+        <div class="card-face"><span class="suit-s">A</span><span class="suit-s self-end">♣</span></div>
+        <div class="card-face"><span class="suit-h">J</span><span class="suit-h self-end">♥</span></div>
+      </div>
+      <div class="font-semibold">You (BB) <span class="chip">48 bb</span></div>
+    </div>
+  </section>
+
+  <!-- COACHING RAIL -->
+  <aside class="wf-panel p-4 flex flex-col gap-3">
+    <h2 id="feedback" class="text-lg font-bold">Coach</h2>
+
+    <!-- STATE: your turn -->
+    <div class="state on" data-s="turn">
+      <p class="wf-muted text-sm mb-3">It's your turn. Mia (BTN) raised to $6. You have <b>A♣ J♥</b> in the big blind.</p>
+      <div class="plain-line text-sm">Decide first — feedback appears after you act. Instant feedback is <b>ON</b>.</div>
+    </div>
+
+    <!-- STATE: verdict -->
+    <div class="state" data-s="verdict">
+      <div class="badge badge-good mb-3">✅ Good call</div>
+      <div class="mb-3">
+        <div class="flex justify-between text-sm mb-1"><span>Your chance to win</span><span style="color:var(--gold)">~46%</span></div>
+        <div class="equity-track relative">
+          <div class="equity-fill" style="width:46%"></div>
+          <div class="need-mark" style="left:27%"></div>
+        </div>
+        <div class="text-xs wf-muted mt-1">The line marks what you needed (~27%).</div>
+      </div>
+      <div class="plain-line text-sm mb-3">
+        It costs you <b>$4</b> to win a <b>$15</b> pot — you only need to win about <b>27%</b> of the time.
+        Against a typical button raiser, A♣J♥ wins ~<b>46%</b>. <b>Easy call.</b>
+      </div>
+      <div class="text-xs wf-muted">Assumed range: a typical button open. Equity is an estimate.</div>
+    </div>
+
+    <!-- STATE: showdown -->
+    <div class="state" data-s="showdown">
+      <div class="badge badge-thin mb-3">🟡 Result</div>
+      <p class="text-sm mb-2">Board: A♠ 7♥ 2♣ K♦ 9♣. You made <b>top pair</b>. Mia showed K♠Q♠.</p>
+      <p class="text-sm mb-3" style="color:var(--good)">You won <b>+$23</b>.</p>
+      <div class="plain-line text-sm">This hand is saved. Want the deep walk-through? In the terminal run
+        <code class="font-mono" style="color:var(--gold)">/poker-coach last</code>.</div>
+    </div>
+
+    <div class="mt-auto pt-3" style="border-top:1px solid #24332c">
+      <div class="flex items-center justify-between text-sm">
+        <span class="wf-muted">Instant feedback</span>
+        <span class="tag" style="border-color:var(--good); color:var(--good)">ON</span>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ACTION BAR -->
+<div class="px-4 py-3" style="background:var(--panel); border-top:1px solid #24332c">
+  <div class="flex items-center gap-3 max-w-[920px] mx-auto">
+    <button class="btn btn-danger">Fold</button>
+    <button class="btn">Check / Call $4</button>
+    <button class="btn btn-primary">Raise</button>
+    <div class="flex items-center gap-2 ml-2 flex-1">
+      <span class="text-xs wf-muted">size</span>
+      <input type="range" min="6" max="48" value="14" class="flex-1" aria-label="Bet size">
+      <span class="chip">$14</span>
+      <button class="btn text-xs" aria-label="Half pot">½</button>
+      <button class="btn text-xs" aria-label="Three quarter pot">¾</button>
+      <button class="btn text-xs" aria-label="Pot">Pot</button>
+    </div>
+  </div>
+</div>
+
+<footer class="text-center text-xs wf-muted py-4">Table + Instant Feedback · desktop-web · file 01 · 2026-05-29</footer>
+
+<script>
+  document.querySelectorAll('.tabbtn').forEach(b=>b.addEventListener('click',()=>{
+    const s=b.dataset.s;
+    document.querySelectorAll('.tabbtn').forEach(x=>x.classList.toggle('on',x===b));
+    document.querySelectorAll('.state').forEach(el=>el.classList.toggle('on', el.dataset.s===s));
+  }));
+</script>
+</body>
+</html>

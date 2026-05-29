@@ -1,0 +1,36 @@
+/* design-overlay.css — Poker Coach tokens (from DESIGN.md). Linked after wireframe.css. */
+:root{
+  --felt:#0f3d2e; --felt-deep:#0a2c20; --panel:#15211c; --panel-2:#1d2c26;
+  --ink:#eef2ee; --ink-soft:#b8c4bc; --gold:#d8b15a;
+  --good:#3fb96b; --thin:#e0b54a; --mistake:#e5594e;
+  --card-face:#f7f5ef; --hearts:#c62f2f; --spades:#1b1b1b;
+  --r-sm:6px; --r-md:10px; --r-lg:16px; --r-pill:999px;
+}
+body{background:var(--felt-deep); color:var(--ink);
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;}
+.wf-felt{background:radial-gradient(120% 90% at 50% 25%, #14543d 0%, var(--felt) 55%, var(--felt-deep) 100%);}
+.wf-panel{background:var(--panel); border:1px solid #24332c; border-radius:var(--r-lg);}
+.wf-panel-2{background:var(--panel-2); border:1px solid #2b3d34; border-radius:var(--r-md);}
+.wf-muted{color:var(--ink-soft);}
+.badge{display:inline-flex; align-items:center; gap:.4rem; padding:.35rem .8rem; border-radius:var(--r-pill); font-weight:700; font-size:.9rem;}
+.badge-good{background:rgba(63,185,107,.15); color:var(--good); border:1px solid rgba(63,185,107,.4);}
+.badge-thin{background:rgba(224,181,74,.15); color:var(--thin); border:1px solid rgba(224,181,74,.4);}
+.badge-mistake{background:rgba(229,89,78,.15); color:var(--mistake); border:1px solid rgba(229,89,78,.4);}
+.equity-track{background:#26332c; border-radius:var(--r-pill); height:18px; overflow:hidden;}
+.equity-fill{background:linear-gradient(90deg,var(--gold),#eccb7e); height:100%;}
+.need-mark{position:absolute; top:-3px; width:2px; height:24px; background:var(--ink); opacity:.7;}
+.card-face{background:var(--card-face); color:var(--spades); border-radius:8px; width:54px; height:76px;
+  display:flex; flex-direction:column; justify-content:space-between; padding:6px 8px; font-weight:800;
+  box-shadow:0 2px 6px rgba(0,0,0,.35);}
+.card-face.sm{width:40px; height:56px; font-size:.85rem; padding:4px 6px;}
+.suit-h{color:var(--hearts);} .suit-s{color:var(--spades);}
+.seat{background:var(--panel); border:1px solid #2b3d34; border-radius:var(--r-md); padding:.5rem .7rem;}
+.seat.active{border-color:var(--gold); box-shadow:0 0 0 2px rgba(216,177,90,.35);}
+.seat.folded{opacity:.4;}
+.chip{display:inline-block; background:var(--gold); color:#2a200a; font-weight:800; border-radius:var(--r-pill); padding:.1rem .55rem; font-size:.78rem;}
+.tag{font-size:.7rem; padding:.05rem .4rem; border-radius:var(--r-pill); border:1px solid #34463c; color:var(--ink-soft);}
+.btn{border-radius:var(--r-md); padding:.6rem 1rem; font-weight:700; border:1px solid #34463c; background:var(--panel-2); color:var(--ink); cursor:pointer;}
+.btn-primary{background:var(--gold); color:#2a200a; border-color:var(--gold);}
+.btn-danger{background:rgba(229,89,78,.15); color:var(--mistake); border-color:rgba(229,89,78,.4);}
+.plain-line{background:var(--panel-2); border-left:3px solid var(--gold); border-radius:var(--r-sm); padding:.7rem .9rem; line-height:1.5;}
+:focus-visible{outline:3px solid var(--gold); outline-offset:2px;}

@@ -9,10 +9,10 @@
 | init-state | ✅ completed | — |
 | 1.5 ideate | ⏭️ skipped (formed seed) | — |
 | 2 requirements | ✅ completed (Tier 3) | 01_requirements.md |
-| 2a grill | 🔄 gate | — |
-| 3a creativity | ⏳ pending | — |
-| 3b wireframes | ⏳ pending | — |
-| 3c prototype | ⏳ pending | — |
+| 2a grill | ✅ completed (4 Q) | grills/2026-05-29_01_requirements.md |
+| 3a creativity | ⏭️ skipped | — |
+| 3b wireframes | 🔄 in progress | — |
+| 3c prototype | ⏭️ skipped | — |
 | 4 spec | ⏳ pending | — |
 | 5 plan | ⏳ pending | — |
 | 6 execute | ⏳ pending | — |

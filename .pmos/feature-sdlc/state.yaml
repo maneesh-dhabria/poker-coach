@@ -10,7 +10,7 @@ branch: feat/poker-coach-mvp
 feature_folder: docs/pmos/features/2026-05-29_poker-coach-mvp/
 tier: 3
 seed: docs/superpowers/specs/2026-05-29-poker-coach-design.md
-current_phase: grill
+current_phase: wireframes
 open_questions_log: []
 phases:
   init-state:
@@ -28,13 +28,13 @@ phases:
     artifact_path: 01_requirements.md
     folded_phase_failures: []
   grill:
-    status: pending
-    started_at: null
-    artifact_path: null
+    status: completed
+    started_at: 2026-05-29
+    artifact_path: grills/2026-05-29_01_requirements.md
     folded_phase_failures: []
   creativity:
-    status: pending
-    started_at: null
+    status: skipped
+    started_at: 2026-05-29
     artifact_path: null
     folded_phase_failures: []
   wireframes:
