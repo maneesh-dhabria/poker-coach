@@ -218,6 +218,12 @@ export class HandFlow {
     return this.heroDecisions;
   }
 
+  /** The full ordered action log (hero + bots), for the UI's per-seat action badges + chip
+   * animation (observation #3). Presentational only — never feeds verdicts. */
+  actionLog(): ActionRecord[] {
+    return this.actions;
+  }
+
   /** A render-ready snapshot of the table for the UI (presentational components consume this). */
   tableView(): TableView {
     const over = this.isOver();
@@ -296,4 +302,12 @@ export function startHand(input: StartFlowInput): HandFlow {
   const flow = new HandFlow(input);
   flow.autoPlayBots(); // advance to the hero's first decision (or straight to showdown)
   return flow;
+}
+
+/** The most recent action each seat took, given a (possibly partial) action log. Used by the UI to
+ * label each seat with what it just did, and to drive the chip-to-pot animation (observation #3). */
+export function latestActionPerSeat(log: ActionRecord[]): Record<number, ActionRecord> {
+  const out: Record<number, ActionRecord> = {};
+  for (const a of log) out[a.seat] = a;
+  return out;
 }

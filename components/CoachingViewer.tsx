@@ -2,6 +2,7 @@
 // Coaching viewer (spec FR-54, E3; wireframe 03). Fetches the markdown the /poker-coach skill wrote
 // for the session and renders it; shows a how-to empty state when there's none yet. Refresh re-reads.
 import { useCallback, useEffect, useState, Fragment } from "react";
+import { Button } from "@/components/ui/Button";
 
 interface CoachingFile {
   name: string;
@@ -65,8 +66,20 @@ function EmptyState() {
     <div data-testid="coaching-empty" style={{ color: "var(--ink-soft)" }}>
       <h2>No coaching yet</h2>
       <p>
-        Finish a hand, then in your terminal run <code>/poker-coach last</code> (or{" "}
-        <code>/poker-coach session</code>) to generate a plain-language review. Then click Refresh.
+        Finish a hand, then in your terminal (from the repo root) run one of:
+      </p>
+      <ul style={{ marginTop: 4 }}>
+        <li>
+          <code>/poker-coach last</code> — your most recent hand
+        </li>
+        <li>
+          <code>/poker-coach session</code> — the whole latest session
+        </li>
+      </ul>
+      <p style={{ marginTop: 4 }}>
+        No session id needed — both default to the latest. The id shown in the header is only for
+        targeting an <em>older</em> session: <code>/poker-coach session &lt;id&gt;</code>. Then click
+        Refresh.
       </p>
     </div>
   );
@@ -98,9 +111,9 @@ export function CoachingViewer({ sessionId }: { sessionId: string | null }) {
     <section style={{ padding: 16 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ color: "var(--gold)" }}>Coaching</h1>
-        <button type="button" onClick={() => void load()}>
+        <Button variant="secondary" size="sm" onClick={() => void load()}>
           Refresh
-        </button>
+        </Button>
       </div>
       {loading ? <p>Loading…</p> : null}
       {!loading && files.length === 0 ? (

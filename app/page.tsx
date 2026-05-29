@@ -7,6 +7,8 @@ import { SetupScreen } from "@/components/SetupScreen";
 import { PokerTable } from "@/components/table/PokerTable";
 import { FeedbackPanel } from "@/components/FeedbackPanel";
 import { CoachingViewer } from "@/components/CoachingViewer";
+import { SessionBadge } from "@/components/SessionBadge";
+import { Button } from "@/components/ui/Button";
 
 // Production deal seed (spec FR-05: "production uses crypto RNG"). The seed sources from crypto
 // when available; mulberry32 then expands it deterministically within a hand (preserving testability).
@@ -39,11 +41,14 @@ export default function Home() {
 
   return (
     <main style={{ maxWidth: 1000, margin: "0 auto" }}>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 16px" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "8px 16px" }}>
         <h1 style={{ color: "var(--gold)", margin: 0 }}>Poker Coach</h1>
-        <button type="button" onClick={() => setPhase("setup")}>
-          New session
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <SessionBadge sessionId={sessionId} />
+          <Button variant="secondary" size="sm" onClick={() => setPhase("setup")}>
+            New session
+          </Button>
+        </div>
       </header>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 16, alignItems: "start" }}>
         <PokerTable />

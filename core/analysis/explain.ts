@@ -21,7 +21,7 @@ function money(amount: number, unit: Unit): string {
 }
 
 export interface ExplainParams {
-  kind: "price" | "preflop" | "valuecheck" | "aggression";
+  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
   verdict: Verdict;
   depth: CoachingDepth;
   unit: Unit;
@@ -49,7 +49,14 @@ export function buildExplanation(p: ExplainParams): string {
       return valuecheck(p);
     case "aggression":
       return aggression(p);
+    case "freecheckfold":
+      return freeCheckFold(p);
   }
+}
+
+function freeCheckFold(p: ExplainParams): string {
+  const win = Math.round(p.equityPct);
+  return `There's no bet to call — checking is free. Folding throws away a hand that still wins ~${win}% for nothing. When you can check, never fold: take the free card.`;
 }
 
 function price(p: ExplainParams): string {
@@ -112,5 +119,7 @@ function conceptual(p: ExplainParams): string {
       if (p.verdict === "good") return "Strong hand — betting for value is right.";
       if (p.verdict === "thin") return "A marginal bet — fine as thin value or a semi-bluff.";
       return "You're betting with little behind it — there's not enough here.";
+    case "freecheckfold":
+      return "There was no bet to fold to — checking is free. Never fold when you can see the next card for nothing.";
   }
 }

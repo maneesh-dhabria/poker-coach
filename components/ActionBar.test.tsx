@@ -85,6 +85,28 @@ describe("ActionBar", () => {
     );
     expect(screen.queryByLabelText("Size to pot")).toBeNull();
   });
+
+  it("hides Fold when checking is free (fold is strictly dominated)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 200 }}
+        onAction={() => {}}
+        pot={20}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /fold/i })).toBeNull();
+    expect(screen.getByRole("button", { name: /check/i })).toBeInTheDocument();
+  });
+
+  it("shows Fold when facing a bet (no check available)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "call", "raise"], toCall: 8, minRaiseTo: 16, maxRaiseTo: 100 }}
+        onAction={() => {}}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /fold/i })).toBeInTheDocument();
+  });
 });
 
 describe("Seat", () => {
@@ -107,5 +129,15 @@ describe("Seat", () => {
   it("shows the dealer button marker", () => {
     render(<Seat seat={base} />);
     expect(screen.getByLabelText("dealer button")).toBeInTheDocument();
+  });
+
+  it("shows an action badge for an opponent's latest action (observation #3)", () => {
+    render(<Seat seat={base} lastAction={{ action: "raise", amount: 6 }} />);
+    expect(screen.getByTestId("seat-action").textContent).toBe("Raise $6");
+  });
+
+  it("does not show an action badge on the hero seat", () => {
+    render(<Seat seat={{ ...base, isHero: true }} lastAction={{ action: "call", amount: 2 }} />);
+    expect(screen.queryByTestId("seat-action")).toBeNull();
   });
 });

@@ -55,6 +55,34 @@ describe("analyze (T3 tracer: pot odds vs equity)", () => {
     expect(a.conceptTags).toContain("fold_too_tight");
   });
 
+  it("folding when checking is free is always a mistake, regardless of equity", () => {
+    // toCall 0 → no bet to face. Even with low equity, checking is free and dominates folding.
+    const low = analyze({ action: "fold", potBefore: 10, toCall: 0, equityPct: 7, street: "flop" });
+    expect(low.verdict).toBe("mistake");
+    expect(low.conceptTags).toContain("fold_too_tight");
+    // Plain language must NOT use the pot-odds "price" framing ($0 / need 0%).
+    expect(low.plainExplanation).toMatch(/checking is free/i);
+    expect(low.plainExplanation).not.toMatch(/0%/);
+
+    const high = analyze({ action: "fold", potBefore: 10, toCall: 0, equityPct: 55, street: "flop" });
+    expect(high.verdict).toBe("mistake");
+    expect(high.severity).toBe(3); // gave up more equity → more severe
+  });
+
+  it("a free-check fold hides numbers cleanly at conceptual depth", () => {
+    const a = analyze({
+      action: "fold",
+      potBefore: 10,
+      toCall: 0,
+      equityPct: 30,
+      street: "flop",
+      coachingDepth: "conceptual",
+    });
+    expect(a.plainExplanation).not.toContain("%");
+    expect(a.plainExplanation).not.toContain("$");
+    expect(a.plainExplanation).toMatch(/free/i);
+  });
+
   it("conceptual depth omits raw $ and % from the explanation", () => {
     const a = analyze({
       action: "call",

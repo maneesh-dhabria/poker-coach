@@ -42,7 +42,7 @@ interface Branch {
   verdict: Verdict;
   severity: 0 | 1 | 2 | 3;
   conceptTags: ConceptTag[];
-  kind: "price" | "preflop" | "valuecheck" | "aggression";
+  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
   gtoClaim: boolean;
   chart?: { applies: boolean; chartAction: string; heroDeviates: boolean };
   chartActionForExplain?: ChartAction;
@@ -112,7 +112,15 @@ function route(input: AnalyzeInput): Branch {
   // 2..5 postflop / no-chart heuristics.
   if (action === "check") return checkBranch(equityPct);
   if (action === "bet" || action === "raise") return aggressionBranch(equityPct);
-  if (action === "fold") return foldBranch(equityPct, potOdds(input.potBefore, input.toCall));
+  if (action === "fold") {
+    // No chips to call means checking is free — folding forfeits a free look at the pot and is
+    // strictly dominated by checking. That's a different (and always wrong) decision than folding
+    // to a bet, so it gets its own branch instead of the pot-odds "price" framing (which would
+    // nonsensically read "$0 to win, need 0%").
+    return input.toCall === 0
+      ? freeCheckFoldBranch(equityPct)
+      : foldBranch(equityPct, potOdds(input.potBefore, input.toCall));
+  }
   return callBranch(equityPct, potOdds(input.potBefore, input.toCall));
 }
 
@@ -179,6 +187,18 @@ function callBranch(equityPct: number, potOddsPct: number): Branch {
     verdict: "mistake",
     severity: edge <= -15 ? 3 : 2,
     conceptTags: ["call_too_wide"],
+  };
+}
+
+// Folding when checking is free. Always a mistake — checking costs nothing and keeps your hand
+// alive — so the verdict does not depend on equity; equity only scales how much was given up.
+function freeCheckFoldBranch(equityPct: number): Branch {
+  return {
+    kind: "freecheckfold",
+    gtoClaim: false,
+    verdict: "mistake",
+    severity: equityPct >= 25 ? 3 : 2,
+    conceptTags: ["fold_too_tight"],
   };
 }
 

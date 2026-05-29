@@ -1,6 +1,7 @@
 // Instant per-decision feedback (spec FR-53, FR-27, D7, NFR-04; wireframe 01). Renders the verdict
 // badge, the plain-language explanation, and — at equity/strict depth only — an equity bar with the
-// "needed to call" marker and the assumed-range note. Renders nothing when feedback is disabled.
+// "needed to call" marker, a plain why-this-verdict line, and an optional numbers breakdown.
+// Renders nothing when feedback is disabled. Honesty (§17): "chart-based" shows only when gtoClaim.
 import { DecisionAnalysis } from "@/core/analysis/types";
 
 const VERDICT_META = {
@@ -8,6 +9,11 @@ const VERDICT_META = {
   thin: { icon: "⚠️", label: "Thin", color: "var(--thin)" },
   mistake: { icon: "❌", label: "Mistake", color: "var(--mistake)" },
 } as const;
+
+// Humanize a concept tag enum ("call_too_wide" → "call too wide") for a small context chip.
+function tagLabel(tag: string): string {
+  return tag.replace(/_/g, " ");
+}
 
 function VerdictBadge({ verdict }: { verdict: DecisionAnalysis["verdict"] }) {
   const m = VERDICT_META[verdict];
@@ -31,6 +37,7 @@ function VerdictBadge({ verdict }: { verdict: DecisionAnalysis["verdict"] }) {
 }
 
 function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: number | null }) {
+  const winning = neededPct === null || equityPct >= neededPct;
   return (
     <div
       data-testid="equity-bar"
@@ -41,8 +48,9 @@ function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: num
         style={{
           width: `${equityPct}%`,
           height: "100%",
-          background: "var(--good)",
+          background: winning ? "var(--good)" : "var(--thin)",
           borderRadius: "var(--r-pill)",
+          transition: "width 300ms ease",
         }}
       />
       {neededPct !== null && (
@@ -52,8 +60,8 @@ function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: num
           title={`needed ${Math.round(neededPct)}%`}
           style={{
             position: "absolute",
-            top: -2,
-            bottom: -2,
+            top: -3,
+            bottom: -3,
             left: `${neededPct}%`,
             width: 2,
             background: "var(--ink)",
@@ -62,6 +70,22 @@ function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: num
       )}
     </div>
   );
+}
+
+// One plain sentence that explains WHY the verdict landed where it did, in win-vs-need terms.
+function whyLine(eq: number, need: number | null): string {
+  if (need === null) return "";
+  const win = Math.round(eq);
+  const n = Math.round(need);
+  if (eq >= need) {
+    return `You win ~${win}% but only need ~${n}% — that gap is why continuing makes money over time.`;
+  }
+  return `You win ~${win}% but need ~${n}% — you come up short, so this loses money over time.`;
+}
+
+function money(n: number, unit: "usd" | "bb"): string {
+  const r = Math.round(n * 10) / 10;
+  return unit === "usd" ? `$${r}` : `${r} bb`;
 }
 
 export function FeedbackPanel({
@@ -74,35 +98,75 @@ export function FeedbackPanel({
   if (!enabled || !analysis) return null;
   const showNumbers = analysis.coachingDepth !== "conceptual";
   const eq = analysis.numbers.equityPct;
+  const need = analysis.numbers.potOddsPct;
+  const ev = analysis.numbers.ev;
+  const unit = analysis.numbers.unit;
 
   return (
     <aside
       data-testid="feedback-panel"
-      style={{ background: "var(--panel)", borderRadius: "var(--r-md)", padding: 16, maxWidth: 420 }}
+      className="card"
+      style={{ maxWidth: 420 }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <VerdictBadge verdict={analysis.verdict} />
         {analysis.gtoClaim ? (
           <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>chart-based</span>
         ) : null}
       </div>
 
-      <p data-testid="plain-math" style={{ marginTop: 10 }}>
+      {analysis.conceptTags.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+          {analysis.conceptTags.map((t) => (
+            <span
+              key={t}
+              style={{
+                fontSize: 11,
+                color: "var(--ink-soft)",
+                border: "1px solid var(--ink-soft)",
+                borderRadius: "var(--r-pill)",
+                padding: "1px 8px",
+              }}
+            >
+              {tagLabel(t)}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <p data-testid="plain-math" style={{ marginTop: 10, lineHeight: 1.5 }}>
         {analysis.plainExplanation}
       </p>
 
       {showNumbers && eq !== null ? (
         <div style={{ marginTop: 8 }}>
-          <EquityBar equityPct={eq} neededPct={analysis.numbers.potOddsPct} />
+          <EquityBar equityPct={eq} neededPct={need} />
           <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
             You win ~{Math.round(eq)}%
-            {analysis.numbers.potOddsPct !== null ? ` · need ~${Math.round(analysis.numbers.potOddsPct)}%` : ""}
+            {need !== null ? ` · need ~${Math.round(need)}%` : ""}
           </div>
+          {need !== null && (
+            <p style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{whyLine(eq, need)}</p>
+          )}
           {analysis.assumedRange ? (
             <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 2 }}>
               vs {analysis.assumedRange}
             </div>
           ) : null}
+
+          <details style={{ marginTop: 8 }}>
+            <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ink-soft)" }}>
+              Show the numbers
+            </summary>
+            <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6, display: "grid", gap: 2 }}>
+              <span>Average result if you fold: {money(ev.fold, unit)}</span>
+              <span>Average result if you call: {money(ev.call, unit)}</span>
+              <span>Average result if you raise: {money(ev.raise, unit)}</span>
+              <span style={{ marginTop: 4 }}>
+                Higher is better — these are long-run averages, not this one hand.
+              </span>
+            </div>
+          </details>
         </div>
       ) : null}
     </aside>

@@ -1,9 +1,12 @@
 :root {
   --felt: #0f3d2e; --felt-deep: #0a2c20; --panel: #15211c; --panel-2: #1d2c26;
-  --ink: #eef2ee; --ink-soft: #b8c4bc; --gold: #d8b15a;
+  --ink: #eef2ee; --ink-soft: #b8c4bc; --gold: #d8b15a; --gold-deep: #b8923f;
   --good: #3fb96b; --thin: #e0b54a; --mistake: #e5594e;
   --card-face: #f7f5ef; --hearts: #c62f2f; --spades: #1b1b1b;
+  --chip: #e8c869; --chip-edge: #b8923f;
   --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-pill: 999px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
@@ -14,3 +17,106 @@ body {
 }
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 button { font: inherit; cursor: pointer; }
+
+/* ── Buttons ───────────────────────────────────────────────────────────────
+   Class-based so we get real :hover / :active states (inline styles can't).
+   .btn is the base; variant + state modifiers layer on top. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--r-pill);
+  border: 1px solid transparent;
+  padding: 8px 16px;
+  font-weight: 600;
+  line-height: 1.1;
+  transition: transform 80ms ease, background 120ms ease, border-color 120ms ease,
+    box-shadow 120ms ease, color 120ms ease;
+  box-shadow: var(--shadow-1);
+}
+.btn:active { transform: translateY(1px) scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; transform: none; }
+
+/* Primary — gold, for the main commitment on a screen (Deal, Raise). */
+.btn--primary { background: var(--gold); color: #1b1b1b; border-color: var(--gold-deep); }
+.btn--primary:hover:not(:disabled) { background: #e6c06b; box-shadow: var(--shadow-2); }
+
+/* Secondary — panel fill with gold edge, for legal actions / common buttons. */
+.btn--secondary { background: var(--panel-2); color: var(--ink); border-color: var(--gold); }
+.btn--secondary:hover:not(:disabled) { background: #25362e; box-shadow: var(--shadow-2); }
+
+/* Ghost — quiet, for sizing chips and tertiary toggles when unselected. */
+.btn--ghost { background: transparent; color: var(--ink-soft); border-color: var(--ink-soft); }
+.btn--ghost:hover:not(:disabled) { color: var(--ink); border-color: var(--ink); }
+
+.btn--sm { padding: 4px 10px; font-size: 13px; }
+
+/* Native selects/checkboxes styled to match the dark felt theme (observation #1). */
+.select {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--r-sm);
+  padding: 7px 10px;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+.select:hover { border-color: var(--gold); }
+
+/* A surface card used to group setup sections / the end-of-hand recap. */
+.card {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--r-md);
+  padding: 16px;
+  box-shadow: var(--shadow-1);
+}
+
+/* Selected — a toggle/segmented option that is currently active. Filled gold so
+   the chosen option reads at a glance (observation #2). */
+.btn--selected {
+  background: var(--gold);
+  color: #1b1b1b;
+  border-color: var(--gold-deep);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15), var(--shadow-1);
+}
+.btn--selected:hover:not(:disabled) { background: #e6c06b; }
+
+/* ── Chip-to-pot animation (observation #3) ──────────────────────────────────
+   A small chip token slides from a seat toward the pot when a bot commits chips. */
+.chip-token {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--chip), var(--chip-edge));
+  border: 2px solid var(--chip-edge);
+  box-shadow: var(--shadow-1);
+  pointer-events: none;
+  z-index: 5;
+}
+.chip-fly { animation: chip-fly 520ms ease-in forwards; }
+@keyframes chip-fly {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: var(--chip-dest, translate(0, -60px)) scale(0.6); opacity: 0; }
+}
+
+/* Action badge that flashes on a seat when it acts. */
+.action-badge {
+  animation: badge-pop 240ms ease-out;
+}
+@keyframes badge-pop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+  .btn:active { transform: none; }
+  .chip-fly { animation: none; opacity: 0; }
+  .action-badge { animation: none; }
+}

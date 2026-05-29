@@ -5,6 +5,22 @@ import { useSessionStore } from "@/store/sessionStore";
 import { personaFor, tablePreset, Style, Skill, PresetName } from "@/core/bots/personas";
 import { BotParams } from "@/core/bots/botEngine";
 import { CoachingDepth } from "@/core/analysis/types";
+import { Button } from "@/components/ui/Button";
+
+// Which preset is currently applied, for the selected affordance (observation #2). A preset is
+// "active" when every seat's (style, skill) matches what that preset would produce.
+function activePreset(personas: BotParams[], n: number): PresetName | null {
+  for (const preset of PRESETS) {
+    const want = tablePreset(preset, n);
+    if (
+      personas.length >= n &&
+      want.every((w, i) => personas[i]?.style === w.style && personas[i]?.skill === w.skill)
+    ) {
+      return preset;
+    }
+  }
+  return null;
+}
 
 const STYLES: Style[] = ["TAG", "LAG", "Nit", "Calling Station"];
 const SKILLS: Skill[] = ["Beginner", "Intermediate", "Advanced"];
@@ -39,14 +55,17 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
     setSettings({ personas });
   };
 
-  return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24 }}>
-      <h1 style={{ color: "var(--gold)" }}>New Session</h1>
+  const selectedPreset = activePreset(settings.personas, settings.numOpponents);
 
-      <section>
+  return (
+    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24, display: "grid", gap: 16 }}>
+      <h1 style={{ color: "var(--gold)", margin: 0 }}>New Session</h1>
+
+      <section className="card">
         <label htmlFor="numOpponents">Number of opponents</label>{" "}
         <select
           id="numOpponents"
+          className="select"
           value={settings.numOpponents}
           onChange={(e) => setOpponents(Number(e.target.value))}
         >
@@ -56,28 +75,30 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
             </option>
           ))}
         </select>
+
+        <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>Table presets:</span>
+          {PRESETS.map((p) => (
+            <Button
+              key={p}
+              size="sm"
+              variant={selectedPreset === p ? "primary" : "ghost"}
+              selected={selectedPreset === p}
+              onClick={() => setSettings({ personas: tablePreset(p, settings.numOpponents) })}
+            >
+              {p}
+            </Button>
+          ))}
+        </div>
       </section>
 
-      <section style={{ marginTop: 12 }}>
-        <span>Table presets:</span>{" "}
-        {PRESETS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            onClick={() => setSettings({ personas: tablePreset(p, settings.numOpponents) })}
-            style={{ marginRight: 6 }}
-          >
-            {p}
-          </button>
-        ))}
-      </section>
-
-      <section style={{ marginTop: 16 }}>
-        <h2>Opponents</h2>
+      <section className="card">
+        <h2 style={{ marginTop: 0 }}>Opponents</h2>
         {settings.personas.slice(0, settings.numOpponents).map((p, i) => (
-          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
+          <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
             <span style={{ width: 64 }}>Bot {i + 1}</span>
             <select
+              className="select"
               aria-label={`Style for Bot ${i + 1}`}
               value={p.style}
               onChange={(e) => setPersona(i, { style: e.target.value as Style })}
@@ -87,6 +108,7 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
               ))}
             </select>
             <select
+              className="select"
               aria-label={`Skill for Bot ${i + 1}`}
               value={p.skill}
               onChange={(e) => setPersona(i, { skill: e.target.value as Skill })}
@@ -99,50 +121,46 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
         ))}
       </section>
 
-      <section style={{ marginTop: 16 }}>
-        <h2 id="depth-label">Coaching depth</h2>
-        <div role="radiogroup" aria-labelledby="depth-label">
+      <section className="card">
+        <h2 id="depth-label" style={{ marginTop: 0 }}>
+          Coaching depth
+        </h2>
+        <div role="radiogroup" aria-labelledby="depth-label" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {DEPTHS.map((d) => (
-            <button
+            <Button
               key={d.value}
-              type="button"
               role="radio"
               aria-checked={settings.coachingDepth === d.value}
+              variant={settings.coachingDepth === d.value ? "primary" : "ghost"}
+              selected={settings.coachingDepth === d.value}
               onClick={() => setSettings({ coachingDepth: d.value })}
-              style={{ marginRight: 6 }}
+              title={d.hint}
             >
               {d.label}
-            </button>
+            </Button>
           ))}
         </div>
+        <p style={{ color: "var(--ink-soft)", fontSize: 13, margin: "8px 0 0" }}>
+          {DEPTHS.find((d) => d.value === settings.coachingDepth)?.hint}
+        </p>
       </section>
 
-      <section style={{ marginTop: 16 }}>
-        <label>
+      <section className="card">
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
             checked={settings.feedbackEnabled}
             onChange={(e) => setSettings({ feedbackEnabled: e.target.checked })}
-          />{" "}
+          />
           Show instant feedback after each of my decisions
         </label>
       </section>
 
-      <button
-        type="button"
-        onClick={onDeal}
-        style={{
-          marginTop: 24,
-          background: "var(--gold)",
-          color: "#1b1b1b",
-          border: "none",
-          borderRadius: "var(--r-pill)",
-          padding: "10px 24px",
-          fontWeight: 700,
-        }}
-      >
-        Deal
-      </button>
+      <div>
+        <Button variant="primary" onClick={onDeal} style={{ padding: "10px 28px", fontSize: 16 }}>
+          Deal
+        </Button>
+      </div>
     </main>
   );
 }

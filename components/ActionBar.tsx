@@ -3,6 +3,7 @@
 // [minRaiseTo, maxRaiseTo] (spec FR-04, FR-52, wireframe 01).
 import { useState } from "react";
 import { Action, LegalActions } from "@/core/engine/gameEngine";
+import { Button } from "@/components/ui/Button";
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
@@ -30,17 +31,27 @@ export function ActionBar({
   const quickTo = (fraction: number) =>
     clamp(Math.round(pot * fraction) + legal.toCall, legal.minRaiseTo, legal.maxRaiseTo);
 
-  const btn = (label: string, a: Action) => (
-    <button type="button" disabled={disabled} onClick={() => onAction(a)} style={btnStyle}>
-      {label}
-    </button>
-  );
+  // Folding when you can check for free is strictly dominated — no real client offers it. Hide Fold
+  // whenever Check is legal so the only choices are the meaningful ones (check or bet).
+  const showFold = legal.actions.includes("fold") && !legal.actions.includes("check");
 
   return (
     <div data-testid="action-bar" style={{ display: "flex", gap: 8, alignItems: "center" }}>
-      {legal.actions.includes("fold") && btn("Fold", { type: "fold" })}
-      {legal.actions.includes("check") && btn("Check", { type: "check" })}
-      {legal.actions.includes("call") && btn(`Call $${legal.toCall}`, { type: "call" })}
+      {showFold && (
+        <Button variant="secondary" disabled={disabled} onClick={() => onAction({ type: "fold" })}>
+          Fold
+        </Button>
+      )}
+      {legal.actions.includes("check") && (
+        <Button variant="secondary" disabled={disabled} onClick={() => onAction({ type: "check" })}>
+          Check
+        </Button>
+      )}
+      {legal.actions.includes("call") && (
+        <Button variant="secondary" disabled={disabled} onClick={() => onAction({ type: "call" })}>
+          Call ${legal.toCall}
+        </Button>
+      )}
       {sizingKind && (
         <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <input
@@ -56,43 +67,27 @@ export function ActionBar({
           />
           {pot > 0 && (
             <span style={{ display: "flex", gap: 4 }}>
-              <button type="button" disabled={disabled} aria-label="Size to half pot" onClick={() => setAmount(quickTo(0.5))} style={quickStyle}>
+              <Button variant="ghost" size="sm" disabled={disabled} aria-label="Size to half pot" onClick={() => setAmount(quickTo(0.5))}>
                 ½
-              </button>
-              <button type="button" disabled={disabled} aria-label="Size to three-quarter pot" onClick={() => setAmount(quickTo(0.75))} style={quickStyle}>
+              </Button>
+              <Button variant="ghost" size="sm" disabled={disabled} aria-label="Size to three-quarter pot" onClick={() => setAmount(quickTo(0.75))}>
                 ¾
-              </button>
-              <button type="button" disabled={disabled} aria-label="Size to pot" onClick={() => setAmount(quickTo(1))} style={quickStyle}>
+              </Button>
+              <Button variant="ghost" size="sm" disabled={disabled} aria-label="Size to pot" onClick={() => setAmount(quickTo(1))}>
                 Pot
-              </button>
+              </Button>
             </span>
           )}
           <span data-testid="bet-size">${sized}</span>
-          {btn(sizingKind === "raise" ? `Raise to $${sized}` : `Bet $${sized}`, {
-            type: sizingKind,
-            amount: sized,
-          })}
+          <Button
+            variant="primary"
+            disabled={disabled}
+            onClick={() => onAction({ type: sizingKind, amount: sized })}
+          >
+            {sizingKind === "raise" ? `Raise to $${sized}` : `Bet $${sized}`}
+          </Button>
         </span>
       )}
     </div>
   );
 }
-
-const btnStyle: React.CSSProperties = {
-  background: "var(--panel-2)",
-  color: "var(--ink)",
-  border: "1px solid var(--gold)",
-  borderRadius: "var(--r-pill)",
-  padding: "8px 16px",
-  fontWeight: 600,
-};
-
-const quickStyle: React.CSSProperties = {
-  background: "transparent",
-  color: "var(--ink-soft)",
-  border: "1px solid var(--ink-soft)",
-  borderRadius: "var(--r-pill)",
-  padding: "4px 10px",
-  fontWeight: 600,
-  cursor: "pointer",
-};

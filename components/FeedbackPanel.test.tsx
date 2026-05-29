@@ -37,4 +37,18 @@ describe("FeedbackPanel", () => {
     expect(screen.queryByTestId("equity-bar")).toBeNull();
     expect(screen.getByTestId("feedback-panel").textContent).not.toContain("%");
   });
+
+  it("explains WHY the verdict landed, in win-vs-need words (observation #4)", () => {
+    const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
+    render(<FeedbackPanel analysis={a} enabled />);
+    // 46% equity vs 25% needed → the gap explanation.
+    expect(screen.getByText(/that gap is why continuing makes money/i)).toBeInTheDocument();
+  });
+
+  it("offers an optional numbers breakdown (the 'more details' ask)", () => {
+    const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
+    render(<FeedbackPanel analysis={a} enabled />);
+    expect(screen.getByText(/show the numbers/i)).toBeInTheDocument();
+    expect(screen.getByText(/average result if you call/i)).toBeInTheDocument();
+  });
 });
