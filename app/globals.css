@@ -1,0 +1,16 @@
+:root {
+  --felt: #0f3d2e; --felt-deep: #0a2c20; --panel: #15211c; --panel-2: #1d2c26;
+  --ink: #eef2ee; --ink-soft: #b8c4bc; --gold: #d8b15a;
+  --good: #3fb96b; --thin: #e0b54a; --mistake: #e5594e;
+  --card-face: #f7f5ef; --hearts: #c62f2f; --spades: #1b1b1b;
+  --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-pill: 999px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--felt-deep);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+button { font: inherit; cursor: pointer; }
