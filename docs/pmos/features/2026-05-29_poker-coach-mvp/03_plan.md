@@ -50,6 +50,7 @@ Phase 4 Coach skill + e2e:         T18 → T19 → T20 (TN)
 | P5 | Baseline preflop charts hand-authored as compact JSON keyed by position | generate-offline vs author | Small, transparent, no ToS issues (spec D11) |
 | P6 | Bots call equity only on close postflop spots; else pure heuristic | always-equity vs selective | Perf (NFR-01/02); equity is the expensive path |
 | P7 | `/poker-coach` is a project skill at `.claude/skills/poker-coach/SKILL.md` | global vs project | Lives with the repo + its data dir |
+| P8 | Implement own hand-evaluator + own engine (drop poker-ts / poker-evaluator-ts) | wrap libs vs own | Keeps `core/` pure + dependency-light, avoids the large HandRanks.dat binary + lib-integration risk; still satisfies §17 (core is the engine boundary, no React/DOM). Execution-time decision, supersedes spec D14/plan P3. |
 
 ## Code Study Notes
 > Glossary inherited from 02_spec.md.
