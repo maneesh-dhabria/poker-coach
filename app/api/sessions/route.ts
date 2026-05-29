@@ -4,9 +4,11 @@ import { saveSession, SESSION_SCHEMA_VERSION, SessionSettings } from "@/lib/data
 
 function newSessionId(): string {
   const now = new Date();
-  const stamp = now.toISOString().replace(/[-:T]/g, "").slice(0, 15); // YYYYMMDDhhmmss
+  const iso = now.toISOString().replace(/[-:T]/g, ""); // YYYYMMDDHHMMSS...
+  const date = iso.slice(0, 8); // YYYYMMDD
+  const time = iso.slice(8, 14); // HHMMSS
   const suffix = Math.random().toString(36).slice(2, 6);
-  return `${stamp}-${suffix}`;
+  return `${date}-${time}-${suffix}`; // YYYYMMDD-HHMMSS-<rand> (spec FR-30 / §9.1)
 }
 
 export async function POST(req: Request) {

@@ -10,10 +10,12 @@ export function ActionBar({
   legal,
   onAction,
   disabled,
+  pot = 0,
 }: {
   legal: LegalActions;
   onAction: (a: Action) => void;
   disabled?: boolean;
+  pot?: number;
 }) {
   const canRaise = legal.actions.includes("raise");
   const canBet = legal.actions.includes("bet");
@@ -22,6 +24,11 @@ export function ActionBar({
 
   // Keep the slider value within the current legal band if props changed.
   const sized = clamp(amount, legal.minRaiseTo, legal.maxRaiseTo);
+
+  // Pot-relative quick sizes (spec FR-52). A bet targets a pot-fraction; a raise adds that
+  // fraction on top of calling. Always clamped to the legal band, so the result is never illegal.
+  const quickTo = (fraction: number) =>
+    clamp(Math.round(pot * fraction) + legal.toCall, legal.minRaiseTo, legal.maxRaiseTo);
 
   const btn = (label: string, a: Action) => (
     <button type="button" disabled={disabled} onClick={() => onAction(a)} style={btnStyle}>
@@ -47,6 +54,19 @@ export function ActionBar({
               setAmount(clamp(Number(e.target.value), legal.minRaiseTo, legal.maxRaiseTo))
             }
           />
+          {pot > 0 && (
+            <span style={{ display: "flex", gap: 4 }}>
+              <button type="button" disabled={disabled} aria-label="Size to half pot" onClick={() => setAmount(quickTo(0.5))} style={quickStyle}>
+                ½
+              </button>
+              <button type="button" disabled={disabled} aria-label="Size to three-quarter pot" onClick={() => setAmount(quickTo(0.75))} style={quickStyle}>
+                ¾
+              </button>
+              <button type="button" disabled={disabled} aria-label="Size to pot" onClick={() => setAmount(quickTo(1))} style={quickStyle}>
+                Pot
+              </button>
+            </span>
+          )}
           <span data-testid="bet-size">${sized}</span>
           {btn(sizingKind === "raise" ? `Raise to $${sized}` : `Bet $${sized}`, {
             type: sizingKind,
@@ -65,4 +85,14 @@ const btnStyle: React.CSSProperties = {
   borderRadius: "var(--r-pill)",
   padding: "8px 16px",
   fontWeight: 600,
+};
+
+const quickStyle: React.CSSProperties = {
+  background: "transparent",
+  color: "var(--ink-soft)",
+  border: "1px solid var(--ink-soft)",
+  borderRadius: "var(--r-pill)",
+  padding: "4px 10px",
+  fontWeight: 600,
+  cursor: "pointer",
 };

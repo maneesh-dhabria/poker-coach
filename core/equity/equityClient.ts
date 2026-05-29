@@ -44,13 +44,23 @@ export function requestEquity(req: EquityRequest, makeWorker?: WorkerFactory): P
 
   const id = `eq-${idCounter++}`;
   return new Promise<EquityResponse>((resolve, reject) => {
+    // requestEquity owns the worker it built via makeWorker, so it must dispose it once the
+    // request settles — otherwise a long session leaks one worker thread per hero decision.
     const onMessage = (e: MessageEvent) => {
       if (e.data?.id !== id) return;
       worker.removeEventListener("message", onMessage);
+      worker.terminate();
       resolve({ equityPct: e.data.equityPct, iterations: e.data.iterations, ms: e.data.ms });
     };
     worker.addEventListener("message", onMessage);
-    worker.addEventListener("error", (err) => reject(err), { once: true });
+    worker.addEventListener(
+      "error",
+      (err) => {
+        worker.terminate();
+        reject(err);
+      },
+      { once: true },
+    );
     worker.postMessage({ id, type: "equity", ...req });
   });
 }

@@ -6,6 +6,7 @@ out/
 .DS_Store
 coverage/
 *.tsbuildinfo
+.playwright-mcp/
 
 # Runtime data is local-only; keep the folder, not its contents.
 /data/**

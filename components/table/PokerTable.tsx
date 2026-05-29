@@ -48,7 +48,7 @@ export function PokerTable() {
             </button>
           </div>
         ) : view.isHeroTurn ? (
-          <ActionBar legal={view.legal} onAction={heroAct} disabled={busy} />
+          <ActionBar legal={view.legal} onAction={heroAct} disabled={busy} pot={view.pot} />
         ) : (
           <p style={{ color: "var(--ink-soft)" }}>Opponents acting…</p>
         )}

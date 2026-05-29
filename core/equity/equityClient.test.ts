@@ -19,8 +19,9 @@ describe("requestEquity", () => {
     expect(res.iterations).toBeGreaterThan(0);
   });
 
-  it("uses an injected worker factory and resolves on the matching id", async () => {
+  it("uses an injected worker factory, resolves on the matching id, and disposes the worker", async () => {
     // Fake worker that echoes a canned equity response for whatever id it receives.
+    let terminated = false;
     class FakeWorker {
       private listeners: Record<string, ((e: MessageEvent) => void)[]> = {};
       addEventListener(type: string, cb: (e: MessageEvent) => void) {
@@ -28,6 +29,9 @@ describe("requestEquity", () => {
       }
       removeEventListener(type: string, cb: (e: MessageEvent) => void) {
         this.listeners[type] = (this.listeners[type] ?? []).filter((f) => f !== cb);
+      }
+      terminate() {
+        terminated = true;
       }
       postMessage(msg: { id: string }) {
         const event = { data: { id: msg.id, equityPct: 55.5, iterations: 100, ms: 1 } } as MessageEvent;
@@ -45,5 +49,8 @@ describe("requestEquity", () => {
       () => new FakeWorker() as unknown as Worker,
     );
     expect(res.equityPct).toBe(55.5);
+    // Regression guard: the worker must be torn down after the request settles so a long
+    // session doesn't leak one worker thread per hero decision.
+    expect(terminated).toBe(true);
   });
 });
