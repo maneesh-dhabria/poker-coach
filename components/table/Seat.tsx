@@ -9,46 +9,36 @@ export interface SeatAction {
   amount: number;
 }
 
-const ACTION_BADGE: Record<string, (amt: number) => { text: string; color: string; chips: boolean }> = {
-  fold: () => ({ text: "Fold", color: "var(--mistake)", chips: false }),
-  check: () => ({ text: "Check", color: "var(--ink-soft)", chips: false }),
-  call: (a) => ({ text: `Call $${a}`, color: "var(--good)", chips: a > 0 }),
-  bet: (a) => ({ text: `Bet $${a}`, color: "var(--gold)", chips: a > 0 }),
-  raise: (a) => ({ text: `Raise $${a}`, color: "var(--gold)", chips: a > 0 }),
+const ACTION_BADGE: Record<string, (amt: number) => { text: string; color: string }> = {
+  fold: () => ({ text: "Fold", color: "var(--mistake)" }),
+  check: () => ({ text: "Check", color: "var(--ink-soft)" }),
+  call: (a) => ({ text: `Call $${a}`, color: "var(--good)" }),
+  bet: (a) => ({ text: `Bet $${a}`, color: "var(--gold)" }),
+  raise: (a) => ({ text: `Raise $${a}`, color: "var(--gold)" }),
 };
 
 function ActionBadge({ action }: { action: SeatAction }) {
   const meta = ACTION_BADGE[action.action]?.(action.amount);
   if (!meta) return null;
   return (
-    <div style={{ position: "relative" }}>
-      <span
-        data-testid="seat-action"
-        className="action-badge"
-        // key on the action so a new action re-triggers the pop + chip animation
-        key={`${action.action}-${action.amount}`}
-        style={{
-          display: "inline-block",
-          marginTop: 6,
-          fontSize: 11,
-          fontWeight: 700,
-          color: "#10231a",
-          background: meta.color,
-          borderRadius: "var(--r-pill)",
-          padding: "1px 8px",
-        }}
-      >
-        {meta.text}
-      </span>
-      {meta.chips && (
-        <span
-          key={`chip-${action.action}-${action.amount}`}
-          className="chip-token chip-fly"
-          aria-hidden
-          style={{ left: "50%", top: 0, ["--chip-dest" as string]: "translate(-50%, 56px)" }}
-        />
-      )}
-    </div>
+    <span
+      data-testid="seat-action"
+      className="action-badge"
+      // key on the action so a new action re-triggers the pop
+      key={`${action.action}-${action.amount}`}
+      style={{
+        display: "inline-block",
+        marginTop: 6,
+        fontSize: 11,
+        fontWeight: 700,
+        color: "#10231a",
+        background: meta.color,
+        borderRadius: "var(--r-pill)",
+        padding: "1px 8px",
+      }}
+    >
+      {meta.text}
+    </span>
   );
 }
 

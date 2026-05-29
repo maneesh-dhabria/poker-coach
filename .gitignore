@@ -11,3 +11,4 @@ coverage/
 # Runtime data is local-only; keep the folder, not its contents.
 /data/**
 !/data/.gitkeep
+.superpowers/

@@ -69,6 +69,20 @@ export interface TableView {
   heroNet: number | null;
 }
 
+/** A replay snapshot of the hand as of the first `step` revealed actions — drives the central
+ * pot zone and the street-by-street board reveal (presentational only; never feeds verdicts). */
+export interface ReplaySnapshot {
+  pot: number;
+  street: Street;
+  boardCount: number;
+  roundContributions: {
+    seat: number;
+    name: string;
+    action: string;
+    amount: number;
+  }[];
+}
+
 export class HandFlow {
   private h: Hand;
   private input: StartFlowInput;
@@ -224,6 +238,21 @@ export class HandFlow {
     return this.actions;
   }
 
+  /** A render-ready snapshot of the hand as of the first `step` actions — drives the central pot
+   * zone and the street-by-street board reveal. Pure/presentational; never feeds verdicts. */
+  replayAt(step: number): ReplaySnapshot {
+    const slice = this.actions.slice(0, Math.max(0, step));
+    const base = this.input.config.smallBlind + this.input.config.bigBlind;
+    const pot = slice.reduce((sum, a) => sum + a.amount, base);
+    const street: Street = slice.length > 0 ? slice[slice.length - 1].street : "preflop";
+    const nameOf = (seat: number) =>
+      this.input.seats.find((s) => s.seat === seat)?.name ?? `Seat ${seat}`;
+    const roundContributions = slice
+      .filter((a) => a.street === street && a.amount > 0)
+      .map((a) => ({ seat: a.seat, name: nameOf(a.seat), action: a.action, amount: a.amount }));
+    return { pot, street, boardCount: boardCountForStreet(street), roundContributions };
+  }
+
   /** A render-ready snapshot of the table for the UI (presentational components consume this). */
   tableView(): TableView {
     const over = this.isOver();
@@ -302,6 +331,18 @@ export function startHand(input: StartFlowInput): HandFlow {
   const flow = new HandFlow(input);
   flow.autoPlayBots(); // advance to the hero's first decision (or straight to showdown)
   return flow;
+}
+
+const BOARD_COUNT_BY_STREET: Record<Street, number> = {
+  preflop: 0,
+  flop: 3,
+  turn: 4,
+  river: 5,
+};
+
+/** How many community cards are visible on a given street. */
+export function boardCountForStreet(street: Street): number {
+  return BOARD_COUNT_BY_STREET[street];
 }
 
 /** The most recent action each seat took, given a (possibly partial) action log. Used by the UI to
