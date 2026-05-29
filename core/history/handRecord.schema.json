@@ -1,0 +1,168 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "HandRecord",
+  "description": "Persisted record of one played hand — the app↔coach contract (spec §9.1).",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "handId",
+    "sessionId",
+    "handNumber",
+    "playedAt",
+    "config",
+    "heroSeat",
+    "seats",
+    "heroHole",
+    "board",
+    "actions",
+    "heroDecisions",
+    "outcome"
+  ],
+  "properties": {
+    "schemaVersion": { "type": "integer" },
+    "handId": { "type": "string" },
+    "sessionId": { "type": "string" },
+    "handNumber": { "type": "integer" },
+    "playedAt": { "type": "string" },
+    "config": {
+      "type": "object",
+      "required": ["numPlayers", "smallBlind", "bigBlind", "startingStackBb"],
+      "properties": {
+        "numPlayers": { "type": "integer" },
+        "smallBlind": { "type": "number" },
+        "bigBlind": { "type": "number" },
+        "startingStackBb": { "type": "number" }
+      }
+    },
+    "heroSeat": { "type": "integer" },
+    "seats": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["seat", "name", "isHero", "startingStack", "position", "persona"],
+        "properties": {
+          "seat": { "type": "integer" },
+          "name": { "type": "string" },
+          "isHero": { "type": "boolean" },
+          "startingStack": { "type": "number" },
+          "position": { "type": "string" },
+          "persona": {
+            "type": ["object", "null"],
+            "properties": {
+              "style": { "type": "string" },
+              "skill": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "heroHole": { "type": "array", "items": { "type": "string" } },
+    "board": { "type": "array", "items": { "type": "string" } },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["street", "seat", "action", "amount"],
+        "properties": {
+          "street": { "type": "string" },
+          "seat": { "type": "integer" },
+          "action": { "type": "string" },
+          "amount": { "type": "number" }
+        }
+      }
+    },
+    "heroDecisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["decisionId", "street", "spot", "heroAction", "analysis"],
+        "properties": {
+          "decisionId": { "type": "string" },
+          "street": { "type": "string" },
+          "spot": {
+            "type": "object",
+            "required": [
+              "potBefore",
+              "toCall",
+              "position",
+              "stackBb",
+              "numActiveOpponents",
+              "facing"
+            ],
+            "properties": {
+              "potBefore": { "type": "number" },
+              "toCall": { "type": "number" },
+              "position": { "type": "string" },
+              "stackBb": { "type": "number" },
+              "numActiveOpponents": { "type": "integer" },
+              "facing": { "type": "string" }
+            }
+          },
+          "heroAction": {
+            "type": "object",
+            "required": ["action", "amount"],
+            "properties": {
+              "action": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          },
+          "analysis": {
+            "type": "object",
+            "required": [
+              "schemaVersion",
+              "verdict",
+              "severity",
+              "conceptTags",
+              "coachingDepth",
+              "gtoClaim",
+              "assumedRange",
+              "numbers",
+              "plainExplanation"
+            ],
+            "properties": {
+              "schemaVersion": { "type": "integer" },
+              "verdict": { "type": "string" },
+              "severity": { "type": "integer" },
+              "conceptTags": { "type": "array", "items": { "type": "string" } },
+              "coachingDepth": { "type": "string" },
+              "gtoClaim": { "type": "boolean" },
+              "assumedRange": { "type": ["string", "null"] },
+              "numbers": { "type": "object" },
+              "plainExplanation": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "required": ["winners", "heroNet", "shown", "endedAtShowdown"],
+      "properties": {
+        "winners": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["seat", "amount"],
+            "properties": {
+              "seat": { "type": "integer" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "heroNet": { "type": "number" },
+        "shown": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["seat", "cards"],
+            "properties": {
+              "seat": { "type": "integer" },
+              "cards": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "endedAtShowdown": { "type": "boolean" }
+      }
+    }
+  }
+}
