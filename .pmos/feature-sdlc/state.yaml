@@ -1,0 +1,85 @@
+schema_version: 4
+pipeline_mode: feature
+mode: interactive
+output_format: md
+slug: poker-coach-mvp
+started_at: 2026-05-29
+last_updated: 2026-05-29
+worktree_path: null
+branch: feat/poker-coach-mvp
+feature_folder: docs/pmos/features/2026-05-29_poker-coach-mvp/
+tier: null
+seed: docs/superpowers/specs/2026-05-29-poker-coach-design.md
+current_phase: requirements
+open_questions_log: []
+phases:
+  init-state:
+    status: completed
+    started_at: 2026-05-29
+    artifact_path: null
+  ideate:
+    status: skipped-formed
+    started_at: 2026-05-29
+    artifact_path: null
+    seed_shape: formed
+  requirements:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  grill:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  creativity:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  wireframes:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  prototype:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  spec:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  plan:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  execute:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  verify:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  complete-dev:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  retro:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  final-summary:
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+notes: "reused-existing-design-doc as requirements seed; --no-worktree; output_format=md"
