@@ -4,7 +4,7 @@ mode: interactive
 output_format: md
 slug: poker-coach-mvp
 started_at: 2026-05-29
-last_updated: 2026-05-29T19:30:00Z
+last_updated: 2026-05-29T20:15:00Z
 worktree_path: null
 branch: feat/poker-coach-mvp
 feature_folder: docs/pmos/features/2026-05-29_poker-coach-mvp/
@@ -72,10 +72,11 @@ phases:
     folded_phase_failures: []
     verify_note: "PASS. Static: lint/tsc clean, 99 tests (was 96; +3 regression), prod build OK. 4 parallel code-review agents: core math correct, no 75+ bugs. Fixed 4 gaps + re-verified: worker leak (terminate), FR-30 id format, FR-05 crypto seed, FR-52 ½/¾/pot quick buttons. Live Playwright walk confirmed FR-50/51/52/53/55, FR-20/27, §17/FR-45 honesty (preflop chart-based, postflop no claim — UI + record), E4 (feedback off→saved w/ analysis), E5 (conceptual hides numbers), FR-30/31/32 persistence, FR-54/E3 empty state. §17 all 7 assertions grep-clean. No open gaps."
   complete-dev:
-    status: pending
-    started_at: null
+    status: completed
+    started_at: 2026-05-29
     artifact_path: null
     folded_phase_failures: []
+    complete_dev_note: "Standalone Next.js app (not a plugin repo). Fast-forwarded main to feat/poker-coach-mvp (28 commits). Version 0.1.0 -> 0.2.0 (package.json + lock). Created docs/pmos/changelog.md. Tagged v0.2.0. Deploy + push skipped (local app, no remote). Zero learnings proposed (architecture already in CLAUDE.md/spec)."
   retro:
     status: pending
     started_at: null
