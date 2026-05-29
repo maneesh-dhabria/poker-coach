@@ -1,0 +1,6 @@
+version: 1
+docs_path: docs/pmos/
+workstream: null
+current_feature: 2026-05-29_poker-coach-mvp
+default_mode: interactive
+output_format: html
