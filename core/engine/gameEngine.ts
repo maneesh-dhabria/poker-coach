@@ -37,6 +37,7 @@ export interface HandResult {
   net: Record<number, number>;
   board: Card[];
   endedAtShowdown: boolean;
+  contenders: number[]; // seats still in at the end (non-folded)
 }
 
 export interface CreateHandInput {
@@ -173,6 +174,11 @@ export class Hand {
   /** Total chips committed to the pot across all seats this hand. */
   pot(): number {
     return this.seatsState.reduce((sum, s) => sum + s.committedTotal, 0);
+  }
+
+  /** Seat ids still in the hand (not folded) right now. */
+  contenders(): number[] {
+    return this.notFolded().map((s) => s.seat);
   }
 
   isHandOver(): boolean {
@@ -323,7 +329,8 @@ export class Hand {
       .sort((a, b) => a.seat - b.seat);
 
     const endedAtShowdown = this.notFolded().length > 1;
-    return { pots, winners, net, board: this.board, endedAtShowdown };
+    const contenders = this.notFolded().map((s) => s.seat);
+    return { pots, winners, net, board: this.board, endedAtShowdown, contenders };
   }
 
   /** Seats with the best 7-card hand among the eligible set (ties → multiple). */

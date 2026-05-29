@@ -78,7 +78,7 @@ export interface HandRecord {
 }
 
 /** Everything buildHandRecord needs except the derived handId + schemaVersion. */
-export type BuildHandRecordInput = Omit<HandRecord, "schemaVersion" | "handId"> & {
+export type BuildHandRecordInput = Omit<HandRecord, "schemaVersion" | "handId" | "playedAt"> & {
   /** ISO timestamp; pass explicitly for deterministic tests, else wall-clock now. */
   playedAt?: string;
 };
