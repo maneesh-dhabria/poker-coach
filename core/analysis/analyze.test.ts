@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { analyze } from "@/core/analysis/analyze";
+import { Card } from "@/core/cards";
 
 describe("analyze (T3 tracer: pot odds vs equity)", () => {
   it("calling for 3:1 with 46% equity is a good call at a correct price", () => {
@@ -65,5 +66,110 @@ describe("analyze (T3 tracer: pot odds vs equity)", () => {
     expect(a.coachingDepth).toBe("conceptual");
     expect(a.plainExplanation).not.toContain("%");
     expect(a.plainExplanation).not.toContain("$");
+  });
+});
+
+describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
+  const hand = (a: string, b: string): [Card, Card] => [a as Card, b as Card];
+
+  it("flags a preflop chart deviation with gtoClaim true (folding AA to no raise)", () => {
+    const a = analyze({
+      action: "fold",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 85,
+      street: "preflop",
+      hand: hand("Ah", "As"),
+      position: "CO",
+      facing: "unopened",
+    });
+    expect(a.gtoClaim).toBe(true);
+    expect(a.chart?.heroDeviates).toBe(true);
+    expect(a.conceptTags).toContain("preflop_chart_deviation");
+    expect(a.conceptTags).toContain("fold_too_tight");
+    expect(a.verdict).toBe("mistake");
+  });
+
+  it("rewards preflop discipline when the line matches the chart (AKs open from CO)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 67,
+      street: "preflop",
+      hand: hand("Ah", "Kh"),
+      position: "CO",
+      facing: "unopened",
+    });
+    expect(a.gtoClaim).toBe(true);
+    expect(a.chart?.heroDeviates).toBe(false);
+    expect(a.verdict).toBe("good");
+    expect(a.conceptTags).toContain("good_preflop_discipline");
+  });
+
+  it("never claims GTO for a multiway postflop spot", () => {
+    const a = analyze({
+      action: "call",
+      potBefore: 30,
+      toCall: 10,
+      equityPct: 40,
+      street: "flop",
+      numActiveOpponents: 2,
+    });
+    expect(a.gtoClaim).toBe(false);
+    expect(a.chart).toBeUndefined();
+  });
+
+  it("detects a missed value bet (checking a strong river)", () => {
+    const a = analyze({ action: "check", potBefore: 20, toCall: 0, equityPct: 72, street: "river" });
+    expect(a.verdict).toBe("mistake");
+    expect(a.conceptTags).toContain("value_bet_missed");
+  });
+
+  it("flags betting with no equity as a no-equity bluff", () => {
+    const a = analyze({ action: "bet", potBefore: 20, toCall: 0, equityPct: 18, street: "turn" });
+    expect(a.verdict).toBe("mistake");
+    expect(a.conceptTags).toContain("bluff_no_equity");
+  });
+
+  it("treats a thin bet as marginal value", () => {
+    const a = analyze({ action: "bet", potBefore: 20, toCall: 0, equityPct: 42, street: "flop" });
+    expect(a.verdict).toBe("thin");
+    expect(a.conceptTags).toContain("thin_value_good");
+  });
+
+  it("a clear value bet with strong equity is good", () => {
+    const a = analyze({ action: "bet", potBefore: 20, toCall: 0, equityPct: 75, street: "flop" });
+    expect(a.verdict).toBe("good");
+  });
+
+  it("conceptual depth omits raw numbers even for preflop chart feedback", () => {
+    const a = analyze({
+      action: "fold",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 85,
+      coachingDepth: "conceptual",
+      street: "preflop",
+      hand: hand("Ah", "As"),
+      position: "CO",
+      facing: "unopened",
+    });
+    expect(a.plainExplanation).not.toContain("%");
+    expect(a.plainExplanation).not.toContain("$");
+  });
+
+  it("populates the EV block for all three options", () => {
+    const a = analyze({
+      action: "call",
+      potBefore: 20,
+      toCall: 10,
+      equityPct: 50,
+      raiseToExtra: 20,
+      foldEquityPct: 40,
+    });
+    expect(typeof a.numbers.ev.fold).toBe("number");
+    expect(typeof a.numbers.ev.call).toBe("number");
+    expect(typeof a.numbers.ev.raise).toBe("number");
   });
 });

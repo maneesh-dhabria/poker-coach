@@ -1,163 +1,196 @@
 // Deterministic decision analysis — the SINGLE source of verdict + conceptTags (spec §17).
-// T3 tracer scope: grade a call/fold from pot odds vs a supplied equity. T8 widens this to
-// full EV ordering, preflop charts, and postflop heuristics. The DecisionAnalysis shape (§9.2)
-// is the stable contract the /poker-coach skill treats as read-only ground truth.
+// Routes a decision to one of five branches (preflop chart, value-check, aggression, call, fold),
+// each producing a verdict, concept tags, the numbers block, and a depth-aware explanation.
+// The DecisionAnalysis shape (§9.2) is the stable contract the /poker-coach skill reads as truth.
 import { ConceptTag } from "@/core/analysis/conceptTags";
+import { potOdds, evCall, evRaise } from "@/core/analysis/heuristics";
+import { buildExplanation } from "@/core/analysis/explain";
+import { chartAction as lookupChart, chartApplies, Position, Facing, ChartAction } from "@/core/charts/preflop";
+import { Card } from "@/core/cards";
+import {
+  Verdict,
+  CoachingDepth,
+  Unit,
+  HeroAction,
+  Street,
+  DecisionAnalysis,
+} from "@/core/analysis/types";
 
-export type Verdict = "good" | "thin" | "mistake";
-export type CoachingDepth = "conceptual" | "equity" | "strict";
-export type Unit = "usd" | "bb";
-export type HeroAction = "fold" | "check" | "call" | "bet" | "raise";
+export type { Verdict, CoachingDepth, Unit, HeroAction, Street, DecisionAnalysis };
 
 export interface AnalyzeInput {
   action: HeroAction;
   potBefore: number; // pot size before the hero's action
-  toCall: number; // amount the hero must put in to continue (0 if checking)
+  toCall: number; // chips needed to continue (0 if checking)
   equityPct: number; // hero win% vs the assumed range, 0..100
-  unit?: Unit; // money unit for the numbers block + explanation (default usd)
-  coachingDepth?: CoachingDepth; // verbosity dial (default equity)
-  assumedRange?: string; // human-readable range note
-}
-
-export interface DecisionAnalysis {
-  schemaVersion: 1;
-  verdict: Verdict;
-  severity: 0 | 1 | 2 | 3;
-  conceptTags: ConceptTag[];
-  coachingDepth: CoachingDepth;
-  gtoClaim: boolean;
-  assumedRange: string | null;
-  numbers: {
-    equityPct: number | null;
-    potOddsPct: number | null;
-    ev: { fold: number; call: number; raise: number };
-    unit: Unit;
-  };
-  plainExplanation: string;
-  chart?: { applies: boolean; chartAction: string; heroDeviates: boolean };
+  unit?: Unit; // default usd
+  coachingDepth?: CoachingDepth; // default equity
+  assumedRange?: string;
+  // T8 context (all optional — absence falls back to the price/aggression heuristics):
+  street?: Street;
+  numActiveOpponents?: number;
+  hand?: [Card, Card]; // for preflop chart lookup
+  position?: Position;
+  facing?: Facing;
+  raiseToExtra?: number; // chips risked beyond a call if raising (enables EV(raise))
+  foldEquityPct?: number; // assumed villain fold% to a raise
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-/** Breakeven win% needed to call: cost / (pot you'd be contesting). */
-function potOdds(potBefore: number, toCall: number): number {
-  if (toCall <= 0) return 0;
-  return (toCall / (potBefore + toCall)) * 100;
-}
-
-/** EV of calling, relative to folding (fold EV = 0): win the pot, or lose the call. */
-function evCall(potBefore: number, toCall: number, equityPct: number): number {
-  const p = equityPct / 100;
-  return p * potBefore - (1 - p) * toCall;
-}
-
-function money(amount: number, unit: Unit): string {
-  const n = Math.round(amount);
-  return unit === "usd" ? `$${n}` : `${n} bb`;
+interface Branch {
+  verdict: Verdict;
+  severity: 0 | 1 | 2 | 3;
+  conceptTags: ConceptTag[];
+  kind: "price" | "preflop" | "valuecheck" | "aggression";
+  gtoClaim: boolean;
+  chart?: { applies: boolean; chartAction: string; heroDeviates: boolean };
+  chartActionForExplain?: ChartAction;
+  heroDeviates?: boolean;
 }
 
 export function analyze(input: AnalyzeInput): DecisionAnalysis {
   const unit = input.unit ?? "usd";
   const depth = input.coachingDepth ?? "equity";
-  const { potBefore, toCall, equityPct } = input;
+  const { action, potBefore, toCall, equityPct } = input;
 
   const potOddsPct = potOdds(potBefore, toCall);
-  const edge = equityPct - potOddsPct; // >0 means a call is +EV
+  const raiseExtra = input.raiseToExtra ?? (toCall > 0 ? toCall * 2 : potBefore);
   const ev = {
     fold: 0,
     call: round1(evCall(potBefore, toCall, equityPct)),
-    raise: 0,
+    raise: round1(evRaise(potBefore, raiseExtra, equityPct, input.foldEquityPct ?? 0)),
   };
 
-  let verdict: Verdict;
-  let severity: 0 | 1 | 2 | 3;
-  const conceptTags: ConceptTag[] = [];
+  const branch = route(input);
 
-  if (input.action === "fold") {
-    // Folding is only a mistake when calling was clearly +EV.
-    if (edge >= 5) {
-      verdict = "mistake";
-      severity = edge >= 15 ? 3 : 2;
-      conceptTags.push("fold_too_tight");
-    } else {
-      verdict = "good";
-      severity = 0;
-      conceptTags.push("good_preflop_discipline");
-    }
-  } else {
-    // call / check / bet / raise: grade against the price.
-    if (edge >= 3) {
-      verdict = "good";
-      severity = 0;
-      conceptTags.push("call_correct_price");
-    } else if (edge >= -1) {
-      verdict = "thin";
-      severity = 1;
-      conceptTags.push("thin_value_good");
-    } else {
-      verdict = "mistake";
-      severity = edge <= -15 ? 3 : 2;
-      conceptTags.push("call_too_wide");
-    }
-  }
-
-  const plainExplanation = explain({
-    verdict,
-    action: input.action,
+  const plainExplanation = buildExplanation({
+    kind: branch.kind,
+    verdict: branch.verdict,
+    depth,
+    unit,
+    action,
     potBefore,
     toCall,
     equityPct,
     potOddsPct,
-    unit,
-    depth,
+    hand: input.hand,
+    position: input.position,
+    chartAction: branch.chartActionForExplain,
+    heroDeviates: branch.heroDeviates,
   });
 
   return {
     schemaVersion: 1,
-    verdict,
-    severity,
-    conceptTags,
+    verdict: branch.verdict,
+    severity: branch.severity,
+    conceptTags: branch.conceptTags,
     coachingDepth: depth,
-    gtoClaim: false, // T3: never claim GTO; T8 sets true only for preflop/strict charts.
+    gtoClaim: branch.gtoClaim,
     assumedRange: input.assumedRange ?? null,
-    numbers: {
-      equityPct: round1(equityPct),
-      potOddsPct: round1(potOddsPct),
-      ev,
-      unit,
-    },
+    numbers: { equityPct: round1(equityPct), potOddsPct: round1(potOddsPct), ev, unit },
     plainExplanation,
+    ...(branch.chart ? { chart: branch.chart } : {}),
   };
 }
 
-function explain(p: {
-  verdict: Verdict;
-  action: HeroAction;
-  potBefore: number;
-  toCall: number;
-  equityPct: number;
-  potOddsPct: number;
-  unit: Unit;
-  depth: CoachingDepth;
-}): string {
-  if (p.depth === "conceptual") {
-    // No raw numbers — qualitative only.
-    if (p.verdict === "good") return "You're getting a good price here — an easy continue.";
-    if (p.verdict === "thin") return "It's close, but just about worth continuing.";
-    return p.action === "fold"
-      ? "This was a spot to keep going, not fold."
-      : "You're continuing too loosely here — folding is cleaner.";
+function route(input: AnalyzeInput): Branch {
+  const { action, equityPct } = input;
+  const street = input.street ?? "preflop";
+
+  // 1. Preflop chart branch — the only place we claim GTO-ish correctness (gtoClaim=true).
+  if (
+    street === "preflop" &&
+    input.hand &&
+    input.position &&
+    input.facing &&
+    chartApplies(input.position, input.facing)
+  ) {
+    return preflopBranch(input.hand, input.position, input.facing, action);
   }
 
-  const pot = money(p.potBefore + p.toCall, p.unit);
-  const cost = money(p.toCall, p.unit);
-  const need = Math.round(p.potOddsPct);
-  const win = Math.round(p.equityPct);
-  const lead = `It costs you ${cost} to win a ${pot} pot — you only need to win about ${need}% of the time. Your hand wins ~${win}%.`;
+  // 2..5 postflop / no-chart heuristics.
+  if (action === "check") return checkBranch(equityPct);
+  if (action === "bet" || action === "raise") return aggressionBranch(equityPct);
+  if (action === "fold") return foldBranch(equityPct, potOdds(input.potBefore, input.toCall));
+  return callBranch(equityPct, potOdds(input.potBefore, input.toCall));
+}
 
-  if (p.verdict === "good") return `${lead} Easy call — you're getting a great price.`;
-  if (p.verdict === "thin") return `${lead} Close, but just about worth it.`;
-  return p.action === "fold"
-    ? `${lead} That's a clear call — folding here costs you money.`
-    : `${lead} You're calling too wide — fold and save the chips.`;
+function toChartAction(action: HeroAction): ChartAction {
+  if (action === "fold") return "fold";
+  if (action === "bet" || action === "raise") return "raise";
+  return "call"; // call / check
+}
+
+function preflopBranch(hand: [Card, Card], position: Position, facing: Facing, action: HeroAction): Branch {
+  const rec = lookupChart(hand, position, facing);
+  const hero = toChartAction(action);
+  const deviates = hero !== rec;
+  const chart = { applies: true, chartAction: rec, heroDeviates: deviates };
+  const base = {
+    kind: "preflop" as const,
+    gtoClaim: true,
+    chart,
+    chartActionForExplain: rec,
+    heroDeviates: deviates,
+  };
+
+  if (!deviates) {
+    return { ...base, verdict: "good", severity: 0, conceptTags: ["good_preflop_discipline"] };
+  }
+  const tags: ConceptTag[] = ["preflop_chart_deviation"];
+  if (rec !== "fold" && hero === "fold") {
+    tags.push("fold_too_tight");
+    return { ...base, verdict: "mistake", severity: 2, conceptTags: tags };
+  }
+  if (rec === "fold" && hero !== "fold") {
+    tags.push("call_too_wide");
+    return { ...base, verdict: "mistake", severity: 2, conceptTags: tags };
+  }
+  // raise-vs-call mismatch: right to continue, wrong aggression level → thin.
+  return { ...base, verdict: "thin", severity: 1, conceptTags: tags };
+}
+
+function checkBranch(equityPct: number): Branch {
+  const base = { kind: "valuecheck" as const, gtoClaim: false };
+  if (equityPct >= 60)
+    return { ...base, verdict: "mistake", severity: 2, conceptTags: ["value_bet_missed"] };
+  if (equityPct >= 52)
+    return { ...base, verdict: "thin", severity: 1, conceptTags: ["value_bet_missed"] };
+  return { ...base, verdict: "good", severity: 0, conceptTags: [] };
+}
+
+function aggressionBranch(equityPct: number): Branch {
+  const base = { kind: "aggression" as const, gtoClaim: false };
+  if (equityPct < 33)
+    return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_no_equity"] };
+  if (equityPct < 50)
+    return { ...base, verdict: "thin", severity: 1, conceptTags: ["thin_value_good"] };
+  return { ...base, verdict: "good", severity: 0, conceptTags: [] };
+}
+
+function callBranch(equityPct: number, potOddsPct: number): Branch {
+  const edge = equityPct - potOddsPct;
+  const base = { kind: "price" as const, gtoClaim: false };
+  if (edge >= 3) return { ...base, verdict: "good", severity: 0, conceptTags: ["call_correct_price"] };
+  if (edge >= -1) return { ...base, verdict: "thin", severity: 1, conceptTags: ["thin_value_good"] };
+  return {
+    ...base,
+    verdict: "mistake",
+    severity: edge <= -15 ? 3 : 2,
+    conceptTags: ["call_too_wide"],
+  };
+}
+
+function foldBranch(equityPct: number, potOddsPct: number): Branch {
+  const edge = equityPct - potOddsPct;
+  const base = { kind: "price" as const, gtoClaim: false };
+  if (edge >= 5)
+    return {
+      ...base,
+      verdict: "mistake",
+      severity: edge >= 15 ? 3 : 2,
+      conceptTags: ["fold_too_tight"],
+    };
+  return { ...base, verdict: "good", severity: 0, conceptTags: ["good_preflop_discipline"] };
 }
