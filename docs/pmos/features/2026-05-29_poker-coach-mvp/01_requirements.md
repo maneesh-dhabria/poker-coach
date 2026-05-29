@@ -182,6 +182,10 @@ chosen before a session.
 | D7 | Plain-language + visual rendering is mandatory | (a) Show raw stats, (b) plain-language everywhere | The player is not a math person; raw stats fail the core job |
 | D8 | Local-only, single user, no accounts | (a) Web-hosted multi-user, (b) local-only | Single learner on their own machine; Claude Code needs local file access; simplest path to value |
 | D9 | Table size dynamic, 1–5 opponents (6-max) | (a) Fixed 6-max, (b) 1–5 opponents configurable | Player wanted dynamic count; heads-up to full ring supports different practice intensities |
+| D10 | Equity/verdicts judged vs a typical population range, not bots' known cards | (a) Bot's actual range, (b) typical population range, (c) both by depth | Teaches transferable poker; honest estimate; never peek at bot hole cards for feedback (grill G1) |
+| D11 | App↔coach coordination via sessions + processed marker | (a) user specifies range, (b) timestamps, (c) sessions + processed marker | Robust "coach my latest" with no re-coaching and no manual counting (grill G2) |
+| D12 | Equity in a Web Worker with lean Monte Carlo; bots mostly heuristic | (a) main thread, (b) Worker + lean iterations, (c) precomputed tables | Keeps the table responsive in multiway spots; feedback-grade accuracy is enough (grill G3) |
+| D13 | Preflop charts are self-generated solver-informed baselines | (a) embed published charts, (b) free-to-use set, (c) generate our own | Avoids third-party data/ToS issues; honest "our baseline" framing (grill G4) |
 
 ## Success Metrics
 

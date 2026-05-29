@@ -8,8 +8,8 @@
 |---|---|---|
 | init-state | ✅ completed | — |
 | 1.5 ideate | ⏭️ skipped (formed seed) | — |
-| 2 requirements | 🔄 in progress | — |
-| 2a grill | ⏳ pending | — |
+| 2 requirements | ✅ completed (Tier 3) | 01_requirements.md |
+| 2a grill | 🔄 gate | — |
 | 3a creativity | ⏳ pending | — |
 | 3b wireframes | ⏳ pending | — |
 | 3c prototype | ⏳ pending | — |
