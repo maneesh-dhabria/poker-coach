@@ -45,21 +45,57 @@ export function PokerTable() {
   const latest = latestActionPerSeat(log.slice(0, revealed));
   const snapshot = flow.replayAt(revealed);
 
+  // Lay the seats out around an oval, hero anchored at the bottom, so the pot/chip stack can sit
+  // in the dead center with everyone arranged around it (like a real table).
+  const n = view.seats.length;
+  const heroIndex = Math.max(0, view.seats.findIndex((s) => s.isHero));
+  const RX = 40; // horizontal radius (% of felt)
+  const RY = 35; // vertical radius (% of felt) — kept inside so top/bottom seats don't clip
+  const seatPosition = (i: number) => {
+    const k = (i - heroIndex + n) % n; // 0 = hero, then around the ring
+    const theta = Math.PI / 2 + (k * 2 * Math.PI) / n; // 90° points to the bottom
+    return {
+      left: `${50 + RX * Math.cos(theta)}%`,
+      top: `${50 + RY * Math.sin(theta)}%`,
+    };
+  };
+
   return (
     <section style={{ padding: 16 }}>
       <div
         style={{
+          position: "relative",
           background: "radial-gradient(ellipse at center, var(--felt), var(--felt-deep))",
           borderRadius: "var(--r-lg)",
-          padding: 24,
+          height: 580,
+          maxWidth: 760,
+          margin: "0 auto",
         }}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-          {view.seats.map((s) => (
-            <Seat key={s.seat} seat={s} lastAction={latest[s.seat] ?? null} />
-          ))}
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 16, gap: 6 }}>
+        {view.seats.map((s, i) => (
+          <div
+            key={s.seat}
+            style={{
+              position: "absolute",
+              ...seatPosition(i),
+              transform: "translate(-50%, -50%)",
+            }}
+          >
+            <Seat seat={s} lastAction={latest[s.seat] ?? null} />
+          </div>
+        ))}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
           <Board cards={view.board} count={snapshot.boardCount} />
           <CenterStack snapshot={snapshot} />
         </div>
