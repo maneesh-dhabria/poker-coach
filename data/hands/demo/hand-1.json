@@ -1,0 +1,344 @@
+{
+  "schemaVersion": 1,
+  "handId": "demo_h1",
+  "sessionId": "demo",
+  "handNumber": 1,
+  "playedAt": "2026-05-29T12:01:00.000Z",
+  "config": {
+    "numPlayers": 4,
+    "smallBlind": 1,
+    "bigBlind": 2,
+    "startingStackBb": 100
+  },
+  "heroSeat": 0,
+  "seats": [
+    {
+      "seat": 0,
+      "name": "You",
+      "isHero": true,
+      "startingStack": 200,
+      "position": "UTG",
+      "persona": null
+    },
+    {
+      "seat": 1,
+      "name": "Nora (Nit)",
+      "isHero": false,
+      "startingStack": 200,
+      "position": "BTN",
+      "persona": {
+        "style": "Nit",
+        "skill": "Advanced"
+      }
+    },
+    {
+      "seat": 2,
+      "name": "Leo (LAG)",
+      "isHero": false,
+      "startingStack": 200,
+      "position": "SB",
+      "persona": {
+        "style": "LAG",
+        "skill": "Intermediate"
+      }
+    },
+    {
+      "seat": 3,
+      "name": "Cleo (Station)",
+      "isHero": false,
+      "startingStack": 200,
+      "position": "BB",
+      "persona": {
+        "style": "Calling Station",
+        "skill": "Beginner"
+      }
+    }
+  ],
+  "heroHole": [
+    "4h",
+    "9h"
+  ],
+  "board": [
+    "Th",
+    "2c",
+    "As",
+    "7s",
+    "Qc"
+  ],
+  "actions": [
+    {
+      "street": "preflop",
+      "seat": 0,
+      "action": "call",
+      "amount": 2
+    },
+    {
+      "street": "preflop",
+      "seat": 1,
+      "action": "call",
+      "amount": 2
+    },
+    {
+      "street": "preflop",
+      "seat": 2,
+      "action": "call",
+      "amount": 1
+    },
+    {
+      "street": "preflop",
+      "seat": 3,
+      "action": "check",
+      "amount": 0
+    },
+    {
+      "street": "flop",
+      "seat": 2,
+      "action": "check",
+      "amount": 0
+    },
+    {
+      "street": "flop",
+      "seat": 3,
+      "action": "check",
+      "amount": 0
+    },
+    {
+      "street": "flop",
+      "seat": 0,
+      "action": "check",
+      "amount": 0
+    },
+    {
+      "street": "flop",
+      "seat": 1,
+      "action": "check",
+      "amount": 0
+    },
+    {
+      "street": "turn",
+      "seat": 2,
+      "action": "bet",
+      "amount": 8
+    },
+    {
+      "street": "turn",
+      "seat": 3,
+      "action": "call",
+      "amount": 8
+    },
+    {
+      "street": "turn",
+      "seat": 0,
+      "action": "call",
+      "amount": 8
+    },
+    {
+      "street": "turn",
+      "seat": 1,
+      "action": "fold",
+      "amount": 0
+    },
+    {
+      "street": "river",
+      "seat": 2,
+      "action": "bet",
+      "amount": 28
+    },
+    {
+      "street": "river",
+      "seat": 3,
+      "action": "call",
+      "amount": 28
+    },
+    {
+      "street": "river",
+      "seat": 0,
+      "action": "call",
+      "amount": 28
+    }
+  ],
+  "heroDecisions": [
+    {
+      "decisionId": "h1-d1",
+      "street": "preflop",
+      "spot": {
+        "potBefore": 3,
+        "toCall": 2,
+        "position": "UTG",
+        "stackBb": 100,
+        "numActiveOpponents": 3,
+        "facing": "unopened"
+      },
+      "heroAction": {
+        "action": "call",
+        "amount": 2
+      },
+      "analysis": {
+        "schemaVersion": 1,
+        "verdict": "mistake",
+        "severity": 2,
+        "conceptTags": [
+          "preflop_chart_deviation",
+          "call_too_wide"
+        ],
+        "coachingDepth": "equity",
+        "gtoClaim": true,
+        "assumedRange": "a typical opponent range",
+        "numbers": {
+          "equityPct": 22.8,
+          "potOddsPct": 40,
+          "ev": {
+            "fold": 0,
+            "call": -0.9,
+            "raise": -1.5
+          },
+          "unit": "usd"
+        },
+        "plainExplanation": "The baseline chart says fold 4♥9♥ from UTG; your line differs. Sticking to the chart is the higher-EV default here.",
+        "chart": {
+          "applies": true,
+          "chartAction": "fold",
+          "heroDeviates": true
+        }
+      }
+    },
+    {
+      "decisionId": "h1-d2",
+      "street": "flop",
+      "spot": {
+        "potBefore": 8,
+        "toCall": 0,
+        "position": "UTG",
+        "stackBb": 99,
+        "numActiveOpponents": 3,
+        "facing": "unopened"
+      },
+      "heroAction": {
+        "action": "check",
+        "amount": 0
+      },
+      "analysis": {
+        "schemaVersion": 1,
+        "verdict": "good",
+        "severity": 0,
+        "conceptTags": [],
+        "coachingDepth": "equity",
+        "gtoClaim": false,
+        "assumedRange": "a typical opponent range",
+        "numbers": {
+          "equityPct": 10.9,
+          "potOddsPct": 0,
+          "ev": {
+            "fold": 0,
+            "call": 0.9,
+            "raise": -5.4
+          },
+          "unit": "usd"
+        },
+        "plainExplanation": "Checking is fine here — you only win about 11%, so there's little to bet for."
+      }
+    },
+    {
+      "decisionId": "h1-d3",
+      "street": "turn",
+      "spot": {
+        "potBefore": 24,
+        "toCall": 8,
+        "position": "UTG",
+        "stackBb": 99,
+        "numActiveOpponents": 3,
+        "facing": "raise"
+      },
+      "heroAction": {
+        "action": "call",
+        "amount": 8
+      },
+      "analysis": {
+        "schemaVersion": 1,
+        "verdict": "mistake",
+        "severity": 3,
+        "conceptTags": [
+          "call_too_wide"
+        ],
+        "coachingDepth": "equity",
+        "gtoClaim": false,
+        "assumedRange": "a typical opponent range",
+        "numbers": {
+          "equityPct": 3.1,
+          "potOddsPct": 25,
+          "ev": {
+            "fold": 0,
+            "call": -7,
+            "raise": -14.3
+          },
+          "unit": "usd"
+        },
+        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~3%. You're calling too wide — fold and save the chips."
+      }
+    },
+    {
+      "decisionId": "h1-d4",
+      "street": "river",
+      "spot": {
+        "potBefore": 88,
+        "toCall": 28,
+        "position": "UTG",
+        "stackBb": 95,
+        "numActiveOpponents": 2,
+        "facing": "raise"
+      },
+      "heroAction": {
+        "action": "call",
+        "amount": 28
+      },
+      "analysis": {
+        "schemaVersion": 1,
+        "verdict": "mistake",
+        "severity": 3,
+        "conceptTags": [
+          "call_too_wide"
+        ],
+        "coachingDepth": "equity",
+        "gtoClaim": false,
+        "assumedRange": "a typical opponent range",
+        "numbers": {
+          "equityPct": 2.4,
+          "potOddsPct": 24.1,
+          "ev": {
+            "fold": 0,
+            "call": -25.2,
+            "raise": -51.2
+          },
+          "unit": "usd"
+        },
+        "plainExplanation": "It costs you $28 to win a $116 pot — you only need to win about 24% of the time. Your hand wins ~2%. You're calling too wide — fold and save the chips."
+      }
+    }
+  ],
+  "outcome": {
+    "winners": [
+      {
+        "seat": 2,
+        "amount": 116
+      }
+    ],
+    "heroNet": -38,
+    "shown": [
+      {
+        "seat": 2,
+        "cards": [
+          "7d",
+          "Ad"
+        ]
+      },
+      {
+        "seat": 3,
+        "cards": [
+          "3c",
+          "2h"
+        ]
+      }
+    ],
+    "endedAtShowdown": true
+  }
+}
