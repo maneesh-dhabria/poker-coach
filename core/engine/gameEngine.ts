@@ -170,6 +170,11 @@ export class Hand {
     return this.at(this.idx(seat)).stack;
   }
 
+  /** Total chips committed to the pot across all seats this hand. */
+  pot(): number {
+    return this.seatsState.reduce((sum, s) => sum + s.committedTotal, 0);
+  }
+
   isHandOver(): boolean {
     return this.street === "complete";
   }
