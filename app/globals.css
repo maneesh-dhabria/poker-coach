@@ -84,26 +84,6 @@ button { font: inherit; cursor: pointer; }
 }
 .btn--selected:hover:not(:disabled) { background: #e6c06b; }
 
-/* ── Chip-to-pot animation (observation #3) ──────────────────────────────────
-   A small chip token slides from a seat toward the pot when a bot commits chips. */
-.chip-token {
-  position: absolute;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--chip), var(--chip-edge));
-  border: 2px solid var(--chip-edge);
-  box-shadow: var(--shadow-1);
-  pointer-events: none;
-  z-index: 5;
-}
-.chip-fly { animation: chip-fly 520ms ease-in forwards; }
-@keyframes chip-fly {
-  0% { transform: translate(0, 0) scale(1); opacity: 1; }
-  80% { opacity: 1; }
-  100% { transform: var(--chip-dest, translate(0, -60px)) scale(0.6); opacity: 0; }
-}
-
 /* Action badge that flashes on a seat when it acts. */
 .action-badge {
   animation: badge-pop 240ms ease-out;
@@ -141,7 +121,6 @@ button { font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
   .btn:active { transform: none; }
-  .chip-fly { animation: none; opacity: 0; }
   .action-badge { animation: none; }
   .pile-chip--new { animation: none; }
 }
