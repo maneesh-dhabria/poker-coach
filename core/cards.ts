@@ -8,6 +8,9 @@ export type Suit = (typeof SUITS)[number];
 /** A card is a 2-char string: rank + suit, e.g. "As", "Td", "2c". */
 export type Card = `${Rank}${Suit}`;
 
+/** Seedable pseudo-random source in [0,1) — e.g. the closure from mulberry32. */
+export type RNG = () => number;
+
 export function rankOf(card: Card): Rank {
   return card[0] as Rank;
 }
