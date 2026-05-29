@@ -1,8 +1,46 @@
+"use client";
+// Top-level experience: Setup → Play. Wires the session + game stores to the screens (spec §6.1).
+import { useState } from "react";
+import { useSessionStore } from "@/store/sessionStore";
+import { useGameStore } from "@/store/gameStore";
+import { SetupScreen } from "@/components/SetupScreen";
+import { PokerTable } from "@/components/table/PokerTable";
+import { FeedbackPanel } from "@/components/FeedbackPanel";
+import { CoachingViewer } from "@/components/CoachingViewer";
+
 export default function Home() {
+  const [phase, setPhase] = useState<"setup" | "play">("setup");
+  const settings = useSessionStore((s) => s.settings);
+  const startSession = useSessionStore((s) => s.startSession);
+  const sessionId = useSessionStore((s) => s.sessionId);
+
+  const configure = useGameStore((s) => s.configure);
+  const newHand = useGameStore((s) => s.newHand);
+  const feedback = useGameStore((s) => s.feedback);
+  useGameStore((s) => s.tick); // re-render on game changes
+
+  const deal = async () => {
+    const id = await startSession();
+    configure(id, settings, Math.floor(Math.random() * 0x7fffffff));
+    newHand();
+    setPhase("play");
+  };
+
+  if (phase === "setup") return <SetupScreen onDeal={deal} />;
+
   return (
-    <main style={{ padding: 24 }}>
-      <h1>Poker Coach</h1>
-      <p>Scaffold ready. Play UI lands in Phase 3.</p>
+    <main style={{ maxWidth: 1000, margin: "0 auto" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 16px" }}>
+        <h1 style={{ color: "var(--gold)", margin: 0 }}>Poker Coach</h1>
+        <button type="button" onClick={() => setPhase("setup")}>
+          New session
+        </button>
+      </header>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 16, alignItems: "start" }}>
+        <PokerTable />
+        <FeedbackPanel analysis={feedback?.analysis ?? null} enabled={settings.feedbackEnabled} />
+      </div>
+      <CoachingViewer sessionId={sessionId} />
     </main>
   );
 }
