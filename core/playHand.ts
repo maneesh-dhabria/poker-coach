@@ -7,6 +7,7 @@ import { decide, BotParams } from "@/core/bots/botEngine";
 import { equity } from "@/core/equity/equity";
 import { analyze } from "@/core/analysis/analyze";
 import { Position, Facing } from "@/core/charts/preflop";
+import { assignPositions } from "@/core/positions";
 import { CoachingDepth } from "@/core/analysis/types";
 import {
   buildHandRecord,
@@ -46,23 +47,6 @@ export interface PlayHandInput {
   coachingDepth?: CoachingDepth;
   heroAct: (ctx: HeroContext) => Action;
   equityIterations?: number;
-}
-
-// Position labels in seat order starting from the small blind, ending on the button.
-const POSITION_TEMPLATE: Record<number, Position[]> = {
-  2: ["SB", "BB"],
-  3: ["SB", "BB", "BTN"],
-  4: ["SB", "BB", "UTG", "BTN"],
-  5: ["SB", "BB", "UTG", "CO", "BTN"],
-  6: ["SB", "BB", "UTG", "MP", "CO", "BTN"],
-};
-
-function assignPositions(n: number, buttonIndex: number): Position[] {
-  const template = POSITION_TEMPLATE[n] ?? POSITION_TEMPLATE[6];
-  const start = n === 2 ? buttonIndex : (buttonIndex + 1) % n;
-  const pos: Position[] = new Array(n);
-  for (let k = 0; k < n; k++) pos[(start + k) % n] = template[k];
-  return pos;
 }
 
 export function playHand(input: PlayHandInput): HandRecord {
