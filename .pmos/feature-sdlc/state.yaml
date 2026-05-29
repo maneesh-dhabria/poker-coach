@@ -10,7 +10,7 @@ branch: feat/poker-coach-mvp
 feature_folder: docs/pmos/features/2026-05-29_poker-coach-mvp/
 tier: 3
 seed: docs/superpowers/specs/2026-05-29-poker-coach-design.md
-current_phase: execute
+current_phase: verify
 open_questions_log: []
 phases:
   init-state:
@@ -58,13 +58,13 @@ phases:
     artifact_path: 03_plan.md
     folded_phase_failures: []
   execute:
-    status: in_progress
+    status: completed
     started_at: 2026-05-29
     artifact_path: null
     folded_phase_failures: []
-    tasks_done: [T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17]
-    tasks_remaining: [T18, T19, T20]
-    exec_note: "Direct execution (acting as /execute), per-task TDD + commit. Execution decision P8: own hand-evaluator + own engine instead of poker-ts/poker-evaluator-ts (deps dropped) to keep core pure + avoid binary-data lib; still satisfies §17. Resume cursor = git log (commits tagged feat(Tn))."
+    tasks_done: [T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20]
+    tasks_remaining: []
+    exec_note: "Direct execution (acting as /execute), per-task TDD + commit. Execution decision P8: own hand-evaluator + own engine instead of poker-ts/poker-evaluator-ts (deps dropped) to keep core pure + avoid binary-data lib; still satisfies §17. All 20 tasks committed (feat(Tn)). Final gate: eslint clean, tsc clean, 96 tests pass, prod build OK, §17 assertions verified, coach loop exercised on demo fixtures."
   verify:
     status: pending
     started_at: null
