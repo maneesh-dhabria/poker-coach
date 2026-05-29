@@ -8,7 +8,7 @@ import { useGameStore } from "@/store/gameStore";
 import { latestActionPerSeat } from "@/core/handFlow";
 import { Seat } from "@/components/table/Seat";
 import { Board } from "@/components/table/Board";
-import { PotDisplay } from "@/components/table/PotDisplay";
+import { CenterStack } from "@/components/table/CenterStack";
 import { ActionBar } from "@/components/ActionBar";
 import { HandRecap } from "@/components/HandRecap";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +43,7 @@ export function PokerTable() {
   const view = flow.tableView();
   const revealing = revealed < total;
   const latest = latestActionPerSeat(log.slice(0, revealed));
+  const snapshot = flow.replayAt(revealed);
 
   return (
     <section style={{ padding: 16 }}>
@@ -59,8 +60,8 @@ export function PokerTable() {
           ))}
         </div>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginTop: 16, gap: 6 }}>
-          <PotDisplay pot={view.pot} />
-          <Board cards={view.board} />
+          <Board cards={view.board} count={snapshot.boardCount} />
+          <CenterStack snapshot={snapshot} />
         </div>
       </div>
 
