@@ -11,9 +11,9 @@
 | 2 requirements | ✅ completed (Tier 3) | 01_requirements.md |
 | 2a grill | ✅ completed (4 Q) | grills/2026-05-29_01_requirements.md |
 | 3a creativity | ⏭️ skipped | — |
-| 3b wireframes | 🔄 in progress | — |
+| 3b wireframes | ✅ completed (3 files) | wireframes/index.html |
 | 3c prototype | ⏭️ skipped | — |
-| 4 spec | ⏳ pending | — |
+| 4 spec | 🔄 in progress | — |
 | 5 plan | ⏳ pending | — |
 | 6 execute | ⏳ pending | — |
 | 7 verify | ⏳ pending | — |
