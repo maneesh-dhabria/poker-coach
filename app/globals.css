@@ -114,9 +114,34 @@ button { font: inherit; cursor: pointer; }
   100% { transform: scale(1); opacity: 1; }
 }
 
+/* ── Central chip pile (the "what was played" zone) ──────────────────────────
+   Chips accumulate in the middle as the pot grows, instead of flying away. */
+.chip-pile {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  min-height: 22px;
+}
+.pile-chip {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--chip), var(--chip-edge));
+  border: 2px solid var(--chip-edge);
+  box-shadow: var(--shadow-1);
+  margin-left: -8px;
+}
+.pile-chip:first-child { margin-left: 0; }
+.pile-chip--new { animation: pile-pop 240ms ease-out; }
+@keyframes pile-pop {
+  0% { transform: translateY(-10px) scale(0.6); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn { transition: none; }
   .btn:active { transform: none; }
   .chip-fly { animation: none; opacity: 0; }
   .action-badge { animation: none; }
+  .pile-chip--new { animation: none; }
 }
