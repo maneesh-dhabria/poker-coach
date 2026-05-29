@@ -13,8 +13,8 @@
 | 3a creativity | ⏭️ skipped | — |
 | 3b wireframes | ✅ completed (3 files) | wireframes/index.html |
 | 3c prototype | ⏭️ skipped | — |
-| 4 spec | 🔄 in progress | — |
-| 5 plan | ⏳ pending | — |
+| 4 spec | ✅ completed (Ready for Plan) | 02_spec.md |
+| 5 plan | 🔄 in progress | — |
 | 6 execute | ⏳ pending | — |
 | 7 verify | ⏳ pending | — |
 | 8 complete-dev | ⏳ pending | — |
