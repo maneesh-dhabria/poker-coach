@@ -37,6 +37,19 @@ describe("SetupScreen", () => {
     expect(useSessionStore.getState().settings.coachingDepth).toBe("conceptual");
   });
 
+  it("each style dropdown has a tooltip describing its selected style", () => {
+    render(<SetupScreen onDeal={() => {}} />);
+    const bot1Style = screen.getByLabelText("Style for Bot 1");
+    // default persona style is TAG → tooltip explains Tight-Aggressive
+    expect(bot1Style).toHaveAttribute("title", expect.stringContaining("Tight-Aggressive"));
+
+    fireEvent.change(bot1Style, { target: { value: "Calling Station" } });
+    expect(screen.getByLabelText("Style for Bot 1")).toHaveAttribute(
+      "title",
+      expect.stringContaining("loose-passive"),
+    );
+  });
+
   it("Deal triggers the start callback", () => {
     const onDeal = vi.fn();
     render(<SetupScreen onDeal={onDeal} />);

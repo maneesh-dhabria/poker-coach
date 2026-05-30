@@ -23,6 +23,14 @@ function activePreset(personas: BotParams[], n: number): PresetName | null {
 }
 
 const STYLES: Style[] = ["TAG", "LAG", "Nit", "Calling Station"];
+
+// Plain-language tooltips for each opponent style (shown as native title tooltips).
+const STYLE_INFO: Record<Style, string> = {
+  TAG: "Tight-Aggressive — plays few hands but bets and raises hard when it does. Disciplined and tough to play against; don't bluff it much.",
+  LAG: "Loose-Aggressive — plays lots of hands and bets/raises hard. Pressuring and wild; tighten up and let it hang itself.",
+  Nit: "Nit — ultra-tight. Folds almost everything and only shows up with monster hands. Steal pots from it, but believe its big bets.",
+  "Calling Station": "Calling Station — loose-passive. Calls a lot, rarely folds or raises. Never bluff it; bet your strong hands for value and get paid.",
+};
 const SKILLS: Skill[] = ["Beginner", "Intermediate", "Advanced"];
 const PRESETS: PresetName[] = ["balanced", "aggro", "passive", "reg-heavy"];
 const DEPTHS: { value: CoachingDepth; label: string; hint: string }[] = [
@@ -100,11 +108,14 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
             <select
               className="select"
               aria-label={`Style for Bot ${i + 1}`}
+              title={STYLE_INFO[p.style as Style]}
               value={p.style}
               onChange={(e) => setPersona(i, { style: e.target.value as Style })}
             >
               {STYLES.map((s) => (
-                <option key={s}>{s}</option>
+                <option key={s} title={STYLE_INFO[s]}>
+                  {s}
+                </option>
               ))}
             </select>
             <select
