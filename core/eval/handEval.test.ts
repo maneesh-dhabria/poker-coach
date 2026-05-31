@@ -59,3 +59,32 @@ describe("rank7", () => {
     expect(boat).toBeGreaterThan(flush);
   });
 });
+
+import { handCategoryLabel, winningCards } from "@/core/eval/handEval";
+
+describe("handCategoryLabel", () => {
+  it("names two pair with both ranks", () => {
+    expect(handCategoryLabel(["Ah", "Ad", "Kh", "Kd", "2c", "7s", "9h"])).toBe(
+      "Two Pair, Aces & Kings",
+    );
+  });
+  it("names a flush, straight, full house, quads, straight flush", () => {
+    expect(handCategoryLabel(["2h", "5h", "9h", "Jh", "Kh", "3c", "4d"])).toMatch(/^Flush/);
+    expect(handCategoryLabel(["5c", "6d", "7h", "8s", "9c", "2h", "2d"])).toMatch(/^Straight/);
+    expect(handCategoryLabel(["Ah", "Ad", "As", "Kh", "Kd", "2c", "7s"])).toMatch(/^Full House/);
+    expect(handCategoryLabel(["Ah", "Ad", "As", "Ac", "Kd", "2c", "7s"])).toMatch(/^Four of a Kind/);
+    expect(handCategoryLabel(["5h", "6h", "7h", "8h", "9h", "2c", "2d"])).toMatch(/^Straight Flush/);
+  });
+});
+
+describe("winningCards", () => {
+  it("returns exactly the best 5 cards", () => {
+    const five = winningCards(["Ah", "Ad"], ["Kh", "Kd", "2c", "7s", "9h"]);
+    expect(five).toHaveLength(5);
+    expect(new Set(five)).toEqual(new Set(["Ah", "Ad", "Kh", "Kd", "9h"]));
+  });
+  it("handles the wheel (A-2-3-4-5)", () => {
+    const five = winningCards(["Ah", "2d"], ["3c", "4s", "5h", "Kd", "Qc"]);
+    expect(new Set(five)).toEqual(new Set(["Ah", "2d", "3c", "4s", "5h"]));
+  });
+});

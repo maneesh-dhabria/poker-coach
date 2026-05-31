@@ -44,3 +44,29 @@ export function chartApplies(position: Position, facing: Facing): boolean {
   if (facing === "unopened") return !!open[position];
   return !!vsOpen[position];
 }
+
+// Ranks high→low, so the enumerator emits keys with the higher rank first (matching handKey).
+const RANKS_DESC = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"] as const;
+
+/**
+ * Every canonical preflop hand as a 169-grid key (spec FR-50). Pure — no cards, no IO. Returns the
+ * 13 pairs ("AA".."22"), 78 suited ("AKs"…) and 78 offsuit ("AKo"…) = 169 keys, in the same format
+ * handKey() produces. Ordered pairs-then-suited-then-offsuit, ranks high→low, so the output is stable
+ * (the equity generator and the chart grid both rely on a deterministic order). Adding a rank here
+ * would surface in preflop.test.ts's count assertions.
+ */
+export function allHands169(): string[] {
+  const pairs: string[] = [];
+  const suited: string[] = [];
+  const offsuit: string[] = [];
+  for (let i = 0; i < RANKS_DESC.length; i++) {
+    for (let j = 0; j < RANKS_DESC.length; j++) {
+      const hi = RANKS_DESC[i];
+      const lo = RANKS_DESC[j];
+      if (i === j) pairs.push(`${hi}${lo}`);
+      else if (i < j) suited.push(`${hi}${lo}s`); // i<j ⇒ hi is the higher rank
+      else offsuit.push(`${RANKS_DESC[j]}${RANKS_DESC[i]}o`); // keep higher rank first
+    }
+  }
+  return [...pairs, ...suited, ...offsuit];
+}

@@ -1,91 +1,124 @@
 schema_version: 4
 pipeline_mode: feature
+slug: ux-learning-overhaul
 mode: interactive
 output_format: md
-slug: poker-coach-mvp
-started_at: 2026-05-29
-last_updated: 2026-05-29T20:25:00Z
-worktree_path: null
-branch: feat/poker-coach-mvp
-feature_folder: docs/pmos/features/2026-05-29_poker-coach-mvp/
 tier: 3
-seed: docs/superpowers/specs/2026-05-29-poker-coach-design.md
-current_phase: final-summary
+started_at: 2026-05-31
+last_updated: 2026-05-31
+worktree_path: /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach-ux-learning-overhaul
+branch: feat/ux-learning-overhaul
+base: main
+feature_folder: docs/pmos/features/2026-05-31_ux-learning-overhaul/
+current_phase: complete-dev
+paused: false
+paused_reason: null
+execute_complete_note: "Phase 6 /execute COMPLETE + committed (T1-T19 + TN). Full gate green: typecheck=0, lint=0, vitest 195/195 pass, exit 0, clean stderr; core stays pure, no runtime LLM in components/core. User paused at the pre-/verify compact checkpoint. NEXT on --resume: Phase 7 /verify with spec docs/pmos/features/2026-05-31_ux-learning-overhaul/02_spec.md (non-skippable); then PAUSE for merge decision (build_choices.ask_before_merge=true) before Phase 8 /complete-dev; then 8a /reflect gate; then 9 final-summary. Pre-existing harmless stray: gitignored self-referential symlink components/feedback. HARNESS NOTE: stdout truncates intermittently — run commands sequentially, redirect to /tmp and Read back; never mega-batch interdependent tool calls."
 open_questions_log: []
+resume_note: |
+  PROGRESS as of 2026-05-31 (compact checkpoint before /plan):
+  - DONE + COMMITTED: requirements (01_requirements.md), grill (grills/2026-05-31_01_requirements.md),
+    wireframes (wireframes/: 01_setup, 02_play-screen, index.html, DESIGN.md; verified no-scroll @1280x800),
+    spec (02_spec.md, status "Ready for Plan", FR-01..72 across 6 waves W1-W6, decisions S1-S8).
+  - Gates chosen: creativity SKIP, wireframes RUN, prototype SKIP, MSF/PSYCH SKIP.
+  - USER CHOICES for build half: (1) run /plan now then PAUSE for review before /execute;
+    (2) ASK before merging (stop at green /verify, do not auto /complete-dev).
+  - NEXT: Phase 5 /plan -> produce wave-by-wave TDD task breakdown to 03_plan.md, show user, STOP.
+    Then (after user go-ahead) compact-checkpoint -> Phase 6 /execute wave-by-wave -> Phase 7 /verify ->
+    PAUSE for merge decision -> (if approved) Phase 8 /complete-dev -> 8a /reflect gate -> 9 final-summary.
+  KEY LOCKED DECISIONS (D1-D18, authoritative in 01_requirements.md; spec adds S1-S8):
+    all 7 observations = 6 dependency-ordered waves; single-table (not multi);
+    D10/D13 + S3: lifetime bank in SEPARATE data/bankroll.json (own version) via new /api/bankroll +
+      lib/dataStore saveBankroll/loadBankroll + pure core/bankroll.ts reducer; HandRecord STAYS v1, NO migration;
+    D11 bots auto-rebuy; D12/D18 + S6: $ default + BB toggle = pure core/money.ts formatMoney + sessionStore.displayUnit, render-only;
+    D14 preflop chart defaults to hero position + selector; D15 starting-stack presets 50/100/200 BB default 100;
+    D16 center-table category banner + winner glow + yellow winning cards; D17 W2 per-hand net only / session+bank in W3;
+    S1: W2 reuses existing handFlow TableView (winners/isHeroTurn/heroNet) + new pure handCategoryLabel()/winningCards() in core/eval;
+    S5: precomputed equity = committed core/charts/preflopEquity.json via scripts/genPreflopEquity.ts, on-demand fallback.
+  ENV: node_modules symlinked from ../poker-coach. Dev server: `npm run dev` (port 3000).
+    Playwright MCP is sandboxed to /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach (ORIGINAL repo) —
+    screenshots land there; serve files via `npx http-server` and navigate http://localhost:<port>; clean up stray pngs after.
+  Reviewer carry-forward to impl: preflop grid cells must be real keyboard-reachable <button>s (aria-label "AKs, raise");
+    selectable setup chips as <button>s; fold-cell contrast >=4.5:1; honor prefers-reduced-motion on glows.
 phases:
-  init-state:
+  - id: worktree
     status: completed
-    started_at: 2026-05-29
+    started_at: 2026-05-31
     artifact_path: null
-  ideate:
+    folded_phase_failures: []
+  - id: init-state
+    status: completed
+    started_at: 2026-05-31
+    artifact_path: null
+    folded_phase_failures: []
+  - id: ideate
     status: skipped-formed
-    started_at: 2026-05-29
+    started_at: null
     artifact_path: null
-    seed_shape: formed
-  requirements:
-    status: completed
-    started_at: 2026-05-29
-    artifact_path: 01_requirements.md
     folded_phase_failures: []
-  grill:
+  - id: requirements
     status: completed
-    started_at: 2026-05-29
-    artifact_path: grills/2026-05-29_01_requirements.md
+    started_at: 2026-05-31
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/01_requirements.md
     folded_phase_failures: []
-  creativity:
+  - id: grill
+    status: completed
+    started_at: 2026-05-31
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/grills/2026-05-31_01_requirements.md
+    folded_phase_failures: []
+  - id: creativity
     status: skipped
-    started_at: 2026-05-29
+    started_at: 2026-05-31
     artifact_path: null
     folded_phase_failures: []
-  wireframes:
+  - id: wireframes
     status: completed
-    started_at: 2026-05-29
-    artifact_path: wireframes/index.html
+    started_at: 2026-05-31
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/wireframes/index.html
     folded_phase_failures: []
-  prototype:
+  - id: prototype
     status: skipped
-    started_at: 2026-05-29
+    started_at: 2026-05-31
     artifact_path: null
     folded_phase_failures: []
-  spec:
+  - id: spec
     status: completed
-    started_at: 2026-05-29
-    artifact_path: 02_spec.md
+    started_at: 2026-05-31
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/02_spec.md
     folded_phase_failures: []
-  plan:
+  - id: plan
     status: completed
-    started_at: 2026-05-29
-    artifact_path: 03_plan.md
+    started_at: 2026-05-31
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/03_plan.md
     folded_phase_failures: []
-  execute:
+  - id: execute
     status: completed
-    started_at: 2026-05-29
+    started_at: 2026-05-29T09:00:00Z
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/03_plan.md
+    folded_phase_failures: []
+  - id: verify
+    status: completed
+    started_at: 2026-05-31T12:00:00Z
+    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/verify/2026-05-31-review.md
+    folded_phase_failures: []
+  - id: complete-dev
+    status: in_progress
+    started_at: 2026-05-31T12:30:00Z
     artifact_path: null
     folded_phase_failures: []
-    tasks_done: [T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20]
-    tasks_remaining: []
-    exec_note: "Direct execution (acting as /execute), per-task TDD + commit. Execution decision P8: own hand-evaluator + own engine instead of poker-ts/poker-evaluator-ts (deps dropped) to keep core pure + avoid binary-data lib; still satisfies §17. All 20 tasks committed (feat(Tn)). Final gate: eslint clean, tsc clean, 96 tests pass, prod build OK, §17 assertions verified, coach loop exercised on demo fixtures."
-  verify:
-    status: completed
-    started_at: 2026-05-29
-    artifact_path: verify/2026-05-29-review.md
-    folded_phase_failures: []
-    verify_note: "PASS. Static: lint/tsc clean, 99 tests (was 96; +3 regression), prod build OK. 4 parallel code-review agents: core math correct, no 75+ bugs. Fixed 4 gaps + re-verified: worker leak (terminate), FR-30 id format, FR-05 crypto seed, FR-52 ½/¾/pot quick buttons. Live Playwright walk confirmed FR-50/51/52/53/55, FR-20/27, §17/FR-45 honesty (preflop chart-based, postflop no claim — UI + record), E4 (feedback off→saved w/ analysis), E5 (conceptual hides numbers), FR-30/31/32 persistence, FR-54/E3 empty state. §17 all 7 assertions grep-clean. No open gaps."
-  complete-dev:
-    status: completed
-    started_at: 2026-05-29
+  - id: retro
+    status: pending
+    started_at: null
     artifact_path: null
     folded_phase_failures: []
-    complete_dev_note: "Standalone Next.js app (not a plugin repo). Fast-forwarded main to feat/poker-coach-mvp (28 commits). Version 0.1.0 -> 0.2.0 (package.json + lock). Created docs/pmos/changelog.md. Tagged v0.2.0. Deploy + push skipped (local app, no remote). Zero learnings proposed (architecture already in CLAUDE.md/spec)."
-  retro:
-    status: completed
-    started_at: 2026-05-29
+  - id: final-summary
+    status: pending
+    started_at: null
     artifact_path: null
     folded_phase_failures: []
-    retro_note: "Single-session /reflect (inline, no file). Findings: complete-dev needs non-plugin-repo support; verify should announce live-QA inclusion; feature-sdlc context-window/compact friction (3 resume cycles). Zero persisted learnings."
-  final-summary:
-    status: completed
-    started_at: 2026-05-29
-    artifact_path: null
-    folded_phase_failures: []
-notes: "reused-existing-design-doc as requirements seed; --no-worktree; output_format=md"
+build_choices:
+  plan_then_pause: true
+  ask_before_merge: true
+notes:
+  - "Scope confirmed: all 7 observations in one feature (Tier 3 epic), 6 dependency-ordered waves."
+  - "node_modules symlinked from main checkout to avoid duplicate install."

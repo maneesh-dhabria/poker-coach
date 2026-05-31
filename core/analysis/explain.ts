@@ -4,6 +4,7 @@
 import { Card, rankOf, suitOf } from "@/core/cards";
 import { Verdict, CoachingDepth, Unit, HeroAction } from "@/core/analysis/types";
 import { ChartAction } from "@/core/charts/preflop";
+import { handCategoryLabel } from "@/core/eval/handEval";
 
 const SUIT_SYMBOL: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 
@@ -93,7 +94,54 @@ function aggression(p: ExplainParams): string {
   const win = Math.round(p.equityPct);
   if (p.verdict === "good") return `Betting for value with ~${win}% is good — get money in while ahead.`;
   if (p.verdict === "thin") return `A thin bet with ~${win}% — fine as value or a semi-bluff, but it's marginal.`;
-  return `You're betting with only ~${win}% and little fold equity — there's not enough behind it.`;
+  return `You're betting with only ~${win}% and little chance of folding out a better hand — there's not enough behind it.`;
+}
+
+// --- T19: winner's-perspective fold narration (spec FR-62, FR-63, FR-64, E7) ----------------
+// When the hero folds, coaching should still say who won, with what, and what was sound — sourced
+// entirely from the OutcomeRecord. It NEVER invents a hand the winner didn't show, and only mentions
+// a "baseline" when gtoClaim is true (preflop chart claims only). Pure; no new judgments.
+
+/** The slice of OutcomeRecord this narrator needs (kept structural so callers stay decoupled). */
+export interface WinnerOutcome {
+  winners: { seat: number; amount: number }[];
+  heroNet: number;
+  shown: { seat: number; cards: Card[] }[];
+  endedAtShowdown: boolean;
+}
+
+export interface NarrateOpts {
+  /** True only when an upstream chart claim applies (preflop). Gates any "baseline" language (FR-63). */
+  gtoClaim: boolean;
+}
+
+export function narrateWinner(
+  outcome: WinnerOutcome,
+  board: Card[],
+  opts: NarrateOpts,
+): string {
+  const { winners, shown } = outcome;
+  // Only ever assert a "baseline" when an upstream chart claim says so (FR-63).
+  const baselineNote = opts.gtoClaim ? " Folding here was the baseline play." : "";
+
+  if (winners.length === 0) return `The pot was uncontested.${baselineNote}`;
+
+  if (winners.length > 1) {
+    const seats = winners.map((w) => `Seat ${w.seat}`).join(" and ");
+    return `${seats} split the pot.${baselineNote}`;
+  }
+
+  const w = winners[0];
+  const shownCards = shown.find((s) => s.seat === w.seat)?.cards;
+
+  // Winner showed down → name the made hand via the shared evaluator label.
+  if (shownCards && shownCards.length >= 2) {
+    const label = handCategoryLabel([...shownCards, ...board]);
+    return `Seat ${w.seat} won with ${label}.${baselineNote}`;
+  }
+
+  // Winner mucked → narrate at the pot level; no invented hand (E7).
+  return `Seat ${w.seat} took the pot — their cards weren't shown, so there's no made hand to read here.${baselineNote}`;
 }
 
 function conceptual(p: ExplainParams): string {
@@ -101,8 +149,8 @@ function conceptual(p: ExplainParams): string {
     case "price":
       if (p.verdict === "good")
         return p.action === "fold"
-          ? "You don't have the price to continue — folding is right."
-          : "You're getting a good price here — an easy continue.";
+          ? "Calling would cost more than this hand can win back, so folding is right — the pot isn't big enough to make the call worth it."
+          : "You're getting a good price here — the pot is big enough relative to the call, so it's an easy continue.";
       if (p.verdict === "thin") return "It's close, but just about worth continuing.";
       return p.action === "fold"
         ? "This was a spot to keep going, not fold."

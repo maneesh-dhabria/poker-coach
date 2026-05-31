@@ -1,0 +1,56 @@
+/* Poker Coach wireframe substrate — tokens mirror app/globals.css verbatim */
+:root{
+  --bg:#0a2c20;            /* --felt-deep (app background) */
+  --panel:#15211c; --panel-2:#1d2c26;
+  --felt:#0f3d2e; --felt-edge:#0a2c20; --table-bg:#0a2c20;
+  --text:#eef2ee; --muted:#b8c4bc;
+  --gold:#d8b15a; --gold-strong:#e8c46f; --gold-deep:#b8923f;
+  --good:#3fb96b; --thin:#e0b54a; --mistake:#e5594e;
+  --chip:#1d2c26; --card-bg:#f7f5ef; --card-red:#c62f2f; --card-black:#1b1b1b;
+  --border:#234034; --win-glow:#e8c46f; --card-hi:#f5d442;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+button{font-family:inherit}
+.wf-note{background:#10243f;border:1px dashed var(--gold);color:var(--gold-strong);
+  font-size:12px;border-radius:8px;padding:8px 12px;margin:8px 0}
+.wf-frame{width:1280px;height:800px;margin:0 auto;border:1px solid var(--border);
+  overflow:hidden;position:relative;background:var(--bg)}
+.wf-viewport-hint{position:absolute;top:4px;right:8px;font-size:11px;color:var(--muted);z-index:50}
+.state-switch{display:flex;gap:6px;padding:8px;flex-wrap:wrap;justify-content:center;background:#0a1020;border-bottom:1px solid var(--border)}
+.state-switch button{padding:6px 12px;border-radius:999px;border:1px solid var(--border);
+  background:var(--panel);color:var(--muted);font-size:12px;cursor:pointer}
+.state-switch button.active{background:var(--gold);color:#1a1a1a;font-weight:700;border-color:var(--gold)}
+.poker-felt{background:radial-gradient(ellipse at center,#1a5a43 0%,var(--felt) 55%,var(--felt-edge) 100%);
+  border-radius:50%;border:12px solid #3a2a18;box-shadow:inset 0 0 60px rgba(0,0,0,.4),0 10px 40px rgba(0,0,0,.5)}
+.seat{position:absolute;transform:translate(-50%,-50%);width:132px;text-align:center}
+.seat-pill{background:var(--panel-2);border:1px solid var(--border);border-radius:8px;padding:4px 8px}
+.seat-pill.hero{border:2px solid var(--gold-strong)}
+.seat-pill.active{background:var(--gold);color:#1a1a1a}
+.acting-glow{box-shadow:0 0 0 3px var(--gold-strong),0 0 18px 4px rgba(232,196,111,.65);border-radius:10px;
+  animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--gold-strong),0 0 14px 2px rgba(232,196,111,.45)}
+  50%{box-shadow:0 0 0 3px var(--gold-strong),0 0 22px 7px rgba(232,196,111,.8)}}
+.winner-glow{box-shadow:0 0 0 3px var(--good),0 0 20px 6px rgba(63,174,107,.6);border-radius:10px}
+.pcard{width:32px;height:46px;border-radius:5px;background:var(--card-bg);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;font-weight:700;font-size:15px;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.pcard.lg{width:44px;height:62px;font-size:20px}
+.pcard.red{color:var(--card-red)} .pcard.black{color:var(--card-black)}
+.pcard.back{background:linear-gradient(135deg,#27413a,#16241f);border:1px solid #0a2c20;color:transparent}
+.pcard.hi{outline:3px solid var(--card-hi);outline-offset:1px}
+.netchip{font-size:12px;font-weight:700;border-radius:999px;padding:1px 8px;display:inline-block;margin-top:3px}
+.net-pos{background:rgba(63,174,107,.18);color:var(--good)} .net-neg{background:rgba(217,83,79,.18);color:var(--mistake)}
+.tabstrip{display:flex;gap:2px;border-bottom:1px solid var(--border);background:var(--panel)}
+.tabstrip button{flex:0 0 auto;padding:10px 14px;background:transparent;border:none;color:var(--muted);
+  font-size:13px;cursor:pointer;border-bottom:2px solid transparent}
+.tabstrip button.active{color:var(--gold-strong);border-bottom-color:var(--gold)}
+.tag{font-size:11px;background:var(--chip);color:var(--muted);padding:2px 8px;border-radius:999px}
+.btn{padding:10px 18px;border-radius:8px;border:none;font-weight:600;cursor:pointer;color:var(--text)}
+.btn-gold{background:var(--gold);color:#1a1a1a;font-weight:700}
+.btn-chip{background:var(--chip)} .btn-fold{background:var(--mistake)}
+.banner{background:rgba(0,0,0,.55);border:1px solid var(--gold);border-radius:12px;padding:8px 16px;
+  color:var(--gold-strong);font-weight:700;text-align:center}
+.annot{position:absolute;background:var(--gold);color:#1a1a1a;font-size:10px;font-weight:700;
+  border-radius:4px;padding:1px 5px;z-index:40}
+[hidden]{display:none!important}

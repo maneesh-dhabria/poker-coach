@@ -118,3 +118,74 @@ export function categoryOf(score: number): HandCategory {
   for (let i = 0; i < 5; i++) s = Math.floor(s / 15);
   return s as HandCategory;
 }
+
+/** Plural rank word for labels, e.g. 14 -> "Aces", 13 -> "Kings". */
+function rankWord(v: number): string {
+  const names: Record<number, string> = {
+    14: "Aces",
+    13: "Kings",
+    12: "Queens",
+    11: "Jacks",
+    10: "Tens",
+    9: "Nines",
+    8: "Eights",
+    7: "Sevens",
+    6: "Sixes",
+    5: "Fives",
+    4: "Fours",
+    3: "Threes",
+    2: "Twos",
+  };
+  return names[v] ?? String(v);
+}
+
+/** The exact best 5 cards from the hole + board (enumerates C(n,5), picks max rank5). */
+export function winningCards(hole: Card[], board: Card[]): Card[] {
+  const all = [...hole, ...board];
+  if (all.length < 5) throw new Error("winningCards expects >=5 cards");
+  let best: Card[] = all.slice(0, 5);
+  let bestScore = -1;
+  for (const combo of combinations(all, 5)) {
+    const s = rank5(combo);
+    if (s > bestScore) {
+      bestScore = s;
+      best = combo;
+    }
+  }
+  return best;
+}
+
+/** Plain-language name of the made hand, decoding the relevant top ranks (spec FR-11/12, D5). */
+export function handCategoryLabel(cards: Card[]): string {
+  const best =
+    cards.length === 5 ? cards : winningCards(cards.slice(0, 2), cards.slice(2));
+  const cat = categoryOf(rank5(best));
+
+  // Rank counts on the winning 5, sorted by (count desc, rank desc).
+  const counts = new Map<number, number>();
+  for (const c of best) counts.set(rankValue(c), (counts.get(rankValue(c)) ?? 0) + 1);
+  const groups = Array.from(counts.entries()).sort((a, b) => b[1] - a[1] || b[0] - a[0]);
+
+  switch (cat) {
+    case HandCategory.StraightFlush:
+      return "Straight Flush";
+    case HandCategory.Quads:
+      return `Four of a Kind, ${rankWord(groups[0][0])}`;
+    case HandCategory.FullHouse:
+      return `Full House, ${rankWord(groups[0][0])} full of ${rankWord(groups[1][0])}`;
+    case HandCategory.Flush:
+      return `Flush, ${rankWord(groups[0][0])} high`;
+    case HandCategory.Straight:
+      return "Straight";
+    case HandCategory.Trips:
+      return `Three of a Kind, ${rankWord(groups[0][0])}`;
+    case HandCategory.TwoPair: {
+      const pairs = groups.filter((g) => g[1] === 2).map((g) => g[0]);
+      return `Two Pair, ${rankWord(pairs[0])} & ${rankWord(pairs[1])}`;
+    }
+    case HandCategory.Pair:
+      return `Pair of ${rankWord(groups[0][0])}`;
+    default:
+      return `High Card, ${rankWord(groups[0][0])}`;
+  }
+}

@@ -5,6 +5,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getDataDir, paths } from "@/lib/dataPaths";
 import { HandRecord } from "@/core/history/handRecord";
+import { Bankroll, BANKROLL_SCHEMA_VERSION, defaultBankroll } from "@/core/bankroll";
 
 export const SESSION_SCHEMA_VERSION = 1;
 
@@ -39,6 +40,29 @@ export async function saveHandRecord(record: HandRecord, root = getDataDir()): P
   const file = paths.handFile(root, record.sessionId, record.handNumber);
   await writeAtomic(file, JSON.stringify(record, null, 2));
   return file;
+}
+
+/** Persist the lifetime bankroll to its OWN file (data/bankroll.json), separate from HandRecords. */
+export async function saveBankroll(bankroll: Bankroll, root = getDataDir()): Promise<string> {
+  const file = paths.bankrollFile(root);
+  await writeAtomic(file, JSON.stringify(bankroll, null, 2));
+  return file;
+}
+
+/**
+ * Load the lifetime bankroll. On a missing/corrupt file or a schemaVersion mismatch, return a fresh
+ * default ($1000) — never throws, never migrates destructively, never touches HandRecord files.
+ */
+export async function loadBankroll(root = getDataDir()): Promise<Bankroll> {
+  const fallback = defaultBankroll(200, 6);
+  try {
+    const raw = await fs.readFile(paths.bankrollFile(root), "utf8");
+    const parsed = JSON.parse(raw) as Bankroll;
+    if (parsed.schemaVersion !== BANKROLL_SCHEMA_VERSION) return fallback;
+    return parsed;
+  } catch {
+    return fallback;
+  }
 }
 
 export interface CoachingFile {

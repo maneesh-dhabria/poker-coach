@@ -9,7 +9,9 @@
   --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.35);
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; }
+/* No-scroll shell (FR-06/NFR-01): the page itself never scrolls; only the active tab body
+   (#tab-body, see RightPanel) is a scroll region. */
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
 body {
   background: var(--felt-deep);
   color: var(--ink);
@@ -123,4 +125,83 @@ button { font: inherit; cursor: pointer; }
   .btn:active { transform: none; }
   .action-badge { animation: none; }
   .pile-chip--new { animation: none; }
+}
+
+/* W2 T7: acting-player "thinking" glow. Static gold ring by default; pulses only when the user
+   has no reduced-motion preference (NFR-05 / Risk R5). */
+.acting-glow {
+  box-shadow: 0 0 0 2px var(--gold), 0 0 12px 2px var(--gold);
+  border-color: var(--gold) !important;
+}
+@keyframes acting-pulse {
+  0% { box-shadow: 0 0 0 2px var(--gold), 0 0 6px 1px var(--gold); }
+  50% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px 5px var(--gold); }
+  100% { box-shadow: 0 0 0 2px var(--gold), 0 0 6px 1px var(--gold); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .acting-glow { animation: acting-pulse 1.2s ease-in-out infinite; }
+}
+
+/* W2 T8: showdown layer. Winner seat glows green; winning 5 cards outline yellow; per-hand net chip.
+   The glow pulse is gated behind no reduced-motion preference (NFR-05 / Risk R5). */
+.winner-glow {
+  box-shadow: 0 0 0 2px var(--good), 0 0 14px 3px var(--good);
+  border-color: var(--good) !important;
+}
+@keyframes winner-pulse {
+  0% { box-shadow: 0 0 0 2px var(--good), 0 0 8px 2px var(--good); }
+  50% { box-shadow: 0 0 0 2px var(--good), 0 0 20px 6px var(--good); }
+  100% { box-shadow: 0 0 0 2px var(--good), 0 0 8px 2px var(--good); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .winner-glow { animation: winner-pulse 1.2s ease-in-out infinite; }
+}
+.card-hi {
+  outline: 3px solid var(--gold);
+  outline-offset: -1px;
+  box-shadow: 0 0 8px 1px var(--gold);
+}
+.netchip {
+  margin-top: 6px;
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+}
+.net-pos { color: #10231a; background: var(--good); }
+.net-neg { color: var(--ink); background: rgba(229, 89, 78, 0.22); border: 1px solid var(--mistake); }
+
+/* Preflop chart grid cells (plan T17, NFR-05). Real <button>s; colour encodes the baseline action but
+   is never the only signal — the cell text (the hand) and the detail card carry the meaning, so
+   colour-blind users are not excluded. Fold cells use light text on a dark surface for >=4.5:1
+   contrast; raise/call use dark text on their light fills (also >=4.5:1). */
+.chart-cell {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 0;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.2;
+}
+.chart-cell.cell-raise {
+  background: var(--bad, #f87171);
+  color: #0f1520;
+}
+.chart-cell.cell-call {
+  background: var(--good, #34d399);
+  color: #0f1520;
+}
+.chart-cell.cell-fold {
+  background: var(--surface-2, #1a2230);
+  color: var(--ink, #e8edf4); /* light on dark ≈ 11:1 contrast (>= 4.5:1) */
+}
+.chart-cell[aria-pressed="true"] {
+  outline: 2px solid var(--gold, #e8c66a);
+}
+.chart-cell:focus-visible {
+  outline: 2px solid var(--gold, #e8c66a);
+  outline-offset: 1px;
 }

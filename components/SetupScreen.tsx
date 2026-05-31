@@ -33,6 +33,7 @@ const STYLE_INFO: Record<Style, string> = {
 };
 const SKILLS: Skill[] = ["Beginner", "Intermediate", "Advanced"];
 const PRESETS: PresetName[] = ["balanced", "aggro", "passive", "reg-heavy"];
+const STACK_PRESETS = [50, 100, 200] as const; // buy-in depth in BB; default 100 (D15)
 const DEPTHS: { value: CoachingDepth; label: string; hint: string }[] = [
   { value: "conceptual", label: "Conceptual", hint: "Plain words, no numbers" },
   { value: "equity", label: "Equity + Heuristics", hint: "Odds and reasons" },
@@ -66,9 +67,34 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
   const selectedPreset = activePreset(settings.personas, settings.numOpponents);
 
   return (
-    <main style={{ maxWidth: 720, margin: "0 auto", padding: 24, display: "grid", gap: 16 }}>
-      <h1 style={{ color: "var(--gold)", margin: 0 }}>New Session</h1>
+    // No-scroll setup shell (spec FR-05/FR-06, NFR-01): fills one viewport at ≥1280×800; the page
+    // never scrolls. Body reflows into a denser 2-column grid per wireframe 01 so opponents +
+    // presets + coaching depth + Deal all fit a 1280×800 fold.
+    <main
+      style={{
+        height: "100vh",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        maxWidth: 1100,
+        margin: "0 auto",
+        padding: 24,
+        gap: 16,
+      }}
+    >
+      <h1 style={{ color: "var(--gold)", margin: 0, flex: "0 0 auto" }}>New Session</h1>
 
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 16,
+          alignContent: "start",
+        }}
+      >
       <section className="card">
         <label htmlFor="numOpponents">Number of opponents</label>{" "}
         <select
@@ -157,6 +183,29 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
       </section>
 
       <section className="card">
+        <h2 id="stack-label" style={{ marginTop: 0 }}>
+          Starting stack
+        </h2>
+        <div role="group" aria-labelledby="stack-label" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {STACK_PRESETS.map((bb) => {
+            const selected = settings.startingStackBb === bb;
+            return (
+              <Button
+                key={bb}
+                size="sm"
+                aria-pressed={selected}
+                variant={selected ? "primary" : "ghost"}
+                selected={selected}
+                onClick={() => setSettings({ startingStackBb: bb })}
+              >
+                {bb} BB
+              </Button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="card">
         <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <input
             type="checkbox"
@@ -167,10 +216,11 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
         </label>
       </section>
 
-      <div>
-        <Button variant="primary" onClick={onDeal} style={{ padding: "10px 28px", fontSize: 16 }}>
-          Deal
-        </Button>
+        <div>
+          <Button variant="primary" onClick={onDeal} style={{ padding: "10px 28px", fontSize: 16 }}>
+            Deal
+          </Button>
+        </div>
       </div>
     </main>
   );

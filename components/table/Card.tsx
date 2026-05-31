@@ -4,7 +4,15 @@ import { Card as CardT, rankOf, suitOf } from "@/core/cards";
 const SUIT_SYMBOL: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 const RED = new Set(["h", "d"]);
 
-export function Card({ card, hidden }: { card?: CardT; hidden?: boolean }) {
+export function Card({
+  card,
+  hidden,
+  highlighted,
+}: {
+  card?: CardT;
+  hidden?: boolean;
+  highlighted?: boolean;
+}) {
   if (hidden || !card) {
     return (
       <span
@@ -25,6 +33,7 @@ export function Card({ card, hidden }: { card?: CardT; hidden?: boolean }) {
   return (
     <span
       data-testid="card"
+      className={highlighted ? "card-hi" : undefined}
       aria-label={`${rankOf(card)}${SUIT_SYMBOL[suit]}`}
       style={{
         display: "inline-flex",

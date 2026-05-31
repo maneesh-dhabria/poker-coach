@@ -8,8 +8,12 @@ import { HandFlow, startHand, FlowSeatInit } from "@/core/handFlow";
 import { HeroDecisionRecord } from "@/core/history/handRecord";
 import { requestEquity } from "@/core/equity/equityClient";
 import { Settings } from "@/store/sessionStore";
+import { useBankrollStore } from "@/store/bankrollStore";
 
 const EQUITY_ITERATIONS = 1500;
+const DEFAULT_STACK = 200;
+const DEFAULT_STARTING_STACK_BB = 100;
+const BIG_BLIND = 2;
 
 function browserWorker(): Worker | null {
   if (typeof window === "undefined" || typeof Worker === "undefined") return null;
@@ -39,16 +43,29 @@ interface GameState {
   saveHand: () => Promise<void>;
 }
 
+// Seed each seat's stack from the persisted bankroll so stacks carry hand-to-hand (FR-22). Any
+// non-hero seat that has busted below a big blind is auto-rebought to the starting stack so the table
+// never goes short-handed (FR-24); the hero is left to the RebuyModal. Falls back to the default depth
+// when the bankroll hasn't loaded yet.
 function buildSeats(settings: Settings): FlowSeatInit[] {
+  const bankroll = useBankrollStore.getState().bankroll;
+  const startingStack = bankroll?.startingStack ?? DEFAULT_STACK;
+  const stackFor = (seatId: number, isHero: boolean): number => {
+    const seat = bankroll?.seats.find((s) => s.seatId === seatId);
+    let stack = seat ? seat.stack : startingStack;
+    if (!isHero && stack < BIG_BLIND) stack = startingStack; // bots auto-rebuy
+    return stack;
+  };
   const seats: FlowSeatInit[] = [
-    { seat: 0, name: settings.heroName, isHero: true, stack: 200, persona: null },
+    { seat: 0, name: settings.heroName, isHero: true, stack: stackFor(0, true), persona: null },
   ];
   for (let i = 0; i < settings.numOpponents; i++) {
+    const seatId = i + 1;
     seats.push({
-      seat: i + 1,
-      name: `Bot ${i + 1}`,
+      seat: seatId,
+      name: `Bot ${seatId}`,
       isHero: false,
-      stack: 200,
+      stack: stackFor(seatId, false),
       persona: settings.personas[i] ?? settings.personas[0],
     });
   }
@@ -72,8 +89,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { settings, handNumber, seed } = get();
     if (!settings) return;
     const nextHand = handNumber + 1;
+    const startingStackBb =
+      (useBankrollStore.getState().bankroll?.startingStack ?? DEFAULT_STACK) / BIG_BLIND ||
+      DEFAULT_STARTING_STACK_BB;
     const flow = startHand({
-      config: { smallBlind: 1, bigBlind: 2, startingStackBb: 100 },
+      config: { smallBlind: 1, bigBlind: 2, startingStackBb },
       seats: buildSeats(settings),
       buttonIndex: nextHand % (settings.numOpponents + 1),
       rng: mulberry32(seed + nextHand * 1000),
@@ -125,6 +145,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({ saveStatus: res.ok ? "saved" : "error" });
     } catch {
       set({ saveStatus: "error" });
+    }
+    // Carry the result into the lifetime bankroll: hero net moves bank + session P/L and final
+    // per-seat stacks carry to the next hand (FR-22/23). Awaited so the next hand can't race the
+    // write (R2). Only when a bankroll has been loaded. Final stacks + hero net come straight from
+    // the engine's tableView (the same source toRecord uses).
+    if (useBankrollStore.getState().bankroll) {
+      const view = flow.tableView();
+      const seatStacks: Record<number, number> = {};
+      let heroSeat = 0;
+      for (const s of view.seats) {
+        seatStacks[s.seat] = s.stack;
+        if (s.isHero) heroSeat = s.seat;
+      }
+      try {
+        await useBankrollStore
+          .getState()
+          .applyHandResult({ heroSeat, net: view.heroNet ?? 0, seatStacks });
+      } catch {
+        /* bankroll persistence is best-effort; reload reconstructs from disk (R2 last-write-wins) */
+      }
     }
   },
 }));

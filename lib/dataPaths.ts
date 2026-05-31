@@ -14,4 +14,5 @@ export const paths = {
     path.join(root, "hands", sessionId, `hand-${handNumber}.json`),
   coachingDir: (root: string, sessionId: string) => path.join(root, "coaching", sessionId),
   processedFile: (root: string) => path.join(root, "coaching", "processed.json"),
+  bankrollFile: (root: string) => path.join(root, "bankroll.json"),
 };

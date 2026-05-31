@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="pmos:skill" content="wireframes">
+<title>01 · Setup (no-scroll @1280×800) — Poker Coach</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="./assets/wireframe.css?v=2.60.1">
+</head>
+<body>
+<div class="state-switch">
+  <strong style="color:var(--muted);font-size:12px;align-self:center;margin-right:6px">States:</strong>
+  <button class="active" onclick="ss('default')">Default</button>
+  <button onclick="ss('annot')">Annotated</button>
+</div>
+
+<div class="wf-frame" id="frame">
+  <span class="wf-viewport-hint">1280 × 800 · no vertical scroll</span>
+
+  <!-- header -->
+  <div style="height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid var(--border);background:var(--panel)">
+    <div style="font-size:18px;font-weight:700;color:var(--gold-strong)">Poker Coach</div>
+    <div style="display:flex;gap:18px;align-items:center;font-size:13px">
+      <span style="color:var(--muted)">Lifetime bank <b style="color:var(--good)">$1,760</b></span>
+      <span class="tag">New Session</span>
+    </div>
+  </div>
+
+  <!-- body: two columns so everything fits one fold -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px;height:calc(800px - 56px)">
+    <!-- left column -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <h1 style="margin:0;font-size:24px;color:var(--gold-strong)">New Table</h1>
+
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <label style="font-size:13px">Number of opponents</label>
+          <select style="background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px"><option>5</option></select>
+        </div>
+        <div style="font-size:13px;margin-bottom:6px">Table presets</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span class="tag" style="background:var(--gold);color:#1a1a1a;font-weight:700">balanced</span>
+          <span class="tag">aggro</span><span class="tag">passive</span><span class="tag">reg-heavy</span>
+        </div>
+      </div>
+
+      <!-- NEW: starting-stack presets (D15) -->
+      <div style="position:relative;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div class="annot" style="top:-9px;left:12px" data-annot hidden>NEW · D15 starting-stack presets</div>
+        <div style="font-size:13px;margin-bottom:8px">Starting stack <span style="color:var(--muted)">(buy-in depth)</span></div>
+        <div style="display:flex;gap:8px">
+          <span class="tag">50 BB · $100</span>
+          <span class="tag" style="background:var(--gold);color:#1a1a1a;font-weight:700">100 BB · $200</span>
+          <span class="tag">200 BB · $400</span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">Bots auto-rebuy to stay 6-max · your busts top up from the bank (D11)</div>
+      </div>
+    </div>
+
+    <!-- right column -->
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px">Opponents</div>
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:8px 10px;font-size:12px;align-items:center">
+          <span style="color:var(--muted)">Bot 1</span><span class="tag">TAG</span><span class="tag">Advanced</span>
+          <span style="color:var(--muted)">Bot 2</span><span class="tag">TAG</span><span class="tag">Intermediate</span>
+          <span style="color:var(--muted)">Bot 3</span><span class="tag">Nit</span><span class="tag">Intermediate</span>
+          <span style="color:var(--muted)">Bot 4</span><span class="tag">LAG</span><span class="tag">Intermediate</span>
+          <span style="color:var(--muted)">Bot 5</span><span class="tag">Calling Station</span><span class="tag">Beginner</span>
+        </div>
+      </div>
+
+      <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px">
+        <div style="font-size:15px;font-weight:700;margin-bottom:10px">Coaching depth</div>
+        <div style="display:flex;gap:8px">
+          <span class="tag">Conceptual</span>
+          <span class="tag" style="background:var(--gold);color:#1a1a1a;font-weight:700">Equity + Heuristics</span>
+          <span class="tag">Strict (charts)</span>
+        </div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;margin-top:12px"><input type="checkbox" checked> Show instant feedback after each of my decisions</label>
+      </div>
+
+      <button class="btn btn-gold" style="align-self:flex-start;font-size:16px;padding:12px 28px">Deal</button>
+    </div>
+  </div>
+</div>
+
+<div class="wf-note">Setup reflowed to <b>two columns</b> so opponents + presets + starting-stack + coaching depth + Deal all fit a <b>1280×800</b> fold with zero scroll (G1). Lifetime bank shown top-right (D10/D13).</div>
+
+<footer style="text-align:center;color:var(--muted);font-size:11px;padding:10px">Setup · desktop-web · file 01 · 2026-05-31</footer>
+
+<script>
+function ss(s){
+  document.querySelectorAll('.state-switch button').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.querySelectorAll('[data-annot]').forEach(a=>a.hidden = (s!=='annot'));
+}
+</script>
+</body>
+</html>

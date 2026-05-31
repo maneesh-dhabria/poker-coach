@@ -57,6 +57,9 @@ export interface TableSeatView {
   folded: boolean;
   isButton: boolean;
   cards: Card[] | null; // hero always; opponents only at showdown
+  // T8 (D1 pattern): this seat's net for the hand once over (from result.net); null while live.
+  // Optional so existing TableSeatView literals (e.g. component tests) stay valid — additive.
+  net?: number | null;
 }
 
 export interface TableView {
@@ -67,6 +70,10 @@ export interface TableView {
   isHeroTurn: boolean;
   isOver: boolean;
   heroNet: number | null;
+  // T6 (D1): the seat currently to act, or null when not applicable / hand over.
+  toAct: number | null;
+  // T6 (D1): winners once the hand is over (mirrors outcome.winners); [] otherwise.
+  winners: { seat: number; amount: number }[];
 }
 
 /** A replay snapshot of the hand as of the first `step` revealed actions — drives the central
@@ -272,16 +279,23 @@ export class HandFlow {
         folded,
         isButton: s.seat === buttonSeat,
         cards: revealed ? (this.h.holeOf(s.seat) as Card[]) : null,
+        net: result ? (result.net[s.seat] ?? 0) : null,
       };
     });
+    const legal = this.h.legalActions();
+    // Derived, read-only (D1): the acting seat from the same source isHeroTurn uses, null when over
+    // or when no seat is to act; winners straight off the engine result (same data toRecord writes).
+    const toAct = over || legal.toAct < 0 ? null : legal.toAct;
     return {
       seats,
       board: this.h.board,
       pot: this.h.pot(),
-      legal: this.h.legalActions(),
+      legal,
       isHeroTurn: this.isHeroTurn(),
       isOver: over,
       heroNet: result ? (result.net[this.heroSeatId] ?? 0) : null,
+      toAct,
+      winners: result ? result.winners : [],
     };
   }
 

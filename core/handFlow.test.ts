@@ -152,3 +152,51 @@ describe("HandFlow.replayAt (central pot snapshot)", () => {
     }
   });
 });
+
+
+describe("HandFlow T6: toAct + winners on TableView (pure; D1)", () => {
+  function freshFlow() {
+    return startHand({
+      config: { smallBlind: 1, bigBlind: 2, startingStackBb: 100 },
+      seats: [
+        { seat: 0, name: "You", isHero: true, stack: 200, persona: null },
+        { seat: 1, name: "Sta", isHero: false, stack: 200, persona: personaFor("Calling Station", "Beginner") },
+      ],
+      buttonIndex: 1,
+      rng: mulberry32(9),
+      sessionId: "s",
+      handNumber: 1,
+      coachingDepth: "equity",
+    });
+  }
+
+  it("exposes toAct (acting seat) while the hand is live and null when over", () => {
+    const flow = freshFlow();
+    const v = flow.tableView();
+    if (!v.isOver) {
+      expect(typeof v.toAct === "number" || v.toAct === null).toBe(true);
+    } else {
+      expect(v.toAct).toBe(null);
+    }
+  });
+
+  it("exposes winners[] matching the outcome when the hand is over", () => {
+    const flow = freshFlow();
+    let guard = 0;
+    while (!flow.isOver() && flow.isHeroTurn() && guard++ < 30) {
+      const legal = flow.heroSpot().legal;
+      const action = legal.actions.includes("fold")
+        ? { type: "fold" as const }
+        : legal.actions.includes("check")
+          ? { type: "check" as const }
+          : { type: "call" as const };
+      flow.heroAct(action, 50);
+    }
+    const v = flow.tableView();
+    expect(v.isOver).toBe(true);
+    expect(Array.isArray(v.winners)).toBe(true);
+    expect(v.toAct).toBe(null);
+    const rec = flow.toRecord("2026-05-29T00:00:00.000Z");
+    expect(v.winners).toEqual(rec.outcome.winners);
+  });
+});

@@ -3,6 +3,49 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.3.0] — 2026-05-31
+
+### UX & Learning Overhaul
+
+A presentation + continuity + teaching pass over the play screen — the decision
+engine's verdict math and the `HandRecord` schema (v1) are unchanged.
+
+### Added
+
+- **No-scroll, two-column play shell.** At ≥1280×800 setup and in-hand fit one
+  fold; only the active right-panel tab body scrolls (`app/page.tsx`, `RightPanel`,
+  `TabStrip`).
+- **Money continuity.** Stacks carry hand-to-hand; a lifetime bank persists to
+  `data/bankroll.json` (new `/api/bankroll` GET/PUT, `lib/dataStore` atomic writes,
+  pure `core/bankroll.ts` reducer) and survives restart. Bust→rebuy modal with
+  auto-rebuy; "New table" resets stacks but keeps the bank; bots auto-rebuy.
+  Starting-stack presets 50/100/200 BB.
+- **Per-hand + session legibility.** Every seat shows its net for the just-finished
+  hand; the header shows Session P/L (▲/▼) and lifetime Bank. Click the hero stack
+  to toggle $⇄BB (pure `core/money.ts`; engine stays in integer dollars).
+- **Follow the action.** The seat to act gets a "thinking" glow synced to the
+  reveal cursor.
+- **See who won and why.** Winner glow, yellow winning-5 cards, a center-table
+  hand-category banner (pure `handCategoryLabel` / `winningCards` in `core/eval`),
+  and per-seat net chips.
+- **Rankings tab.** All nine hand categories strongest-first, derived from the
+  `HandCategory` enum (single source).
+- **Preflop Chart tab.** 13×13 / 169-hand grid of keyboard-reachable `<button>`s
+  with aria-labels; a position selector defaulting to the hero's seat; click a hand
+  for a plain-language detail card with equity from a committed precomputed table
+  (`core/charts/preflopEquity.json`, on-demand fallback) — no runtime LLM.
+- **Plain-language coaching.** Verdict copy reworded to lead with the plain idea
+  and define terms inline (no unexplained jargon); folds get a winner's-perspective
+  narration (who won, with what), gracefully degrading when the winner mucked.
+
+### Engineering notes
+
+- New pure, unit-tested core helpers (`money`, `bankroll`, `handCategoryLabel`,
+  `winningCards`, `allHands169`) keep `core/*` DOM-free; the §17 architectural
+  assertions stay grep-clean (no React/DOM/fs in core, no runtime LLM).
+- Verified via the full `/verify` gate: ESLint + `tsc` clean, **195 tests passing**,
+  and a live Playwright check confirming no-scroll at 1280×800.
+
 ## [0.2.0] — 2026-05-29
 
 First playable MVP: a local, all-TypeScript app for 6-max No-Limit Hold'em cash —

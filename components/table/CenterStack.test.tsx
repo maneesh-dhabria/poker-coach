@@ -43,3 +43,15 @@ describe("CenterStack", () => {
     expect(screen.getAllByTestId("pile-chip").length).toBeGreaterThan(0);
   });
 });
+
+describe("CenterStack — showdown category banner (T8)", () => {
+  it("shows the hand-category banner when given a label", () => {
+    render(<CenterStack snapshot={snap()} categoryBanner="Two Pair, Aces & Kings" />);
+    expect(screen.getByText("Two Pair, Aces & Kings")).toBeTruthy();
+  });
+
+  it("renders no banner when none is given (e.g. folded-out hand)", () => {
+    render(<CenterStack snapshot={snap()} />);
+    expect(screen.queryByTestId("category-banner")).toBeNull();
+  });
+});

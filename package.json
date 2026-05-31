@@ -1,6 +1,6 @@
 {
   "name": "poker-coach",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
+    "gen:equity": "esbuild scripts/genPreflopEquity.ts --bundle --platform=node --format=esm --alias:@=. | node --input-type=module",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx"
   },

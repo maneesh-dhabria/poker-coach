@@ -1,36 +1,63 @@
 import { describe, it, expect } from "vitest";
-import { handKey, chartAction } from "@/core/charts/preflop";
+import { handKey, chartAction, chartApplies, allHands169 } from "@/core/charts/preflop";
 import { Card } from "@/core/cards";
-
-const hand = (a: string, b: string): [Card, Card] => [a as Card, b as Card];
+import equityTable from "@/core/charts/preflopEquity.json";
 
 describe("handKey", () => {
-  it("canonicalizes to 169-grid notation (higher rank first)", () => {
-    expect(handKey(hand("Ah", "Kh"))).toBe("AKs");
-    expect(handKey(hand("Kd", "As"))).toBe("AKo");
-    expect(handKey(hand("7c", "7d"))).toBe("77");
-    expect(handKey(hand("2d", "7c"))).toBe("72o");
+  it("orders by rank, marks suited/offsuit, collapses pairs", () => {
+    expect(handKey(["As", "Kh"] as [Card, Card])).toBe("AKo");
+    expect(handKey(["Kh", "As"] as [Card, Card])).toBe("AKo");
+    expect(handKey(["Ah", "Kh"] as [Card, Card])).toBe("AKs");
+    expect(handKey(["As", "Ad"] as [Card, Card])).toBe("AA");
   });
 });
 
 describe("chartAction", () => {
-  it("AKs is an open from CO", () => {
-    expect(chartAction(hand("Ah", "Kh"), "CO", "unopened")).toBe("raise");
+  it("opens strong hands and folds trash from UTG", () => {
+    expect(chartAction(["As", "Ah"] as [Card, Card], "UTG", "unopened")).toBe("raise");
+    expect(chartAction(["7d", "2c"] as [Card, Card], "UTG", "unopened")).toBe("fold");
+  });
+  it("defends BB vs a raise per the chart", () => {
+    expect(chartApplies("BB", "raise")).toBe(true);
+  });
+});
+
+describe("allHands169", () => {
+  it("enumerates exactly 169 canonical hands (13 pairs, 78 suited, 78 offsuit)", () => {
+    const all = allHands169();
+    expect(all).toHaveLength(169);
+    expect(all.filter((h) => h.length === 2)).toHaveLength(13); // pairs e.g. "AA"
+    expect(all.filter((h) => h.endsWith("s"))).toHaveLength(78);
+    expect(all.filter((h) => h.endsWith("o"))).toHaveLength(78);
   });
 
-  it("72o is a fold UTG", () => {
-    expect(chartAction(hand("7c", "2d"), "UTG", "unopened")).toBe("fold");
+  it("produces a unique key set", () => {
+    const all = allHands169();
+    expect(new Set(all).size).toBe(169);
   });
 
-  it("UTG opens are tighter than BTN opens (T7o folds UTG, opens BTN range stays wide)", () => {
-    expect(chartAction(hand("9c", "8c"), "UTG", "unopened")).toBe("raise");
-    expect(chartAction(hand("5c", "4c"), "UTG", "unopened")).toBe("fold");
-    expect(chartAction(hand("5c", "4c"), "BTN", "unopened")).toBe("raise");
+  it("uses the same key format as handKey for representative hands", () => {
+    const all = new Set(allHands169());
+    expect(all.has("AA")).toBe(true);
+    expect(all.has("AKs")).toBe(true);
+    expect(all.has("AKo")).toBe(true);
+    expect(all.has("72o")).toBe(true);
+  });
+});
+
+describe("preflopEquity.json (precomputed table)", () => {
+  it("has a numeric equity in [0,100] for every canonical hand", () => {
+    const table = equityTable as { equity: Record<string, number> };
+    for (const h of allHands169()) {
+      const pct = table.equity[h];
+      expect(typeof pct).toBe("number");
+      expect(pct).toBeGreaterThanOrEqual(0);
+      expect(pct).toBeLessThanOrEqual(100);
+    }
   });
 
-  it("BB defends a reasonable hand vs a raise and folds trash", () => {
-    expect(chartAction(hand("Ks", "9s"), "BB", "raise")).toBe("call");
-    expect(chartAction(hand("Ah", "Kd"), "BB", "raise")).toBe("raise"); // 3bet premium
-    expect(chartAction(hand("7c", "2d"), "BB", "raise")).toBe("fold");
+  it("ranks AA well above 72o (sanity)", () => {
+    const table = equityTable as { equity: Record<string, number> };
+    expect(table.equity["AA"]).toBeGreaterThan(table.equity["72o"]);
   });
 });

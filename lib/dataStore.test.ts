@@ -6,8 +6,11 @@ import {
   saveSession,
   saveHandRecord,
   listCoaching,
+  saveBankroll,
+  loadBankroll,
   SESSION_SCHEMA_VERSION,
 } from "@/lib/dataStore";
+import { defaultBankroll, BANKROLL_SCHEMA_VERSION } from "@/core/bankroll";
 import { buildHandRecord } from "@/core/history/handRecord";
 import { analyze } from "@/core/analysis/analyze";
 import { Card } from "@/core/cards";
@@ -92,5 +95,47 @@ describe("listCoaching", () => {
     const files = await listCoaching("sess-1", root);
     expect(files.map((f) => f.name)).toEqual(["sess-1_h1.md", "sess-1_h2.md"]);
     expect(files[0].content).toContain("Hand 1");
+  });
+});
+
+describe("bankroll persistence", () => {
+  it("round-trips the bankroll to its own bankroll.json file", async () => {
+    const b = defaultBankroll(200, 6);
+    const file = await saveBankroll(b, root);
+    expect(file).toContain("bankroll.json");
+    expect(await loadBankroll(root)).toEqual(b);
+    // no leftover temp file
+    expect((await fs.readdir(root)).some((n) => n.endsWith(".tmp"))).toBe(false);
+  });
+
+  it("returns a fresh default on a missing file (never throws)", async () => {
+    const got = await loadBankroll(root);
+    expect(got.schemaVersion).toBe(BANKROLL_SCHEMA_VERSION);
+    expect(got.bank).toBeGreaterThan(0);
+  });
+
+  it("returns a fresh default on a corrupt file (never throws)", async () => {
+    await fs.writeFile(path.join(root, "bankroll.json"), "{ not json", "utf8");
+    const got = await loadBankroll(root);
+    expect(got.schemaVersion).toBe(BANKROLL_SCHEMA_VERSION);
+  });
+
+  it("returns a fresh default when the stored schemaVersion mismatches", async () => {
+    await fs.writeFile(
+      path.join(root, "bankroll.json"),
+      JSON.stringify({ ...defaultBankroll(200, 6), schemaVersion: 999 }),
+      "utf8",
+    );
+    const got = await loadBankroll(root);
+    expect(got.schemaVersion).toBe(BANKROLL_SCHEMA_VERSION);
+  });
+
+  it("does not touch HandRecord files", async () => {
+    await saveHandRecord(sampleRecord("sess-1", 1), root);
+    await saveBankroll(defaultBankroll(200, 6), root);
+    const onDisk = JSON.parse(
+      await fs.readFile(path.join(root, "hands", "sess-1", "hand-1.json"), "utf8"),
+    );
+    expect(onDisk.schemaVersion).toBe(1);
   });
 });

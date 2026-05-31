@@ -6,6 +6,7 @@
 import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { latestActionPerSeat } from "@/core/handFlow";
+import { winningCards, handCategoryLabel } from "@/core/eval/handEval";
 import { Seat } from "@/components/table/Seat";
 import { Board } from "@/components/table/Board";
 import { CenterStack } from "@/components/table/CenterStack";
@@ -44,6 +45,25 @@ export function PokerTable() {
   const revealing = revealed < total;
   const latest = latestActionPerSeat(log.slice(0, revealed));
   const snapshot = flow.replayAt(revealed);
+  const BIG_BLIND = 2; // fixed for W2; persistent config arrives in W3
+
+  // ── Showdown layer (FR-13/14/15/16). Only after the reveal finishes and the hand is over. ──
+  const showdownDone = !revealing && view.isOver;
+  const winnerSeats = new Set(view.winners.map((w) => w.seat));
+  // The single showdown winner whose cards are shown drives the yellow winning-5 + the banner.
+  // Fold-out (no shown cards) → winner + nets only, no banner, no card highlight (FR-15).
+  const shownWinner =
+    showdownDone && view.winners.length === 1
+      ? view.seats.find((s) => winnerSeats.has(s.seat) && s.cards && s.cards.length >= 2)
+      : undefined;
+  let categoryBanner: string | null = null;
+  let highlightSet: Set<string> | null = null;
+  if (shownWinner && shownWinner.cards && view.board.length >= 3) {
+    const hole = shownWinner.cards.slice(0, 2);
+    const best = winningCards(hole, view.board);
+    highlightSet = new Set(best as string[]);
+    categoryBanner = handCategoryLabel([...shownWinner.cards, ...view.board]);
+  }
 
   // Lay the seats out around an oval, hero anchored at the bottom, so the pot/chip stack can sit
   // in the dead center with everyone arranged around it (like a real table).
@@ -81,7 +101,15 @@ export function PokerTable() {
               transform: "translate(-50%, -50%)",
             }}
           >
-            <Seat seat={s} lastAction={latest[s.seat] ?? null} />
+            <Seat
+              seat={s}
+              lastAction={latest[s.seat] ?? null}
+              bigBlind={BIG_BLIND}
+              isActing={!revealing && !view.isOver && s.seat === view.toAct}
+              isWinner={showdownDone && winnerSeats.has(s.seat)}
+              net={showdownDone ? s.net : null}
+              highlightCards={shownWinner && s.seat === shownWinner.seat ? highlightSet : null}
+            />
           </div>
         ))}
         <div
@@ -97,7 +125,7 @@ export function PokerTable() {
           }}
         >
           <Board cards={view.board} count={snapshot.boardCount} />
-          <CenterStack snapshot={snapshot} />
+          <CenterStack snapshot={snapshot} categoryBanner={categoryBanner} />
         </div>
       </div>
 
