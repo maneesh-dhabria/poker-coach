@@ -10,8 +10,8 @@ branch: feat/ux-ui-cleanup
 base: main
 remote: origin
 feature_folder: docs/pmos/features/2026-06-03_ux-ui-cleanup
-tier: null
-current_phase: requirements
+tier: 2
+current_phase: plan
 base_drift:
   behind: 0
   remote: origin
@@ -19,34 +19,34 @@ base_drift:
 open_questions_log: []
 phases:
   - id: requirements
-    status: pending
-    started_at: null
-    artifact_path: null
+    status: completed
+    started_at: 2026-06-03T17:23:18
+    artifact_path: docs/pmos/features/2026-06-03_ux-ui-cleanup/01_requirements.md
     folded_phase_failures: []
   - id: grill
-    status: pending
-    started_at: null
-    artifact_path: null
+    status: completed
+    started_at: 2026-06-03T17:23:18
+    artifact_path: docs/pmos/features/2026-06-03_ux-ui-cleanup/grills/2026-06-03_01_requirements.md
     folded_phase_failures: []
   - id: creativity
-    status: pending
+    status: skipped
     started_at: null
     artifact_path: null
     folded_phase_failures: []
   - id: wireframes
-    status: pending
+    status: skipped
     started_at: null
     artifact_path: null
     folded_phase_failures: []
   - id: prototype
-    status: pending
+    status: skipped
     started_at: null
     artifact_path: null
     folded_phase_failures: []
   - id: spec
-    status: pending
-    started_at: null
-    artifact_path: null
+    status: completed
+    started_at: 2026-06-03T17:23:18
+    artifact_path: docs/pmos/features/2026-06-03_ux-ui-cleanup/02_spec.md
     folded_phase_failures: []
   - id: plan
     status: pending
