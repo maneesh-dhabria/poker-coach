@@ -1,29 +1,80 @@
 schema_version: 4
 pipeline_mode: feature
-slug: mental-equity-calculator
+slug: ux-ui-cleanup
 mode: interactive
 output_format: md
-worktree_path: /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach-mental-equity-calculator
-branch: feat/mental-equity-calculator
-feature_folder: docs/pmos/features/2026-06-03_mental-equity-calculator
+started_at: 2026-06-03T17:23:18
+last_updated: 2026-06-03T17:23:18
+worktree_path: /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach-ux-ui-cleanup
+branch: feat/ux-ui-cleanup
 base: main
 remote: origin
-tier: 2
-current_phase: complete-dev
-started_at: 2026-06-03
-last_updated: 2026-06-03
-phases:
-  requirements: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  grill: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  creativity: {status: skipped, artifact_path: null, started_at: null, folded_phase_failures: []}
-  wireframes: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  prototype: {status: skipped, artifact_path: null, started_at: null, folded_phase_failures: []}
-  spec: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  plan: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  execute: {status: completed, artifact_path: null, started_at: 2026-06-03, folded_phase_failures: []}
-  verify: {status: completed, artifact_path: docs/pmos/features/2026-06-03_mental-equity-calculator/verify/2026-06-03-review.md, started_at: 2026-06-03, folded_phase_failures: []}
-  complete-dev: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
-  retro: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
-  final-summary: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+feature_folder: docs/pmos/features/2026-06-03_ux-ui-cleanup
+tier: null
+current_phase: requirements
+base_drift:
+  behind: 0
+  remote: origin
+  base: main
 open_questions_log: []
-status: in_progress
+phases:
+  - id: requirements
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: grill
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: creativity
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: wireframes
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: prototype
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: spec
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: plan
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: execute
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: verify
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: complete-dev
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: retro
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
+  - id: final-summary
+    status: pending
+    started_at: null
+    artifact_path: null
+    folded_phase_failures: []
