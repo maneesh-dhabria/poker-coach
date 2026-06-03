@@ -1,8 +1,8 @@
-# Mental Math Tab (Outs & Equity Calculator) — Requirements
+# Mental Math (Outs & Equity Walk-Through) — Requirements
 
 **Date:** 2026-06-03
 **Last updated:** 2026-06-03
-**Status:** Draft
+**Status:** Approved
 **Tier:** 2 — Enhancement
 
 ## Problem
@@ -33,10 +33,10 @@ verify* — is the missing piece.
 
 ### Goals
 
-- The player can open a **Mental Math tab** and see the guide's estimation process worked through for
-  their **current live hand**, step by step — measured by: every step in the guide (outs → Rule of 2&4
-  → opponent discount → taint discount → pot odds → decision) renders for a flop/turn hand with no
-  manual data entry.
+- The player can expand a **Mental Math section inside the Feedback tab** and see the guide's estimation
+  process worked through for their **current live hand**, step by step — measured by: every step in the
+  guide (outs → Rule of 2&4 → opponent discount → taint discount → pot odds → decision) renders for a
+  flop/turn hand with no manual data entry.
 - The player learns to **count outs**, because the tab auto-detects their draws and names each one in
   plain language ("9 spades left = flush draw") — measured by: each counted out group has a one-line
   plain explanation, and the player can **override** the count if they disagree.
@@ -52,6 +52,8 @@ verify* — is the missing piece.
 - **NOT** a standalone manual-input calculator (type/pick arbitrary cards) — because the user explicitly
   scoped v1 to the live hand only ("Don't need an independent calculator interface for now"). Manual
   entry is a candidate future enhancement, not v1.
+- **NOT** a new top-level tab — because the user chose to embed it inline in the existing Feedback tab
+  (both are live-hand analysis of the current decision); no `TabKey`/`TabStrip` changes.
 - **NOT** a "guess first, then reveal" active-recall quiz mode — because the user chose the guided
   walk-through for v1; quiz mode is a documented future enhancement.
 - **NOT** preflop range/equity estimation — because the guide's Rule of 2 and 4 is a post-flop tool
@@ -65,17 +67,19 @@ verify* — is the missing piece.
 
 ## Solution Direction
 
-Add a sixth tab, **"Mental Math"**, to the existing right-panel tab strip. It is a **read-only lens over
-the current in-progress hand** — it pulls hero hole cards, the board, the pot, the cost-to-call, and the
-number of active opponents from game state. It never asks the user to type anything except an optional
-outs override.
+Add a collapsible **"Mental Math"** section **inside the existing Feedback tab**, below the verdict and
+equity bar. It is a **read-only lens over the current in-progress hand** — it pulls hero hole cards, the
+board, the pot, the cost-to-call, and the number of active opponents from the same game state the
+Feedback panel already reads. It never asks the user to type anything except an optional outs override.
+No new tab is added.
 
-The tab renders the guide's six steps as a **vertical, scannable walk-through**, each step a small
+The section renders the guide's six steps as a **vertical, scannable walk-through**, each step a small
 labeled card with a plain sentence and the running number. The same dark-felt visual language as the
-existing FeedbackPanel (verdict colors, equity bar, chips for concept labels).
+existing FeedbackPanel (verdict colors, equity bar, chips for concept labels). It is collapsed by default
+(remembered for the session) so it never crowds the existing instant feedback.
 
 ```
- Mental Math  ── (reads your current hand: Q♥ J♥ on 10♥ 9♣ 2♥, pot $60, to call $20, 2 opponents)
+ ▸ Mental Math  ── (your current hand: Q♥ J♥ on 10♥ 9♣ 2♥, pot $60, to call $20, 2 opponents)
 
  ┌ Step 1 · Your outs ─────────────────────────────┐
  │ Flush draw — 9 hearts left                       │
@@ -107,8 +111,10 @@ existing FeedbackPanel (verdict colors, equity bar, chips for concept labels).
  └──────────────────────────────────────────────────┘
 ```
 
-The "true ≈ Y%" number comes from the existing Monte Carlo equity client (the same engine the instant
-feedback uses), called for the current hand. The mental estimate is computed by a new, **deterministic**
+Because the section lives in the Feedback tab, the player's mental estimate sits directly beneath the
+app's existing instant verdict and equity bar — no tab-switching to compare. The "true ≈ Y%" number
+comes from the existing Monte Carlo equity client (the same engine the instant feedback uses), called
+for the current hand. The mental estimate is computed by a new, **deterministic**
 out-counting + Rule-of-2&4 + discount routine that mirrors the guide exactly (so the teaching matches
 the document, not a black box).
 
@@ -117,8 +123,8 @@ the document, not a black box).
 ### Primary Journey — walk a flop draw
 
 1. The player is in a hand; the flop is out and it's their decision (or they just want to think).
-2. They click the **Mental Math** tab in the right panel.
-3. The tab reads the live hand and shows **Step 1 · Your outs**: it has auto-detected the draws,
+2. In the **Feedback tab** (already open after a decision), they expand the **Mental Math** section.
+3. The section reads the live hand and shows **Step 1 · Your outs**: it has auto-detected the draws,
    listed each in plain language, handled overlaps, and shows a total outs count.
 4. The player reads **Step 2** (Rule of 2 & 4 → estimated hit %), **Step 3** (opponent shade),
    **Step 4** (taint warning for the board texture), **Step 5** (pot odds / break-even %), and
@@ -150,7 +156,8 @@ the document, not a black box).
 
 | # | Decision | Options Considered | Rationale |
 |---|----------|-------------------|-----------|
-| D1 | Calculator operates on the **live hand only**, no manual entry | (a) standalone manual-input calc, (b) live hand only, (c) both | User explicitly scoped to live-hand-only for v1; removes the need for a card-picker component and keeps the tab focused. Manual entry is a future non-goal. |
+| D0 | Lives as a **collapsible section inside the Feedback tab**, not a new tab | (a) new "Mental Math" tab, (b) inline in Feedback, (c) inline in Coaching | User chose inline-in-Feedback: both are live-hand analysis of the current decision, so the mental estimate sits next to the verdict/equity with no tab-switching; also avoids `TabKey`/`TabStrip` changes. Coaching is post-hoc saved-hand reviews — mixing live there is awkward. |
+| D1 | Calculator operates on the **live hand only**, no manual entry | (a) standalone manual-input calc, (b) live hand only, (c) both | User explicitly scoped to live-hand-only for v1; removes the need for a card-picker component and keeps the section focused. Manual entry is a future non-goal. |
 | D2 | Show **mental estimate AND the app's true Monte Carlo** | (a) mental only, (b) true only, (c) both side-by-side | The teaching loop *is* estimate-then-verify; showing both is the core value. Mental-only never closes the loop; true-only abandons the guide. |
 | D3 | **Auto-count outs + plain explanation, with manual override** | (a) user enters outs, (b) auto only, (c) auto + override | Auto-counting teaches what the draws are; override respects the player's read and lets them explore "what if 4 of these are tainted." |
 | D4 | Mental estimate uses a **new deterministic routine that mirrors the guide**, not the Monte Carlo engine | (a) reuse Monte Carlo for the "estimate" too, (b) deterministic guide-faithful routine | The whole point is to reproduce the *in-head* method so the teaching matches `mental-equity-guide.md` and is comparable against the true number. A second Monte Carlo call would just be the true number twice. |
@@ -174,8 +181,8 @@ the document, not a black box).
 | `core/equity/equity.ts`, `core/equity/equityClient.ts`, `workers/equity.worker.ts` | Existing code | `requestEquity({hero, board, numOpponents, iterations})` gives the "true" equity; async with sync fallback — reuse for the comparison. |
 | `core/cards.ts` | Existing code | `Card = "${Rank}${Suit}"`, `rankOf/suitOf/rankValue`, deck utils — the basis for out-counting. |
 | `core/analysis/analyze.ts` + `types.ts` | Existing code | `DecisionAnalysis` (verdict, potOddsPct, ev, plainExplanation) and `analyze()` — reuse pot-odds + EV + plain-language patterns so the tab matches existing coaching. |
-| `store/sessionStore.ts` (`TabKey`, `activeTab`), `components/TabStrip.tsx`, `components/RightPanel.tsx` | Existing code | Adding a tab = extend `TabKey`, add a `TABS` entry, render the new component in `RightPanel`. |
-| `store/gameStore.ts` (`flow`, `feedback`, board/pot accessors) | Existing code | Source of the live hand state the tab reads (hero hole, board, pot, toCall, active opponents, street). |
+| `components/FeedbackPanel.tsx` | Existing code | The host: the Mental Math section is rendered inside this panel, below the verdict/equity bar. No tab-strip changes needed. |
+| `store/gameStore.ts` (`flow`, `feedback`, board/pot accessors) | Existing code | Source of the live hand state the section reads (hero hole, board, pot, toCall, active opponents, street). |
 | `components/FeedbackPanel.tsx`, `components/table/Card.tsx`/`Board.tsx`, `app/globals.css` | Existing code | Visual language to match: verdict colors, equity bar with "needed %" marker, card rendering, design tokens. |
 
 ## Review Log
@@ -183,3 +190,4 @@ the document, not a black box).
 | Loop | Findings | Changes Made |
 |------|----------|-------------|
 | 1 | Structural + product-critique self-review (see below). | Pinned live-hand-only scope (D1), flop/turn-only guard (D5), and dishonest-precision risk (D7) directly from the user's brainstorm answers; added river/preflop/no-draw edge journeys; recorded 3 open questions deferred to /spec. |
+| 2 | User asked whether to embed in an existing tab rather than add a new one (gate-4 feedback). | Reframed placement to a **collapsible section inside the Feedback tab** (D0); dropped the new-tab framing throughout (solution direction, goals, journeys, non-goals, research sources); no `TabKey`/`TabStrip` changes now needed. |
