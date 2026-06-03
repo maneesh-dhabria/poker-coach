@@ -11,7 +11,6 @@ import { Seat } from "@/components/table/Seat";
 import { Board } from "@/components/table/Board";
 import { CenterStack } from "@/components/table/CenterStack";
 import { ActionBar } from "@/components/ActionBar";
-import { HandRecap } from "@/components/HandRecap";
 import { Button } from "@/components/ui/Button";
 
 const REVEAL_MS = 380; // pause between each bot's action so the user can follow the table
@@ -136,7 +135,6 @@ export function PokerTable() {
           </p>
         ) : view.isOver ? (
           <div style={{ width: "100%", display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-            <HandRecap decisions={flow.decisions()} heroNet={view.heroNet} />
             <Button variant="primary" onClick={newHand}>
               Next hand
             </Button>
