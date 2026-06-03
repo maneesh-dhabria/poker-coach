@@ -1,8 +1,8 @@
 "use client";
 // The right column as a tab host (spec FR-03, FR-04, FR-07; wireframe 02). The TabStrip is pinned;
-// only #tab-body scrolls (the single scroll region of the no-scroll shell, plan D4). The existing
-// Feedback / Coaching / Hands panels move in here unchanged; Rankings + Preflop Chart are filled in
-// W4/W5.
+// only #tab-body scrolls (the single scroll region of the no-scroll shell, plan D4). Three tabs:
+// Live Feedback (FeedbackPanel + HandRecap stacked, FR-05), Coaching (CoachingViewer, FR-07), and
+// References (RankingsTab + PreflopChartTab stacked, FR-06).
 import { useSessionStore } from "@/store/sessionStore";
 import { useGameStore } from "@/store/gameStore";
 import { TabStrip } from "@/components/TabStrip";
