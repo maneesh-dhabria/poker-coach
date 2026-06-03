@@ -1,124 +1,28 @@
 schema_version: 4
 pipeline_mode: feature
-slug: ux-learning-overhaul
+slug: mental-equity-calculator
 mode: interactive
 output_format: md
-tier: 3
-started_at: 2026-05-31
-last_updated: 2026-05-31
-worktree_path: /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach-ux-learning-overhaul
-branch: feat/ux-learning-overhaul
+worktree_path: /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach-mental-equity-calculator
+branch: feat/mental-equity-calculator
+feature_folder: docs/pmos/features/2026-06-03_mental-equity-calculator
 base: main
-feature_folder: docs/pmos/features/2026-05-31_ux-learning-overhaul/
-current_phase: complete-dev
-paused: false
-paused_reason: null
-execute_complete_note: "Phase 6 /execute COMPLETE + committed (T1-T19 + TN). Full gate green: typecheck=0, lint=0, vitest 195/195 pass, exit 0, clean stderr; core stays pure, no runtime LLM in components/core. User paused at the pre-/verify compact checkpoint. NEXT on --resume: Phase 7 /verify with spec docs/pmos/features/2026-05-31_ux-learning-overhaul/02_spec.md (non-skippable); then PAUSE for merge decision (build_choices.ask_before_merge=true) before Phase 8 /complete-dev; then 8a /reflect gate; then 9 final-summary. Pre-existing harmless stray: gitignored self-referential symlink components/feedback. HARNESS NOTE: stdout truncates intermittently — run commands sequentially, redirect to /tmp and Read back; never mega-batch interdependent tool calls."
-open_questions_log: []
-resume_note: |
-  PROGRESS as of 2026-05-31 (compact checkpoint before /plan):
-  - DONE + COMMITTED: requirements (01_requirements.md), grill (grills/2026-05-31_01_requirements.md),
-    wireframes (wireframes/: 01_setup, 02_play-screen, index.html, DESIGN.md; verified no-scroll @1280x800),
-    spec (02_spec.md, status "Ready for Plan", FR-01..72 across 6 waves W1-W6, decisions S1-S8).
-  - Gates chosen: creativity SKIP, wireframes RUN, prototype SKIP, MSF/PSYCH SKIP.
-  - USER CHOICES for build half: (1) run /plan now then PAUSE for review before /execute;
-    (2) ASK before merging (stop at green /verify, do not auto /complete-dev).
-  - NEXT: Phase 5 /plan -> produce wave-by-wave TDD task breakdown to 03_plan.md, show user, STOP.
-    Then (after user go-ahead) compact-checkpoint -> Phase 6 /execute wave-by-wave -> Phase 7 /verify ->
-    PAUSE for merge decision -> (if approved) Phase 8 /complete-dev -> 8a /reflect gate -> 9 final-summary.
-  KEY LOCKED DECISIONS (D1-D18, authoritative in 01_requirements.md; spec adds S1-S8):
-    all 7 observations = 6 dependency-ordered waves; single-table (not multi);
-    D10/D13 + S3: lifetime bank in SEPARATE data/bankroll.json (own version) via new /api/bankroll +
-      lib/dataStore saveBankroll/loadBankroll + pure core/bankroll.ts reducer; HandRecord STAYS v1, NO migration;
-    D11 bots auto-rebuy; D12/D18 + S6: $ default + BB toggle = pure core/money.ts formatMoney + sessionStore.displayUnit, render-only;
-    D14 preflop chart defaults to hero position + selector; D15 starting-stack presets 50/100/200 BB default 100;
-    D16 center-table category banner + winner glow + yellow winning cards; D17 W2 per-hand net only / session+bank in W3;
-    S1: W2 reuses existing handFlow TableView (winners/isHeroTurn/heroNet) + new pure handCategoryLabel()/winningCards() in core/eval;
-    S5: precomputed equity = committed core/charts/preflopEquity.json via scripts/genPreflopEquity.ts, on-demand fallback.
-  ENV: node_modules symlinked from ../poker-coach. Dev server: `npm run dev` (port 3000).
-    Playwright MCP is sandboxed to /Users/maneeshdhabria/Desktop/Projects/personal/poker-coach (ORIGINAL repo) —
-    screenshots land there; serve files via `npx http-server` and navigate http://localhost:<port>; clean up stray pngs after.
-  Reviewer carry-forward to impl: preflop grid cells must be real keyboard-reachable <button>s (aria-label "AKs, raise");
-    selectable setup chips as <button>s; fold-cell contrast >=4.5:1; honor prefers-reduced-motion on glows.
+remote: origin
+tier: null
+current_phase: requirements
+started_at: 2026-06-03
+last_updated: 2026-06-03
 phases:
-  - id: worktree
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: null
-    folded_phase_failures: []
-  - id: init-state
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: null
-    folded_phase_failures: []
-  - id: ideate
-    status: skipped-formed
-    started_at: null
-    artifact_path: null
-    folded_phase_failures: []
-  - id: requirements
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/01_requirements.md
-    folded_phase_failures: []
-  - id: grill
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/grills/2026-05-31_01_requirements.md
-    folded_phase_failures: []
-  - id: creativity
-    status: skipped
-    started_at: 2026-05-31
-    artifact_path: null
-    folded_phase_failures: []
-  - id: wireframes
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/wireframes/index.html
-    folded_phase_failures: []
-  - id: prototype
-    status: skipped
-    started_at: 2026-05-31
-    artifact_path: null
-    folded_phase_failures: []
-  - id: spec
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/02_spec.md
-    folded_phase_failures: []
-  - id: plan
-    status: completed
-    started_at: 2026-05-31
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/03_plan.md
-    folded_phase_failures: []
-  - id: execute
-    status: completed
-    started_at: 2026-05-29T09:00:00Z
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/03_plan.md
-    folded_phase_failures: []
-  - id: verify
-    status: completed
-    started_at: 2026-05-31T12:00:00Z
-    artifact_path: docs/pmos/features/2026-05-31_ux-learning-overhaul/verify/2026-05-31-review.md
-    folded_phase_failures: []
-  - id: complete-dev
-    status: in_progress
-    started_at: 2026-05-31T12:30:00Z
-    artifact_path: null
-    folded_phase_failures: []
-  - id: retro
-    status: pending
-    started_at: null
-    artifact_path: null
-    folded_phase_failures: []
-  - id: final-summary
-    status: pending
-    started_at: null
-    artifact_path: null
-    folded_phase_failures: []
-build_choices:
-  plan_then_pause: true
-  ask_before_merge: true
-notes:
-  - "Scope confirmed: all 7 observations in one feature (Tier 3 epic), 6 dependency-ordered waves."
-  - "node_modules symlinked from main checkout to avoid duplicate install."
+  requirements: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  grill: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  creativity: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  wireframes: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  prototype: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  spec: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  plan: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  execute: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  verify: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  complete-dev: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  retro: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  final-summary: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+open_questions_log: []
