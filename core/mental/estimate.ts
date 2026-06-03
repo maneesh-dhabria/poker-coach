@@ -114,15 +114,20 @@ function shadeFor(hitPct: number, numActiveOpponents: number) {
 export function buildMentalEstimate(input: MentalInput): MentalEstimate {
   const { hole, board, street, potBefore, toCall, numActiveOpponents, outsOverride } = input;
 
-  if (!hole || board.length < 3) {
+  if (!hole) {
     return emptyEstimate("no-hand", null, "Deal a hand and reach the flop to use Mental Math.");
   }
+  // Preflop is checked before the board-size guard: a real preflop spot has an empty board, and we
+  // want the "Rule of 2 & 4 is for flop/turn" note there rather than the generic no-hand note.
   if (street === "preflop") {
     return emptyEstimate(
       "preflop",
       "preflop",
       "The Rule of 2 & 4 is for the flop and turn — for preflop, see the Preflop Chart tab.",
     );
+  }
+  if (board.length < 3) {
+    return emptyEstimate("no-hand", null, "Deal a hand and reach the flop to use Mental Math.");
   }
   if (street === "river" || board.length === 5) {
     const e = emptyEstimate(

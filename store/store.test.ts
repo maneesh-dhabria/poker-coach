@@ -54,3 +54,13 @@ describe("gameStore", () => {
     expect(fetch).toHaveBeenCalledWith("/api/hands", expect.objectContaining({ method: "POST" }));
   });
 });
+
+describe("sessionStore.mentalMathOpen (FR-18)", () => {
+  it("defaults collapsed and the setter toggles it", () => {
+    expect(useSessionStore.getState().mentalMathOpen).toBe(false);
+    useSessionStore.getState().setMentalMathOpen(true);
+    expect(useSessionStore.getState().mentalMathOpen).toBe(true);
+    useSessionStore.getState().setMentalMathOpen(false);
+    expect(useSessionStore.getState().mentalMathOpen).toBe(false);
+  });
+});

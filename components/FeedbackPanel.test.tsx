@@ -51,4 +51,14 @@ describe("FeedbackPanel", () => {
     expect(screen.getByText(/show the numbers/i)).toBeInTheDocument();
     expect(screen.getByText(/average result if you call/i)).toBeInTheDocument();
   });
+
+  it("includes the Mental Math section without disturbing the verdict/equity (FR-01)", () => {
+    const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
+    render(<FeedbackPanel analysis={a} enabled />);
+    expect(screen.getByTestId("mm-section")).toBeInTheDocument();
+    expect(screen.getByTestId("mm-header")).toBeInTheDocument();
+    // Existing feedback content is unchanged.
+    expect(screen.getByTestId("verdict-badge")).toBeInTheDocument();
+    expect(screen.getByTestId("equity-fill")).toHaveStyle({ width: "46%" });
+  });
 });

@@ -55,8 +55,8 @@ describe("buildMentalEstimate — status routing", () => {
     const e = buildMentalEstimate({ ...base, hole: null, board: h(["Kh", "7h", "2c"]), street: "flop" });
     expect(e.status).toBe("no-hand");
   });
-  it("no-hand when fewer than 3 board cards", () => {
-    const e = buildMentalEstimate({ ...base, hole: hole("Qh", "Jh"), board: [], street: "preflop" });
+  it("no-hand when fewer than 3 board cards on a post-flop street", () => {
+    const e = buildMentalEstimate({ ...base, hole: hole("Qh", "Jh"), board: h(["Th", "9c"]), street: "flop" });
     expect(e.status).toBe("no-hand");
   });
   it("preflop on the preflop street with a board", () => {

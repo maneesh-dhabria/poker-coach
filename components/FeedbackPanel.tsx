@@ -3,6 +3,7 @@
 // "needed to call" marker, a plain why-this-verdict line, and an optional numbers breakdown.
 // Renders nothing when feedback is disabled. Honesty (§17): "chart-based" shows only when gtoClaim.
 import { DecisionAnalysis } from "@/core/analysis/types";
+import { MentalMathSection } from "@/components/MentalMathSection";
 
 const VERDICT_META = {
   good: { icon: "✅", label: "Good", color: "var(--good)" },
@@ -169,6 +170,9 @@ export function FeedbackPanel({
           </details>
         </div>
       ) : null}
+
+      {/* Mental Math walk-through — a collapsible coaching section on the live hand (spec §4). */}
+      <MentalMathSection enabled={enabled} />
     </aside>
   );
 }

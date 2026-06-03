@@ -35,9 +35,13 @@ interface SessionState {
   activeTab: TabKey;
   // Whether money is shown in dollars or big blinds (ephemeral UI state, not persisted — spec S7).
   displayUnit: MoneyUnit;
+  // Whether the Mental Math walk-through is expanded in the Feedback panel (ephemeral UI state,
+  // collapsed by default; persists for the session — FR-18).
+  mentalMathOpen: boolean;
   setSettings: (partial: Partial<Settings>) => void;
   setActiveTab: (tab: TabKey) => void;
   toggleDisplayUnit: () => void;
+  setMentalMathOpen: (open: boolean) => void;
   startSession: () => Promise<string>;
 }
 
@@ -46,9 +50,11 @@ export const useSessionStore = create<SessionState>((set, get) => ({
   settings: defaultSettings(),
   activeTab: "feedback",
   displayUnit: "usd",
+  mentalMathOpen: false,
   setSettings: (partial) => set((s) => ({ settings: { ...s.settings, ...partial } })),
   setActiveTab: (tab) => set({ activeTab: tab }),
   toggleDisplayUnit: () => set((s) => ({ displayUnit: s.displayUnit === "usd" ? "bb" : "usd" })),
+  setMentalMathOpen: (open) => set({ mentalMathOpen: open }),
   startSession: async () => {
     const { settings } = get();
     const res = await fetch("/api/sessions", {
