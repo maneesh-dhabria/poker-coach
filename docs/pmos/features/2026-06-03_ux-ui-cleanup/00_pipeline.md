@@ -12,8 +12,8 @@
 | prototype | skipped | — |
 | spec | completed | 02_spec.md |
 | plan | completed | 03_plan.md |
-| execute | pending (next) | — |
-| verify | pending | — |
+| execute | completed | execute/ (task-01..04, task-0N) |
+| verify | pending (next) | — |
 | complete-dev | pending | — |
 | retro | pending | — |
 | final-summary | pending | — |
