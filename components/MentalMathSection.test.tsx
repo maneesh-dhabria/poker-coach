@@ -150,6 +150,57 @@ describe("MentalMathSection — true equity comparison (Check your work)", () =>
   });
 });
 
+describe("MentalMathSection — live-hand tracking (regression)", () => {
+  // The store mutates ONE HandFlow instance in place and only bumps `tick` as the hand advances
+  // (its identity is stable for the whole hand — see gameStore.heroAct). The section must re-derive
+  // its input on `tick`, not on `flow` identity, or it freezes at the first snapshot (spec §3.1, FR-02).
+  it("re-derives the estimate as the live hand advances (stable flow identity, tick bumps)", () => {
+    const state = { street: "preflop", board: [] as Card[] };
+    const stableFlow = {
+      isOver: () => false,
+      isHeroTurn: () => true,
+      heroSpot: () => ({
+        legal: {},
+        hole: [c("Qh"), c("Jh")] as [Card, Card],
+        board: state.board,
+        potBefore: 60,
+        toCall: 20,
+        street: state.street,
+        position: "BTN",
+        numActiveOpponents: 1,
+        facing: "unopened",
+        stackBb: 100,
+      }),
+      heroHole: () => [c("Qh"), c("Jh")] as [Card, Card],
+      get board() {
+        return state.board;
+      },
+      get street() {
+        return state.street;
+      },
+      potNow: () => 60,
+      tableView: () => ({ seats: [{ isHero: true, folded: false }, { isHero: false, folded: false }] }),
+    };
+    setFlow(stableFlow);
+    render(<MentalMathSection enabled />);
+    // Preflop snapshot: the Rule-of-2&4 note, no step cards yet.
+    expect(screen.getByTestId("mm-note").textContent).toMatch(/Preflop Chart/i);
+    expect(screen.queryByTestId("mm-steps")).toBeNull();
+
+    // The dealer advances to the flop: SAME flow object, mutated in place, only `tick` bumps.
+    act(() => {
+      state.street = "flop";
+      state.board = [c("Th"), c("9c"), c("2h")];
+      useGameStore.setState((s) => ({ tick: s.tick + 1 }));
+    });
+
+    // The section must now reflect the live flop draw — not the frozen preflop snapshot.
+    expect(screen.queryByTestId("mm-note")).toBeNull();
+    expect(screen.getByTestId("mm-steps").textContent).toContain("15 outs");
+    expect(screen.getByTestId("mm-rule-hit").textContent).toBe("60%");
+  });
+});
+
 describe("MentalMathSection — override (I count differently)", () => {
   it("recomputes Steps 2–6 from the player's count and resets to auto", () => {
     setFlow(fakeFlow());

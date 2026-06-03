@@ -115,7 +115,10 @@ function BreakEvenBar({ pct }: { pct: number }) {
 export function MentalMathSection({ enabled }: { enabled: boolean }) {
   const flow = useGameStore((s) => s.flow);
   const seed = useGameStore((s) => s.seed);
-  useGameStore((s) => s.tick); // re-render as the live hand advances
+  // `flow` is a single HandFlow instance that the store MUTATES in place as the hand advances (only
+  // `tick` bumps — its identity is stable for the whole hand). So we re-derive the input on `tick`,
+  // not on `flow` identity, to actually track the live flop→turn→river progression (spec §3.1, FR-02).
+  const tick = useGameStore((s) => s.tick);
 
   const open = useSessionStore((s) => s.mentalMathOpen);
   const setOpen = useSessionStore((s) => s.setMentalMathOpen);
@@ -126,7 +129,10 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
   const [trueWinPct, setTrueWinPct] = useState<number | null>(null);
   const [equityLoading, setEquityLoading] = useState(false);
 
-  const input = useMemo(() => inputFromFlow(flow), [flow]);
+  // `tick` is the intentional trigger (flow is mutated in place — see above); exhaustive-deps can't
+  // see that, so the dependency is correct but the rule flags it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const input = useMemo(() => inputFromFlow(flow), [flow, tick]);
   const estimate: MentalEstimate = useMemo(
     () => buildMentalEstimate({ ...input, outsOverride }),
     [input, outsOverride],
@@ -176,7 +182,10 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
     return () => {
       cancelled = true;
     };
-  }, [equityKey, input.hole, input.board, input.numActiveOpponents, seed]);
+    // `equityKey` already encodes hole|board|numActiveOpponents, so it is the single per-spot trigger:
+    // fire Monte Carlo once per spot, not on every `tick` (input is a fresh object each tick now).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equityKey, seed]);
 
   if (!enabled) return null;
 
