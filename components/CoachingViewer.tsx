@@ -120,7 +120,7 @@ export function CoachingViewer({ sessionId }: { sessionId: string | null }) {
         <EmptyState />
       ) : (
         files.map((f) => (
-          <article key={f.name} data-testid="coaching-doc" style={{ marginTop: 16 }}>
+          <article key={f.name} data-testid="coaching-doc" className="coaching-doc" style={{ marginTop: 16 }}>
             {renderMarkdown(f.content)}
           </article>
         ))

@@ -37,4 +37,13 @@ describe("CoachingViewer", () => {
     await screen.findByTestId("coaching-empty");
     expect(screen.getByRole("button", { name: /refresh/i })).toBeInTheDocument();
   });
+
+  it("tags the rendered coaching doc with the coaching-doc class", async () => {
+    mockCoaching([{ name: "s_h1.md", content: "# Hand 1\n## Recurring leaks\n- Calling too wide\n" }]);
+    const { container } = render(<CoachingViewer sessionId="s" />);
+    await screen.findByRole("heading", { name: /recurring leaks/i });
+    const article = container.querySelector('[data-testid="coaching-doc"]') as HTMLElement;
+    expect(article).toBeTruthy();
+    expect(article.classList.contains("coaching-doc")).toBe(true);
+  });
 });

@@ -205,3 +205,15 @@ button { font: inherit; cursor: pointer; }
   outline: 2px solid var(--gold, #e8c66a);
   outline-offset: 1px;
 }
+
+/* Coaching markdown typography (plan T3, spec FR-11/D5). Scoped to .coaching-doc so it never
+   bleeds into the inline-styled feedback/reference panels. Hierarchy + rhythm from design tokens. */
+.coaching-doc { color: var(--ink); line-height: 1.6; }
+.coaching-doc h1 { font-size: 22px; font-weight: 700; color: var(--gold); margin: 20px 0 8px; }
+.coaching-doc h2 { font-size: 18px; font-weight: 700; color: var(--ink); margin: 18px 0 6px; }
+.coaching-doc h3 { font-size: 15px; font-weight: 600; color: var(--ink-soft); margin: 14px 0 4px;
+  text-transform: uppercase; letter-spacing: 0.04em; }
+.coaching-doc p { margin: 8px 0; color: var(--ink); }
+.coaching-doc ul { margin: 8px 0; padding-left: 20px; }
+.coaching-doc li { margin: 3px 0; color: var(--ink); }
+.coaching-doc strong { color: var(--gold); font-weight: 700; }
