@@ -13,7 +13,7 @@
 | spec | completed | 02_spec.md |
 | plan | completed | 03_plan.md |
 | execute | completed | execute/ (task-01..04, task-0N) |
-| verify | pending (next) | — |
-| complete-dev | pending | — |
+| verify | completed (PASS) | verify/2026-06-03-review.md |
+| complete-dev | pending (next) | — |
 | retro | pending | — |
 | final-summary | pending | — |
