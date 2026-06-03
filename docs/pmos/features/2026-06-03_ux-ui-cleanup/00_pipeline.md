@@ -11,8 +11,8 @@
 | wireframes | skipped | — |
 | prototype | skipped | — |
 | spec | completed | 02_spec.md |
-| plan | pending (next) | — |
-| execute | pending | — |
+| plan | completed | 03_plan.md |
+| execute | pending (next) | — |
 | verify | pending | — |
 | complete-dev | pending | — |
 | retro | pending | — |
