@@ -5,11 +5,9 @@
 import { TabKey } from "@/store/sessionStore";
 
 export const TABS: { key: TabKey; label: string }[] = [
-  { key: "feedback", label: "Feedback" },
+  { key: "live-feedback", label: "Live Feedback" },
   { key: "coaching", label: "Coaching" },
-  { key: "hands", label: "Hands" },
-  { key: "rankings", label: "Rankings" },
-  { key: "preflop", label: "Preflop Chart" },
+  { key: "references", label: "References" },
 ];
 
 export function TabStrip({

@@ -32,27 +32,22 @@ export function RightPanel() {
         aria-labelledby={`tab-${activeTab}`}
         style={{ flex: 1, minHeight: 0, overflowY: "auto", paddingTop: 12 }}
       >
-        {activeTab === "feedback" && (
-          <FeedbackPanel analysis={feedback?.analysis ?? null} enabled={settings.feedbackEnabled} />
+        {activeTab === "live-feedback" && (
+          <>
+            <FeedbackPanel analysis={feedback?.analysis ?? null} enabled={settings.feedbackEnabled} />
+            {flow ? (
+              <HandRecap decisions={flow.decisions()} heroNet={flow.tableView().heroNet} />
+            ) : null}
+          </>
         )}
         {activeTab === "coaching" && <CoachingViewer sessionId={sessionId} />}
-        {activeTab === "hands" &&
-          (flow ? (
-            <HandRecap decisions={flow.decisions()} heroNet={flow.tableView().heroNet} />
-          ) : (
-            <Placeholder label="No hand yet" />
-          ))}
-        {activeTab === "rankings" && <RankingsTab />}
-        {activeTab === "preflop" && <PreflopChartTab />}
+        {activeTab === "references" && (
+          <>
+            <RankingsTab />
+            <PreflopChartTab />
+          </>
+        )}
       </div>
-    </div>
-  );
-}
-
-function Placeholder({ label }: { label: string }) {
-  return (
-    <div className="card" style={{ textAlign: "center", color: "var(--ink-soft)" }}>
-      {label} — coming soon.
     </div>
   );
 }

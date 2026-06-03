@@ -7,23 +7,39 @@ import { useSessionStore } from "@/store/sessionStore";
 
 beforeEach(() => {
   cleanup();
-  useSessionStore.getState().setActiveTab("feedback");
+  useSessionStore.getState().setActiveTab("live-feedback");
 });
 
 describe("RightPanel", () => {
-  it("shows Feedback by default and only the tab body scrolls", () => {
+  it("shows Live Feedback by default and only the tab body scrolls", () => {
     const { container } = render(<RightPanel />);
     const body = container.querySelector('[data-testid="tab-body"]') as HTMLElement;
-    expect(body).toBeTruthy();
     expect(body.id).toBe("tab-body");
     expect(body.style.overflowY).toBe("auto");
-    expect(screen.getByRole("tab", { name: /feedback/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /live feedback/i })).toHaveAttribute("aria-selected", "true");
   });
 
-  it("switches tabs on click", () => {
+  it("renders exactly three tabs and no legacy standalone tabs", () => {
     render(<RightPanel />);
-    fireEvent.click(screen.getByRole("tab", { name: /rankings/i }));
-    expect(screen.getByRole("tab", { name: /rankings/i })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tab", { name: /feedback/i })).toHaveAttribute("aria-selected", "false");
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: /live feedback/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /coaching/i })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /references/i })).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /^hands$/i })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /^rankings$/i })).toBeNull();
+    expect(screen.queryByRole("tab", { name: /preflop/i })).toBeNull();
+  });
+
+  it("switches to References on click", () => {
+    render(<RightPanel />);
+    fireEvent.click(screen.getByRole("tab", { name: /references/i }));
+    expect(screen.getByRole("tab", { name: /references/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /live feedback/i })).toHaveAttribute("aria-selected", "false");
+  });
+
+  it("coerces a stale persisted tab key to live-feedback", () => {
+    // @ts-expect-error — simulate an old persisted value outside the new union
+    useSessionStore.getState().setActiveTab("rankings");
+    expect(useSessionStore.getState().activeTab).toBe("live-feedback");
   });
 });

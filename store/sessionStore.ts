@@ -7,7 +7,9 @@ import { tablePreset } from "@/core/bots/personas";
 import { MoneyUnit } from "@/core/money";
 
 // Which right-column tab is showing (ephemeral UI state, not persisted — spec S7).
-export type TabKey = "feedback" | "coaching" | "hands" | "rankings" | "preflop";
+export type TabKey = "live-feedback" | "coaching" | "references";
+
+const TAB_KEYS: TabKey[] = ["live-feedback", "coaching", "references"];
 
 export interface Settings {
   numOpponents: number; // 1..5 (true 6-max)
@@ -48,11 +50,12 @@ interface SessionState {
 export const useSessionStore = create<SessionState>((set, get) => ({
   sessionId: null,
   settings: defaultSettings(),
-  activeTab: "feedback",
+  activeTab: "live-feedback",
   displayUnit: "usd",
   mentalMathOpen: false,
   setSettings: (partial) => set((s) => ({ settings: { ...s.settings, ...partial } })),
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveTab: (tab) =>
+    set({ activeTab: TAB_KEYS.includes(tab as TabKey) ? (tab as TabKey) : "live-feedback" }),
   toggleDisplayUnit: () => set((s) => ({ displayUnit: s.displayUnit === "usd" ? "bb" : "usd" })),
   setMentalMathOpen: (open) => set({ mentalMathOpen: open }),
   startSession: async () => {
