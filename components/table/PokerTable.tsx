@@ -15,6 +15,19 @@ import { Button } from "@/components/ui/Button";
 
 const REVEAL_MS = 380; // pause between each bot's action so the user can follow the table
 
+// The seat that should glow gold. While the reveal cursor is walking the bot actions, glow the
+// seat whose action is being revealed; once the reveal finishes, glow whoever is to act (the hero
+// on their turn); during showdown (hand over) nothing glows. (spec FR-12)
+export function selectActingSeat(
+  revealing: boolean,
+  log: { seat: number }[],
+  revealed: number,
+  view: { isOver: boolean; toAct: number | null },
+): number | null {
+  if (revealing) return log[revealed]?.seat ?? null;
+  return view.isOver ? null : view.toAct;
+}
+
 export function PokerTable() {
   const flow = useGameStore((s) => s.flow);
   const busy = useGameStore((s) => s.busy);
@@ -42,6 +55,7 @@ export function PokerTable() {
   if (!flow) return <p style={{ padding: 24 }}>No hand in progress. Deal to begin.</p>;
   const view = flow.tableView();
   const revealing = revealed < total;
+  const actingSeat = selectActingSeat(revealing, log, revealed, view);
   const latest = latestActionPerSeat(log.slice(0, revealed));
   const snapshot = flow.replayAt(revealed);
   const BIG_BLIND = 2; // fixed for W2; persistent config arrives in W3
@@ -104,7 +118,7 @@ export function PokerTable() {
               seat={s}
               lastAction={latest[s.seat] ?? null}
               bigBlind={BIG_BLIND}
-              isActing={!revealing && !view.isOver && s.seat === view.toAct}
+              isActing={actingSeat != null && s.seat === actingSeat}
               isWinner={showdownDone && winnerSeats.has(s.seat)}
               net={showdownDone ? s.net : null}
               highlightCards={shownWinner && s.seat === shownWinner.seat ? highlightSet : null}
