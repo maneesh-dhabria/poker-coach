@@ -3,7 +3,7 @@
 // Playwright MCP step in TN.
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
-import { PlayShell } from "@/app/page";
+import { PlayShell } from "@/components/PlayShell";
 
 describe("play shell no-scroll contract", () => {
   it("root fills the viewport and hides overflow", () => {
