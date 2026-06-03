@@ -11,7 +11,7 @@ base: main
 remote: origin
 feature_folder: docs/pmos/features/2026-06-03_ux-ui-cleanup
 tier: 2
-current_phase: execute
+current_phase: verify
 base_drift:
   behind: 0
   remote: origin
