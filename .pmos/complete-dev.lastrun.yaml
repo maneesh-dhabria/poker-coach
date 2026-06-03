@@ -1,0 +1,12 @@
+version: 1
+last_updated: 2026-05-29T20:20:00Z
+defaults:
+  verify_already_ran: true
+  merge_style: merge-ff-or-noff
+  worktree_disposition: keep
+  deploy_path: skip-deploy
+  version_bump: minor
+  changelog_disposition: accept
+  push_target: all-remotes
+detected_signals:
+  deploy: []
