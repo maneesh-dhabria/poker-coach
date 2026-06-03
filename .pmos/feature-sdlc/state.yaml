@@ -15,9 +15,9 @@ last_updated: 2026-06-03
 phases:
   requirements: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
   grill: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  creativity: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
-  wireframes: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
-  prototype: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  creativity: {status: skipped, artifact_path: null, started_at: null, folded_phase_failures: []}
+  wireframes: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
+  prototype: {status: skipped, artifact_path: null, started_at: null, folded_phase_failures: []}
   spec: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   plan: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   execute: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
