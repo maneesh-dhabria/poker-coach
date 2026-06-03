@@ -20,9 +20,12 @@ phases:
   prototype: {status: skipped, artifact_path: null, started_at: null, folded_phase_failures: []}
   spec: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
   plan: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  execute: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  execute: {status: paused, artifact_path: null, started_at: null, folded_phase_failures: []}
   verify: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   complete-dev: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   retro: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   final-summary: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
 open_questions_log: []
+status: paused
+paused_reason: compact_checkpoint
+paused_before_phase: execute
