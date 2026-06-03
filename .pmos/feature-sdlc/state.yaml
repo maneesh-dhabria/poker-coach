@@ -9,12 +9,12 @@ feature_folder: docs/pmos/features/2026-06-03_mental-equity-calculator
 base: main
 remote: origin
 tier: null
-current_phase: grill
+current_phase: spec
 started_at: 2026-06-03
 last_updated: 2026-06-03
 phases:
   requirements: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
-  grill: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
+  grill: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
   creativity: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   wireframes: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   prototype: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}

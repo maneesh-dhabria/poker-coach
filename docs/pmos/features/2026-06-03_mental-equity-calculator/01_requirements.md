@@ -105,11 +105,20 @@ existing FeedbackPanel (verdict colors, equity bar, chips for concept labels). I
  │ ~48% beats the 25% price → calling is profitable  │
  └──────────────────────────────────────────────────┘
  ┌ Check your work ─────────────────────────────────┐
- │ You estimated ~48%   ·   True ≈ 51%               │
- │ Nice — your mental math was close (within 5%).    │
+ │ You estimated you HIT ~57%  ·  True win ≈ 51%     │
+ │ You hit a bit more than you win — that ~6% gap is │
+ │ the opponents + board danger (Steps 3 & 4).       │
+ │ Your hit estimate was close (within 5%).          │
  │ [ Show the dollar EV ▸ ]                          │
  └──────────────────────────────────────────────────┘
 ```
+
+**Apples-to-apples comparison (per GRILL #2):** "Check your work" compares the player's **pre-discount
+hit %** (Step 2 output — "how often a good card comes") against the Monte Carlo **win equity** ("how
+often you actually win"). The two are deliberately *different* measures, and the gap between them is the
+whole point: it is the real-world cost of "hit ≠ win" that Steps 3–4 estimate by hand. The closeness
+note ("within X%") is computed on the **hit %** number (the thing the player actually estimated in
+Step 2), while the gap line explains why the true win number sits below it.
 
 Because the section lives in the Feedback tab, the player's mental estimate sits directly beneath the
 app's existing instant verdict and equity bar — no tab-switching to compare. The "true ≈ Y%" number
@@ -164,13 +173,15 @@ the document, not a black box).
 | D5 | Applies on **flop and turn only**; preflop/river show plain guidance instead | (a) all streets, (b) flop+turn only | The Rule of 2 and 4 is defined only when cards are still to come; faking a preflop/river number would teach the wrong thing. |
 | D6 | Tab is **read-only over game state**, persists nothing | (a) save calculator sessions, (b) read-only | It is an analysis lens; saving adds a data model for no stated benefit. Keeps scope and the `data/` contract unchanged. |
 | D7 | Opponent + taint discounts follow the **guide's heuristics** (shave ranges by player count; board-texture triggers) and are **shown as ranges/notes, not false precision** | (a) precise discount %, (b) guide-style ranges + notes | The guide is explicit that hit≠win and that these are estimates; presenting a single precise discounted % would be dishonest precision. |
+| D8 | **Overcards are auto-counted as outs but visibly tagged "soft — may not win"** | (a) count silently, (b) don't auto-count, (c) count + soft tag | (GRILL #1) Matches the guide's table (two overcards = 6 outs) so the teaching is faithful, while the "soft" tag stops the learner from over-trusting top-pair outs. The same soft tag applies to other dicey out groups (e.g. pairing-the-board cards). |
+| D9 | **"Check your work" compares pre-discount HIT % against Monte Carlo WIN equity**; the gap is explained, not hidden | (a) compare discounted estimate vs true, (b) compare hit% vs equity + explain gap, (c) numbers only, no verdict | (GRILL #2) Comparing the two like-for-like-ish measures and surfacing the gap turns the discrepancy into the lesson ("you hit more than you win — that's Steps 3–4"). The closeness verdict is computed on the hit % the player actually estimated. |
 
 ## Open Questions
 
 | # | Question |
 |---|----------|
-| 1 | For the opponent discount, should the tab use a single representative shaded number (e.g., "~48%") or a small range ("~46–50%")? The guide uses ranges; a single number is simpler to compare against the true %. (Lean: show a single shaded midpoint for the comparison, mention the range in the sentence.) — resolve in /spec. |
-| 2 | Exact taint-detection depth: should v1 auto-flag tainted outs and *suggest* a reduced count (player confirms via override), or only show a textual board-danger warning and leave the count untouched? (Lean: textual warning in v1 + override; auto-subtraction is a refinement.) — resolve in /spec. |
+| 1 | For the opponent shade (Step 3), use a single midpoint (e.g., "~48%") or a small range ("~46–50%")? The shade is now *explanatory* (it is no longer the number compared against the true equity — see D9), so a sentence with a range is fine. (Lean: show a range in the sentence, no precise single output.) — resolve in /spec. |
+| 2 | Taint-detection depth (Step 4): auto-flag specific tainted outs and *suggest* a reduced count (player confirms via override), or only show a textual board-danger warning and leave the count untouched? (Lean: textual warning + soft-tag the at-risk outs in v1; auto-subtraction is a refinement.) — resolve in /spec. |
 | 3 | Should "Check your work" persist a tiny running accuracy stat across the session ("your estimates averaged within 6%")? Out of scope for v1 (no persistence), but a natural enhancement — note for future. |
 
 ## Research Sources
@@ -191,3 +202,4 @@ the document, not a black box).
 |------|----------|-------------|
 | 1 | Structural + product-critique self-review (see below). | Pinned live-hand-only scope (D1), flop/turn-only guard (D5), and dishonest-precision risk (D7) directly from the user's brainstorm answers; added river/preflop/no-draw edge journeys; recorded 3 open questions deferred to /spec. |
 | 2 | User asked whether to embed in an existing tab rather than add a new one (gate-4 feedback). | Reframed placement to a **collapsible section inside the Feedback tab** (D0); dropped the new-tab framing throughout (solution direction, goals, journeys, non-goals, research sources); no `TabKey`/`TabStrip` changes now needed. |
+| 3 (grill) | Adversarial pass surfaced two learner-misleading risks: overcards counted as hard outs; comparing two subtly different win-measures. | Added D8 (overcards counted but soft-tagged) and D9 (compare pre-discount hit% vs Monte Carlo equity, explain the gap as the hit≠win lesson); reframed the "Check your work" mockup + OQ#1/#2 accordingly. |
