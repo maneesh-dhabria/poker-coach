@@ -9,7 +9,7 @@ feature_folder: docs/pmos/features/2026-06-03_mental-equity-calculator
 base: main
 remote: origin
 tier: 2
-current_phase: verify
+current_phase: complete-dev
 started_at: 2026-06-03
 last_updated: 2026-06-03
 phases:
@@ -21,11 +21,9 @@ phases:
   spec: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
   plan: {status: completed, artifact_path: null, started_at: null, folded_phase_failures: []}
   execute: {status: completed, artifact_path: null, started_at: 2026-06-03, folded_phase_failures: []}
-  verify: {status: paused, artifact_path: null, started_at: 2026-06-03, folded_phase_failures: []}
+  verify: {status: completed, artifact_path: docs/pmos/features/2026-06-03_mental-equity-calculator/verify/2026-06-03-review.md, started_at: 2026-06-03, folded_phase_failures: []}
   complete-dev: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   retro: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
   final-summary: {status: pending, artifact_path: null, started_at: null, folded_phase_failures: []}
 open_questions_log: []
-status: paused
-paused_reason: compact_checkpoint
-paused_before_phase: verify
+status: in_progress
