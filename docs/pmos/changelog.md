@@ -3,6 +3,41 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.4.0] — 2026-06-03
+
+### Mental Math (Outs & Equity Walk-Through)
+
+A coaching feature that teaches the mental outs→equity routine **on the live
+hand**, inside the existing Feedback panel. No new tab, no manual card entry —
+it reads the hand in progress and lets you "check your work" against the app's
+Monte Carlo equity. The decision engine, equity worker, and `HandRecord` schema
+are unchanged.
+
+### Added
+
+- **`core/mental/` pure module.** Deterministic outs counting (flush / open-ended
+  / gutshot / overcards, overlap-correct union), the Rule of 2 & 4, an exact
+  hypergeometric hit probability, opponent-shade ranges, pot-odds break-even, a
+  profitable/marginal/steep decision, and board-taint warnings — all pure, no
+  React/DOM (`outs.ts`, `hit.ts`, `estimate.ts`, `types.ts`). The guide's worked
+  example (Q♥J♥ on 10♥9♣2♥ → 15 outs → 60% rule / 54.1% exact) is locked in tests.
+- **Collapsible "Mental Math" section** in `FeedbackPanel` (`components/MentalMathSection.tsx`).
+  Six labeled steps on the live hand; "check your work" compares your hit estimate
+  to the true Monte Carlo win equity (the hit→win gap is the visible lesson);
+  optional dollar EV in the session display unit; an "I count differently" outs
+  override. Collapsed by default; open state persists for the session
+  (`sessionStore.mentalMathOpen`).
+
+### Fixed
+
+- **Live-hand tracking.** `MentalMathSection` memoized its derived input on the
+  `gameStore.flow` object, but the store mutates one `HandFlow` instance in place
+  (only `tick` bumps), so the section froze at its first snapshot. Now it
+  re-derives on `tick` and tracks the hand across streets.
+- **Build break (pre-existing).** Extracted `PlayShell` out of `app/page.tsx` into
+  `components/PlayShell.tsx` — Next.js 14 rejects non-allowlisted named exports
+  from a page file, which had broken `npm run build`. No behavior change.
+
 ## [0.3.0] — 2026-05-31
 
 ### UX & Learning Overhaul
