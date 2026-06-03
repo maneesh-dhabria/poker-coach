@@ -3,6 +3,53 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.5.0] — 2026-06-03
+
+### UX/UI Cleanup
+
+Five rough edges in the play interface, smoothed. The right panel now reads as
+three clear sections, the table feedback is consistent, and the "whose turn"
+glow follows whoever is actually to act. UI-only — no data-model, API, engine,
+or bot-logic change.
+
+### Changed
+
+- **Right-panel tabs merged from five to three.** `Hands` + `Feedback` →
+  **Live Feedback** (live per-decision feedback stacked above the full Hand
+  review); `Rankings` + `Pre-Flop chart` → **References** (rankings above the
+  preflop chart, one scroll); `Coaching` unchanged. `TabKey` is now a clean
+  `"live-feedback" | "coaching" | "references"` union, defaulting to Live
+  Feedback, with a coercing setter that maps any stale persisted key back to the
+  default (`store/sessionStore.ts`, `components/TabStrip.tsx`,
+  `components/RightPanel.tsx`).
+- **Acting-seat glow follows whoever acts next.** During the bot-action reveal
+  the gold glow now walks seat-to-seat at `REVEAL_MS` (~380ms) and then rests on
+  the hero on their turn, instead of only ever lighting the human seat. Driven by
+  an exported pure `selectActingSeat(revealing, log, revealed, view)` helper
+  (`components/table/PokerTable.tsx`). Still respects `prefers-reduced-motion`
+  (static ring, no pulse) for every acting seat.
+- **Coaching markdown is styled.** The rendered coaching doc carries a
+  `.coaching-doc` class with a scoped typography block (heading hierarchy,
+  paragraph/list rhythm, bold emphasis) built from the existing design tokens —
+  scoped so it never bleeds into the inline-styled feedback/reference panels
+  (`components/CoachingViewer.tsx`, `app/globals.css`).
+
+### Removed
+
+- **Duplicate Hand review below the table.** `PokerTable` no longer renders its
+  own `<HandRecap>` under the felt (it duplicated the Live Feedback tab); only
+  the table, the "Opponents acting…" line, and the "Next hand" button remain
+  there.
+
+### Engineering notes
+
+- Shipped through the full `/feature-sdlc` pipeline (Tier 2). Verified via the
+  `/verify` gate: ESLint + `tsc` clean, **256** unit/component tests passing,
+  production build OK, and a live Playwright walk confirming the glow walks bot
+  seats during the reveal (`maxGlowCount=1`, ~380ms/action) then rests on the
+  hero, the scoped coaching typography applies without bleed, and hard-reload is
+  clean. See `docs/pmos/features/2026-06-03_ux-ui-cleanup/`.
+
 ## [0.4.0] — 2026-06-03
 
 ### Mental Math (Outs & Equity Walk-Through)
