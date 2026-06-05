@@ -141,3 +141,74 @@ describe("result awards with side pots at showdown", () => {
     expect(r.net[1]).toBe(-2);
   });
 });
+
+describe("result credits the won pot back to the winner's stack", () => {
+  // Regression: an all-in winner committed their whole stack, so stackOf was 0 after the
+  // hand — the won pot was reported in `net`/`winners` but never returned to the seat. The
+  // UI then read stackOf == 0 and fired the "out of chips" rebuy modal on a winning hand.
+  const shoveAndRunOut = () => {
+    const h = createHand({
+      config: { smallBlind: 1, bigBlind: 2 },
+      seats: [
+        { seat: 0, stack: 100 },
+        { seat: 1, stack: 100 },
+      ],
+      buttonIndex: 0,
+      rng: mulberry32(6),
+      holeOverride: { 0: ["Ah", "Kh"].map(c) as [Card, Card], 1: ["2c", "7d"].map(c) as [Card, Card] },
+      boardOverride: ["Qh", "Jh", "3h", "4s", "9c"].map(c),
+    });
+    h.apply({ type: "raise", amount: 100 }); // seat 0 (SB/button) shoves all-in
+    h.apply({ type: "call" }); // seat 1 calls all-in
+    return h;
+  };
+
+  it("an all-in winner ends with the pot, not zero", () => {
+    const h = shoveAndRunOut();
+    expect(h.isHandOver()).toBe(true);
+    const r = h.result();
+    expect(r.winners).toEqual([{ seat: 0, amount: 200 }]);
+    expect(h.stackOf(0)).toBe(200); // started 100, won the 200 pot
+    expect(h.stackOf(1)).toBe(0); // busted
+  });
+
+  it("crediting is idempotent across repeated result()/stackOf calls", () => {
+    const h = shoveAndRunOut();
+    h.result();
+    h.result();
+    expect(h.stackOf(0)).toBe(200); // not 400 — the award is applied once, not per call
+  });
+});
+
+describe("all-in introspection (isAllIn / committedOf — drives the seat badge)", () => {
+  const headsUp = () =>
+    createHand({
+      config: { smallBlind: 1, bigBlind: 2 },
+      seats: [
+        { seat: 0, stack: 100 },
+        { seat: 1, stack: 100 },
+      ],
+      buttonIndex: 0,
+      rng: mulberry32(6),
+      holeOverride: { 0: ["Ah", "Kh"].map(c) as [Card, Card], 1: ["2c", "7d"].map(c) as [Card, Card] },
+      boardOverride: ["Qh", "Jh", "3h", "4s", "9c"].map(c),
+    });
+
+  it("reports a shoved seat as all-in with its total commitment", () => {
+    const h = headsUp();
+    h.apply({ type: "raise", amount: 100 }); // seat 0 shoves
+    h.apply({ type: "call" }); // seat 1 calls all-in
+    expect(h.isAllIn(0)).toBe(true);
+    expect(h.isAllIn(1)).toBe(true);
+    expect(h.committedOf(0)).toBe(100);
+    expect(h.committedOf(1)).toBe(100);
+  });
+
+  it("a seat with chips still behind is not all-in; committedOf reflects only what's in", () => {
+    const h = headsUp(); // blinds posted, no further action
+    expect(h.isAllIn(0)).toBe(false);
+    expect(h.isAllIn(1)).toBe(false);
+    expect(h.committedOf(0)).toBe(1); // SB
+    expect(h.committedOf(1)).toBe(2); // BB
+  });
+});

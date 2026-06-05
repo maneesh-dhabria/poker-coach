@@ -200,3 +200,27 @@ describe("HandFlow T6: toAct + winners on TableView (pure; D1)", () => {
     expect(v.winners).toEqual(rec.outcome.winners);
   });
 });
+
+describe("HandFlow tableView: all-in badge state", () => {
+  it("flags an all-in seat and the chips it committed", () => {
+    // Hero is the BB with a 2-chip stack: posting the big blind shoves the whole stack in,
+    // so the hero is all-in before acting — a deterministic all-in for the badge.
+    const flow = startHand({
+      config: { smallBlind: 1, bigBlind: 2, startingStackBb: 100 },
+      seats: [
+        { seat: 0, name: "You", isHero: true, stack: 2, persona: null },
+        { seat: 1, name: "Sta", isHero: false, stack: 200, persona: personaFor("Calling Station", "Beginner") },
+      ],
+      buttonIndex: 1, // HU: seat 1 = SB/button, seat 0 = BB → hero posts BB=2 and is all-in
+      rng: mulberry32(9),
+      sessionId: "s",
+      handNumber: 1,
+      coachingDepth: "equity",
+    });
+    const hero = flow.tableView().seats.find((s) => s.isHero)!;
+    expect(hero.allIn).toBe(true);
+    expect(hero.allInAmount).toBe(2);
+    const villain = flow.tableView().seats.find((s) => !s.isHero)!;
+    expect(villain.allIn).toBe(false); // 200-chip stack, never tapped out
+  });
+});

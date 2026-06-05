@@ -76,6 +76,7 @@ export class Hand {
   private currentBet = 0;
   private lastRaiseSize: number;
   private toAct = -1;
+  private awarded = false; // guards the one-time credit of winnings back to seat stacks
 
   constructor(input: CreateHandInput) {
     this.config = input.config;
@@ -169,6 +170,16 @@ export class Hand {
 
   stackOf(seat: number): number {
     return this.at(this.idx(seat)).stack;
+  }
+
+  /** Whether this seat is all-in — committed its entire stack and can no longer act. */
+  isAllIn(seat: number): boolean {
+    return this.at(this.idx(seat)).allIn;
+  }
+
+  /** Total chips this seat has committed to the pot across the whole hand. */
+  committedOf(seat: number): number {
+    return this.at(this.idx(seat)).committedTotal;
   }
 
   /** Total chips committed to the pot across all seats this hand. */
@@ -322,6 +333,15 @@ export class Hand {
         wonBySeat[seat] = (wonBySeat[seat] ?? 0) + amt;
         net[seat] += amt;
       }
+    }
+
+    // Return each winner's pot to their seat stack. Betting decremented stacks as chips went
+    // in (a winner who shoved sits at 0 here); without this credit, stackOf reports 0 even on
+    // a winning hand and the UI mistakes the winner for a bust. Guarded so the repeated
+    // result() calls (tableView, toRecord, re-renders) credit exactly once.
+    if (!this.awarded) {
+      for (const seat in wonBySeat) this.at(this.idx(Number(seat))).stack += wonBySeat[seat];
+      this.awarded = true;
     }
 
     const winners = Object.entries(wonBySeat)

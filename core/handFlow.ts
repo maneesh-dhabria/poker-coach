@@ -60,6 +60,12 @@ export interface TableSeatView {
   // T8 (D1 pattern): this seat's net for the hand once over (from result.net); null while live.
   // Optional so existing TableSeatView literals (e.g. component tests) stay valid — additive.
   net?: number | null;
+  // All-in state for the seat badge: true once the seat has committed its whole stack (it can no
+  // longer act, and is frozen out of any side pot built afterwards); `allInAmount` is the chips it
+  // put in. Lets the UI explain side-pot outcomes (e.g. a short all-in winning less than the table).
+  // Optional/additive so existing literals stay valid.
+  allIn?: boolean;
+  allInAmount?: number;
 }
 
 export interface TableView {
@@ -280,6 +286,8 @@ export class HandFlow {
         isButton: s.seat === buttonSeat,
         cards: revealed ? (this.h.holeOf(s.seat) as Card[]) : null,
         net: result ? (result.net[s.seat] ?? 0) : null,
+        allIn: this.h.isAllIn(s.seat),
+        allInAmount: this.h.committedOf(s.seat),
       };
     });
     const legal = this.h.legalActions();

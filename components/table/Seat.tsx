@@ -121,6 +121,26 @@ export function Seat({
           {formatMoney(seat.stack, displayUnit, bigBlind)}
         </div>
       )}
+      {seat.allIn ? (
+        <div
+          data-testid="seat-allin"
+          aria-label="all-in"
+          style={{
+            display: "inline-block",
+            marginTop: 4,
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: 0.5,
+            color: "#10231a",
+            background: "var(--mistake)",
+            borderRadius: "var(--r-pill)",
+            padding: "1px 7px",
+          }}
+        >
+          ALL-IN
+          {seat.allInAmount != null ? ` ${formatMoney(seat.allInAmount, displayUnit, bigBlind)}` : ""}
+        </div>
+      ) : null}
       <div style={{ display: "flex" }}>
         {seat.cards ? (
           seat.cards.map((c, i) => (

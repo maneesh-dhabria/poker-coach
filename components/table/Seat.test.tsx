@@ -45,3 +45,18 @@ describe("Seat — showdown winner glow + net chip (T8)", () => {
     expect(container.querySelector(".netchip")).toBeFalsy();
   });
 });
+
+describe("Seat — all-in badge", () => {
+  it("shows ALL-IN with the committed amount when the seat is all-in", () => {
+    const { getByTestId, getByText } = render(
+      <Seat seat={{ ...baseSeat, allIn: true, allInAmount: 46 } as any} bigBlind={2} />,
+    );
+    expect(getByTestId("seat-allin")).toBeTruthy();
+    expect(getByText(/ALL-IN \$46/)).toBeTruthy();
+  });
+
+  it("renders no all-in badge for a seat with chips behind", () => {
+    const { queryByTestId } = render(<Seat seat={baseSeat} />);
+    expect(queryByTestId("seat-allin")).toBeFalsy();
+  });
+});
