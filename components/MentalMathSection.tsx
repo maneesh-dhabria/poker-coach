@@ -1,8 +1,10 @@
 "use client";
 // Mental Math walk-through (spec §3, FR-01/03/16–21). A collapsible section inside the FeedbackPanel
 // that teaches the guide's six-step outs→equity routine on the LIVE hand, then lets the player
-// "check their work" against the app's Monte Carlo equity. Presentational only: all math comes from
-// core/mental (sync) and core/equity (async). It never recomputes — it reads, like FeedbackPanel.
+// "check their work" against the SAME win-% the verdict and equity bar already show. The "true win"
+// is passed IN from FeedbackPanel (`analysis.numbers.equityPct`) — the single source — so the panel
+// can never show two different win-%s for one decision (iter-07 #1). Presentational only: the outs
+// math comes from core/mental (sync); it never recomputes equity — it reads, like FeedbackPanel.
 import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
@@ -13,22 +15,11 @@ import {
   MentalInput,
   MentalEstimate,
 } from "@/core/mental";
-import { requestEquity } from "@/core/equity/equityClient";
 import { HandFlow } from "@/core/handFlow";
 import { Street } from "@/core/analysis/types";
 import { formatMoney } from "@/core/money";
 
-const EQUITY_ITERATIONS = 1500;
 const BIG_BLIND = 2;
-
-function browserWorker(): Worker | null {
-  if (typeof window === "undefined" || typeof Worker === "undefined") return null;
-  try {
-    return new Worker(new URL("../workers/equity.worker.ts", import.meta.url));
-  } catch {
-    return null;
-  }
-}
 
 const EMPTY_INPUT: MentalInput = {
   hole: null,
@@ -118,9 +109,17 @@ function BreakEvenBar({ pct }: { pct: number }) {
   );
 }
 
-export function MentalMathSection({ enabled }: { enabled: boolean }) {
+export function MentalMathSection({
+  enabled,
+  verdictEquityPct,
+}: {
+  enabled: boolean;
+  // The verdict's win-% (analysis.numbers.equityPct) — the SAME figure the equity bar shows. Used as
+  // the single "true win" everywhere in Mental Math so the two can never drift (iter-07 #1). Null on
+  // off-turn / no-equity spots, in which case the "Check your work" block is hidden.
+  verdictEquityPct?: number | null;
+}) {
   const flow = useGameStore((s) => s.flow);
-  const seed = useGameStore((s) => s.seed);
   // Whether the current hand has finished. At showdown the live decision clears, so the estimate
   // status falls back to "no-hand"; distinguish a finished hand from "no hand dealt yet" so we can
   // show a graceful "hand complete" note instead of the jarring "deal a hand" placeholder (finding
@@ -137,8 +136,6 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
 
   const [outsOverride, setOutsOverride] = useState<number | null>(null);
   const [showOverride, setShowOverride] = useState(false);
-  const [trueWinPct, setTrueWinPct] = useState<number | null>(null);
-  const [equityLoading, setEquityLoading] = useState(false);
 
   // `tick` is the intentional trigger (flow is mutated in place — see above); exhaustive-deps can't
   // see that, so the dependency is correct but the rule flags it.
@@ -150,8 +147,15 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
   );
   const autoEstimate: MentalEstimate = useMemo(() => buildMentalEstimate(input), [input]);
 
-  // A key that changes only when the underlying hand changes (NOT when the override changes), so the
-  // true-equity call is made once per spot and the override never re-triggers Monte Carlo (FR-11).
+  // The "true win" is the verdict's equity (analysis.numbers.equityPct), passed in — NOT a separate
+  // Monte Carlo. This guarantees Mental Math and the verdict/equity bar always show ONE number for a
+  // decision (iter-07 #1). It's only meaningful when there's a live drawing/made spot to check.
+  const showTrueWin =
+    verdictEquityPct != null &&
+    (estimate.status === "ok" || estimate.status === "no-draw" || estimate.status === "river");
+  const trueWinPct = showTrueWin ? Math.round(verdictEquityPct!) : null;
+
+  // A key that changes only when the underlying hand changes (NOT when the override changes).
   const equityKey =
     input.hole && (estimate.status === "ok" || estimate.status === "no-draw" || estimate.status === "river")
       ? `${input.hole.join("")}|${input.board.join("")}|${input.numActiveOpponents}`
@@ -162,41 +166,6 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
     setOutsOverride(null);
     setShowOverride(false);
   }, [equityKey]);
-
-  useEffect(() => {
-    if (!equityKey || !input.hole) {
-      setTrueWinPct(null);
-      setEquityLoading(false);
-      return;
-    }
-    let cancelled = false;
-    setEquityLoading(true);
-    setTrueWinPct(null);
-    requestEquity(
-      {
-        hero: input.hole,
-        board: input.board,
-        numOpponents: Math.max(1, input.numActiveOpponents),
-        iterations: EQUITY_ITERATIONS,
-        seed: seed + input.board.length + 1,
-      },
-      browserWorker,
-    )
-      .then((res) => {
-        if (cancelled) return;
-        setTrueWinPct(Math.round(res.equityPct));
-        setEquityLoading(false);
-      })
-      .catch(() => {
-        if (!cancelled) setEquityLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // `equityKey` already encodes hole|board|numActiveOpponents, so it is the single per-spot trigger:
-    // fire Monte Carlo once per spot, not on every `tick` (input is a fresh object each tick now).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [equityKey, seed]);
 
   if (!enabled) return null;
 
@@ -251,25 +220,13 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
           {estimate.status === "river" && (
             <>
               <Note>No cards left to come on the river — you either have your hand or you don&apos;t.</Note>
-              <TrueEquityCheck
-                estimate={estimate}
-                trueWinPct={trueWinPct}
-                loading={equityLoading}
-                input={input}
-                displayUnit={displayUnit}
-              />
+              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} />
             </>
           )}
           {estimate.status === "no-draw" && (
             <>
-              <Note>{estimate.plainSummary}</Note>
-              <TrueEquityCheck
-                estimate={estimate}
-                trueWinPct={trueWinPct}
-                loading={equityLoading}
-                input={input}
-                displayUnit={displayUnit}
-              />
+              <Note>{noDrawSummary(estimate, trueWinPct)}</Note>
+              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} />
             </>
           )}
           {estimate.status === "ok" && (
@@ -277,7 +234,6 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
               estimate={estimate}
               autoEstimate={autoEstimate}
               trueWinPct={trueWinPct}
-              loading={equityLoading}
               input={input}
               displayUnit={displayUnit}
               outsOverride={outsOverride}
@@ -296,7 +252,6 @@ function Steps({
   estimate,
   autoEstimate,
   trueWinPct,
-  loading,
   input,
   displayUnit,
   outsOverride,
@@ -307,7 +262,6 @@ function Steps({
   estimate: MentalEstimate;
   autoEstimate: MentalEstimate;
   trueWinPct: number | null;
-  loading: boolean;
   input: MentalInput;
   displayUnit: "usd" | "bb";
   outsOverride: number | null;
@@ -337,12 +291,18 @@ function Steps({
             I count differently ▸
           </button>
         </div>
-        {estimate.madeHand && (
-          <p data-testid="mm-made-hand" style={{ margin: "2px 0 6px", fontSize: 13, color: "var(--good)" }}>
-            You already have <strong>{estimate.madeHand.label}</strong> — so you&apos;re often ahead
-            already, on top of any outs below.
-          </p>
-        )}
+        {estimate.madeHand &&
+          (() => {
+            const line = madeHandLine(estimate.madeHand.label, trueWinPct, input.numActiveOpponents);
+            return (
+              <p
+                data-testid="mm-made-hand"
+                style={{ margin: "2px 0 6px", fontSize: 13, color: line.ahead ? "var(--good)" : "var(--ink-soft)" }}
+              >
+                {line.text}
+              </p>
+            );
+          })()}
         {outs.groups.map((g, i) => (
           <p key={i} style={{ margin: "2px 0", fontSize: 13 }}>
             {g.label}
@@ -490,7 +450,7 @@ function Steps({
           );
         })()}
 
-      <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} loading={loading} input={input} displayUnit={displayUnit} />
+      <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} />
     </div>
   );
 }
@@ -498,26 +458,14 @@ function Steps({
 function TrueEquityCheck({
   estimate,
   trueWinPct,
-  loading,
   input,
   displayUnit,
 }: {
   estimate: MentalEstimate;
   trueWinPct: number | null;
-  loading: boolean;
   input: MentalInput;
   displayUnit: "usd" | "bb";
 }) {
-  if (loading) {
-    return (
-      <div data-testid="mm-equity-loading" style={{ ...STEP_CARD, background: "rgba(63,185,107,.10)", border: "1px solid var(--good)" }}>
-        <div style={STEP_HEAD}>
-          <span>Check your work</span>
-        </div>
-        <p style={{ margin: "2px 0", fontSize: 13, color: "var(--ink-soft)" }}>calculating true equity…</p>
-      </div>
-    );
-  }
   if (trueWinPct == null) return null;
 
   const hit = estimate.ruleHitPct;
@@ -564,6 +512,49 @@ function TrueEquityCheck({
 
 function money(dollars: number, unit: "usd" | "bb"): string {
   return formatMoney(dollars, unit, BIG_BLIND);
+}
+
+// "Often ahead" only when the unified win-% is actually high (iter-07 #2b). Below the threshold a
+// made hand can still be a marginal/behind spot multiway, so the line must MATCH the verdict's grade
+// — never claim "ahead" against the equity. When the equity isn't available yet, fall back to the
+// neutral "you already have X" statement without the misleading "often ahead" claim.
+const AHEAD_THRESHOLD_PCT = 55;
+function madeHandLine(
+  label: string,
+  trueWinPct: number | null,
+  numActiveOpponents: number,
+): { text: string; ahead: boolean } {
+  if (trueWinPct == null) {
+    return { text: `You already have ${label} — see the true win % below.`, ahead: false };
+  }
+  const win = Math.round(trueWinPct);
+  if (trueWinPct >= AHEAD_THRESHOLD_PCT) {
+    return {
+      text: `You already have ${label} — you win ~${win}%, so you're often ahead already, on top of any outs below.`,
+      ahead: true,
+    };
+  }
+  const players =
+    numActiveOpponents > 1 ? ` with ${numActiveOpponents} players still in` : "";
+  return {
+    text: `You have ${label}, but${players} you're only ~${win}% to win — it's marginal, not a sure lead.`,
+    ahead: false,
+  };
+}
+
+// The no-draw headline (iter-07 #2b). A made hand with no extra outs is "often ahead" only when the
+// unified win-% is high; otherwise it's marginal and the copy must track the equity, not over-claim.
+function noDrawSummary(estimate: MentalEstimate, trueWinPct: number | null): string {
+  if (estimate.madeHand) {
+    if (trueWinPct == null) {
+      return `No extra outs to count — you already have ${estimate.madeHand.label}. See the true win % below.`;
+    }
+    const win = Math.round(trueWinPct);
+    return trueWinPct >= AHEAD_THRESHOLD_PCT
+      ? `No extra outs to count — but you already have ${estimate.madeHand.label} and win ~${win}%, so you're often ahead already.`
+      : `No extra outs to count — you have ${estimate.madeHand.label}, but at ~${win}% to win it's marginal here.`;
+  }
+  return estimate.plainSummary;
 }
 
 const miniBtn: React.CSSProperties = {

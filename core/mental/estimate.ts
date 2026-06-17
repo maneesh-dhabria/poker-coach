@@ -2,7 +2,7 @@
 // it never touches the equity engine; the component composes the async "true win %" comparison.
 import { Card, Suit, suitOf, rankValue, SUITS } from "@/core/cards";
 import { Street } from "@/core/analysis/types";
-import { rank7, categoryOf, HandCategory } from "@/core/eval/handEval";
+import { rank5, rank7, categoryOf, HandCategory } from "@/core/eval/handEval";
 import { countOuts } from "@/core/mental/outs";
 import { ruleOf2And4, exactHitPct, bigDrawCaveat } from "@/core/mental/hit";
 import { MadeHand, MentalEstimate, MentalInput, OutsBreakdown, TaintFlags } from "@/core/mental/types";
@@ -15,6 +15,11 @@ export function detectMadeHand(hole: [Card, Card], board: Card[]): MadeHand | nu
   if (all.length < 5) return null;
   const category = categoryOf(rank7(all));
   if (category < HandCategory.Pair) return null;
+
+  // Hole-card participation (iter-07 #2a): a made hand only counts when the hero's HOLE cards
+  // actually improve on the board alone. Otherwise the hero is "playing the board" — e.g. J-high on
+  // a board that pairs the 8s — which is not a made hand of their own and must not be surfaced.
+  if (!holeImprovesOnBoard(hole, board, category)) return null;
 
   const boardMax = board.length ? Math.max(...board.map(rankValue)) : 0;
   const holeVals = hole.map(rankValue);
@@ -45,6 +50,43 @@ export function detectMadeHand(hole: [Card, Card], board: Card[]): MadeHand | nu
     }
   };
   return { category, label: labelFor() };
+}
+
+/** The best made-hand category the BOARD makes on its own (no hole cards). On a 3- or 4-card board
+ * a 5-card hand isn't yet possible, so we read the category structurally from the board cards: a
+ * paired board → board pair, trips on board → board trips, four to a straight/flush → that category,
+ * etc. This is the "playing the board" baseline; a hero only has a made hand if their hole cards beat
+ * it. (iter-07 #2a) */
+function boardAloneCategory(board: Card[]): HandCategory {
+  if (board.length >= 5) {
+    // Enough board cards to form a full 5-card hand from the board alone.
+    let best = HandCategory.HighCard;
+    for (let i = 0; i < board.length; i++)
+      for (let j = i + 1; j < board.length; j++)
+        for (let k = j + 1; k < board.length; k++)
+          for (let l = k + 1; l < board.length; l++)
+            for (let m = l + 1; m < board.length; m++) {
+              const cat = categoryOf(rank5([board[i], board[j], board[k], board[l], board[m]]));
+              if (cat > best) best = cat;
+            }
+    return best;
+  }
+  // 3–4 card board: read the category from the rank/suit structure of the board cards themselves.
+  const counts = new Map<number, number>();
+  for (const c of board) counts.set(rankValue(c), (counts.get(rankValue(c)) ?? 0) + 1);
+  const countVals = Array.from(counts.values()).sort((a, b) => b - a);
+  if ((countVals[0] ?? 0) >= 3) return HandCategory.Trips;
+  if ((countVals[0] ?? 0) === 2 && (countVals[1] ?? 0) === 2) return HandCategory.TwoPair;
+  if ((countVals[0] ?? 0) === 2) return HandCategory.Pair;
+  return HandCategory.HighCard;
+}
+
+/** Whether the hero's HOLE cards actually improve on the board alone (iter-07 #2a). The hero has a
+ * real made hand only when their best 7-card category is strictly better than what the board makes
+ * by itself — i.e. a hole card participates. Plays-the-board hands (J-high on a paired board, board
+ * trips/two-pair the hole doesn't touch) return false. */
+function holeImprovesOnBoard(hole: [Card, Card], board: Card[], heroCategory: HandCategory): boolean {
+  return heroCategory > boardAloneCategory(board);
 }
 
 /** Distinct rank values present, with an Ace also counted low (1) for wheel-aware connectedness. */
@@ -293,12 +335,21 @@ export function conclusionFrom(args: {
   const { trueWinPct, breakEvenPct, toCall, madeHand } = args;
   const win = Math.round(trueWinPct);
   const lead = madeHand ? ` You already have ${madeHand.label}.` : "";
+  // "Ahead" only when the unified win-% is actually high — never claim a lead against the equity
+  // (iter-07 #2b). A made hand at low multiway equity is marginal, not ahead.
+  const ahead = trueWinPct >= 55;
   if (toCall <= 0) {
+    if (madeHand) {
+      return {
+        profitable: true,
+        sentence: ahead
+          ? `It's free to see the next card, and you're ahead ~${win}% of the time — take it, and consider betting ${madeHand.label} for value.`
+          : `It's free to see the next card — take it. You have ${madeHand.label} but only win ~${win}%, so it's marginal, not a clear lead.`,
+      };
+    }
     return {
       profitable: true,
-      sentence: madeHand
-        ? `It's free to see the next card, and you're ahead ~${win}% of the time — take it, and consider betting ${madeHand.label} for value.`
-        : `It's a free card — just take it. You're winning ~${win}% right now.`,
+      sentence: `It's a free card — just take it. You're winning ~${win}% right now.`,
     };
   }
   const need = Math.round(breakEvenPct);

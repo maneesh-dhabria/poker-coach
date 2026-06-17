@@ -20,7 +20,6 @@ export function RightPanel() {
   const settings = useSessionStore((s) => s.settings);
   const sessionId = useSessionStore((s) => s.sessionId);
   const displayUnit = useSessionStore((s) => s.displayUnit);
-  const mentalMathOpen = useSessionStore((s) => s.mentalMathOpen);
 
   const feedback = useGameStore((s) => s.feedback);
   const flow = useGameStore((s) => s.flow);
@@ -37,12 +36,6 @@ export function RightPanel() {
     !!feedback &&
     STREET_ORDER.indexOf(pendingStreet as (typeof STREET_ORDER)[number]) >
       STREET_ORDER.indexOf(feedback.street as (typeof STREET_ORDER)[number]);
-
-  // Mental Math only renders numbers on a post-flop hero spot AND when the section is expanded; on
-  // preflop or while collapsed there's no number block to point at. Used to avoid the pending caption
-  // over-promising an absent Mental Math block (finding #4).
-  const mentalMathAvailable =
-    mentalMathOpen && !!pendingStreet && pendingStreet !== "preflop";
 
   return (
     <div style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column" }}>
@@ -66,14 +59,13 @@ export function RightPanel() {
             {settings.feedbackEnabled && pendingStreet && isStale ? (
               <aside data-testid="feedback-pending" className="card" style={{ maxWidth: 420 }}>
                 <p style={{ margin: 0, lineHeight: 1.5 }}>
-                  <strong>Deciding your {pendingStreet}…</strong> — the verdict and equity for this
-                  spot appear once you act.
-                  {/* Only promise the Mental Math numbers when they're actually present below: they
-                      need a post-flop spot AND the section expanded. On preflop or while collapsed
-                      there's nothing to point at, so don't over-promise an absent block (finding #4). */}
-                  {mentalMathAvailable
-                    ? ` The numbers below (Mental Math) are for this ${pendingStreet} decision; your last verdict was for an earlier street.`
-                    : " Your last verdict was for an earlier street."}
+                  {/* The pending card REPLACES the FeedbackPanel (which holds the Mental Math block),
+                      so no Mental Math numbers are on screen here — the copy must not promise any
+                      "numbers below" (iter-07 #3). It only explains that the last verdict was for an
+                      earlier street; the verdict + math for this street arrive once the hero acts. */}
+                  <strong>Deciding your {pendingStreet}…</strong> — the verdict, equity, and math for
+                  this {pendingStreet} decision appear once you act. The hand review below still shows
+                  your earlier decisions.
                 </p>
               </aside>
             ) : (

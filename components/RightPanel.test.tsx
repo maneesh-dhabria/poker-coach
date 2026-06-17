@@ -100,9 +100,10 @@ describe("RightPanel", () => {
     expect(screen.queryByTestId("verdict-badge")).toBeNull();
   });
 
-  // iter-03 #4 — the pending caption must not promise "numbers below (Mental Math)" when none are
-  // present (Mental Math collapsed, or preflop). Only claim them when they're actually visible.
-  it("omits the 'numbers below (Mental Math)' promise when Mental Math is collapsed (#4)", () => {
+  // iter-07 #3 — the pending card REPLACES the FeedbackPanel (which holds Mental Math), so no Mental
+  // Math numbers are on screen here. The copy must NEVER promise "numbers below (Mental Math)",
+  // regardless of whether the section is collapsed or expanded.
+  it("never promises 'numbers below (Mental Math)' in the pending state — collapsed (#3)", () => {
     const preflopVerdict = {
       decisionId: "h1-d1",
       street: "preflop",
@@ -118,10 +119,10 @@ describe("RightPanel", () => {
     render(<RightPanel />);
     const pending = screen.getByTestId("feedback-pending");
     expect(pending.textContent).not.toMatch(/numbers below \(Mental Math\)/i);
-    expect(pending.textContent).toMatch(/earlier street/i);
+    expect(pending.textContent).toMatch(/once you act/i);
   });
 
-  it("does promise the Mental Math numbers when the section is open on a post-flop spot (#4)", () => {
+  it("never promises 'numbers below (Mental Math)' in the pending state — expanded (#3)", () => {
     const preflopVerdict = {
       decisionId: "h1-d1",
       street: "preflop",
@@ -134,7 +135,7 @@ describe("RightPanel", () => {
       useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: true }) as never, feedback: preflopVerdict as never, tick: 1 });
     });
     render(<RightPanel />);
-    expect(screen.getByTestId("feedback-pending").textContent).toMatch(/numbers below \(Mental Math\)/i);
+    expect(screen.getByTestId("feedback-pending").textContent).not.toMatch(/numbers below \(Mental Math\)/i);
   });
 
   it("shows an intentional 'feedback is off' hint during play that says the review still populates live (#8/iter3 #5)", () => {

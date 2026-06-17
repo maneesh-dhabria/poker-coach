@@ -1,13 +1,9 @@
-import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, cleanup, fireEvent, act } from "@testing-library/react";
 import { MentalMathSection } from "@/components/MentalMathSection";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
-import { requestEquity } from "@/core/equity/equityClient";
 import { Card } from "@/core/cards";
-
-vi.mock("@/core/equity/equityClient", () => ({ requestEquity: vi.fn() }));
-const mockEquity = requestEquity as unknown as Mock;
 
 const c = (s: string) => s as Card;
 
@@ -61,8 +57,6 @@ function setFlow(flow: unknown) {
 
 beforeEach(() => {
   cleanup();
-  mockEquity.mockReset();
-  mockEquity.mockReturnValue(new Promise(() => {})); // pending by default — keeps steps visible
   act(() => {
     useSessionStore.setState({ mentalMathOpen: true, displayUnit: "usd" });
     useGameStore.setState({ flow: null, tick: 0, seed: 1 });
@@ -149,22 +143,29 @@ describe("MentalMathSection — edge-state notes", () => {
 });
 
 describe("MentalMathSection — true equity comparison (Check your work)", () => {
-  it("shows a loading state while equity computes, with steps already visible", () => {
+  // iter-07 #1: the "true win" is now the SAME number the verdict/equity bar show — passed in as a
+  // prop, no separate Monte Carlo, no loading state.
+  it("hides the Check-your-work block when no verdict equity is supplied", () => {
     setFlow(fakeFlow());
     render(<MentalMathSection enabled />);
     expect(screen.getByTestId("mm-steps")).toBeInTheDocument();
-    expect(screen.getByTestId("mm-equity-loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("mm-true-equity")).toBeNull();
   });
 
-  it("resolves into hit-vs-win, closeness, and the dollar EV", async () => {
-    mockEquity.mockResolvedValue({ equityPct: 51, iterations: 1500, ms: 0 });
+  it("uses the supplied verdict equity for hit-vs-win, closeness, and the dollar EV", () => {
     setFlow(fakeFlow());
-    render(<MentalMathSection enabled />);
-    const check = await screen.findByTestId("mm-true-equity");
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    const check = screen.getByTestId("mm-true-equity");
     expect(check.textContent).toContain("You hit ~60%");
     expect(check.textContent).toContain("True win ≈ 51%");
     expect(screen.getByTestId("mm-closeness").textContent).toMatch(/within \d+% of the exact hit chance/);
     expect(screen.getByTestId("mm-ev").textContent).toMatch(/based on the true equity/);
+  });
+
+  it("the Mental Math true win equals the verdict's equityPct for the same spot (#1)", () => {
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={35} />);
+    expect(screen.getByTestId("mm-true-equity").textContent).toContain("True win ≈ 35%");
   });
 });
 
@@ -224,33 +225,55 @@ describe("MentalMathSection — made-hand reconciliation (findings #1/#2/#3)", (
   const topPairGutshot = () =>
     fakeFlow({ hole: [c("Ah"), c("2h")], board: [c("4h"), c("Ac"), c("3d")], potBefore: 32, toCall: 12 });
 
-  it("surfaces the made hand in Step 1 instead of an outs-only fold", async () => {
-    mockEquity.mockResolvedValue({ equityPct: 47, iterations: 1500, ms: 0 });
+  it("surfaces the made hand in Step 1 instead of an outs-only fold", () => {
     setFlow(topPairGutshot());
-    render(<MentalMathSection enabled />);
+    render(<MentalMathSection enabled verdictEquityPct={47} />);
     expect(screen.getByTestId("mm-made-hand").textContent).toMatch(/top pair/i);
-    const conclusion = await screen.findByTestId("mm-conclusion");
+    const conclusion = screen.getByTestId("mm-conclusion");
     // The reconciled conclusion must be profitable, never "fold / price too steep".
     expect(conclusion.textContent?.toLowerCase()).not.toContain("too steep");
     expect(conclusion.textContent?.toLowerCase()).toContain("profitable");
   });
 
-  it("gap explanation blames the made hand, not opponents + board danger", async () => {
-    mockEquity.mockResolvedValue({ equityPct: 47, iterations: 1500, ms: 0 });
+  it("gap explanation blames the made hand, not opponents + board danger", () => {
     setFlow(topPairGutshot());
-    render(<MentalMathSection enabled />);
-    const gap = await screen.findByTestId("mm-gap");
+    render(<MentalMathSection enabled verdictEquityPct={47} />);
+    const gap = screen.getByTestId("mm-gap");
     expect(gap.textContent?.toLowerCase()).toContain("top pair");
     expect(gap.textContent?.toLowerCase()).not.toContain("opponents + board danger");
   });
 
-  it("a pure draw still blames opponents + board danger in the gap line", async () => {
-    mockEquity.mockResolvedValue({ equityPct: 51, iterations: 1500, ms: 0 });
+  it("a pure draw still blames opponents + board danger in the gap line", () => {
     setFlow(fakeFlow()); // QhJh draw, no made hand
-    render(<MentalMathSection enabled />);
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
     expect(screen.queryByTestId("mm-made-hand")).toBeNull();
-    const gap = await screen.findByTestId("mm-gap");
+    const gap = screen.getByTestId("mm-gap");
     expect(gap.textContent?.toLowerCase()).toContain("opponents + board danger");
+  });
+
+  // iter-07 #2b: a made hand at LOW unified equity (top pair multiway at ~35%) must NOT claim
+  // "often ahead" — it must read as marginal and match the verdict's grade.
+  it("does NOT claim 'often ahead' for top pair at low multiway equity (#2b)", () => {
+    setFlow(
+      fakeFlow({
+        hole: [c("Ah"), c("2h")],
+        board: [c("4h"), c("Ac"), c("3d")],
+        potBefore: 32,
+        toCall: 12,
+        numActiveOpponents: 4,
+      }),
+    );
+    render(<MentalMathSection enabled verdictEquityPct={35} />);
+    const made = screen.getByTestId("mm-made-hand").textContent?.toLowerCase() ?? "";
+    expect(made).not.toContain("often ahead");
+    expect(made).toContain("marginal");
+    expect(made).toContain("35%");
+  });
+
+  it("DOES claim 'often ahead' for a made hand at high unified equity (#2b)", () => {
+    setFlow(topPairGutshot());
+    render(<MentalMathSection enabled verdictEquityPct={72} />);
+    expect(screen.getByTestId("mm-made-hand").textContent?.toLowerCase()).toContain("often ahead");
   });
 });
 

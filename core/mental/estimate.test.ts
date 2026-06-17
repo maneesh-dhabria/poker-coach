@@ -165,6 +165,35 @@ describe("detectMadeHand", () => {
   it("returns null when the hero only has a draw / high card", () => {
     expect(detectMadeHand(hole("Qh", "Jh"), h(["Th", "9c", "2h"]))).toBeNull();
   });
+
+  // iter-07 #2a: hole-card participation. A board-only pair/hand is NOT the hero's made hand.
+  it("returns null for J-high on a paired board (playing the board, no hole contribution)", () => {
+    // 6♠ J♥ on 8♦ 8♣ Q♦ — the board pairs the 8s; the hero only has J-high.
+    expect(detectMadeHand(hole("6s", "Jh"), h(["8d", "8c", "Qd"]))).toBeNull();
+  });
+
+  it("returns null when the board makes trips the hero doesn't improve", () => {
+    // 6♠ J♥ on 8♦ 8♣ 8s — board trips; hero contributes nothing.
+    expect(detectMadeHand(hole("6s", "Jh"), h(["8d", "8c", "8s"]))).toBeNull();
+  });
+
+  it("detects top pair when a hole card pairs the board", () => {
+    const m = detectMadeHand(hole("Qh", "5c"), h(["Qd", "8c", "2s"]));
+    expect(m!.label).toBe("top pair");
+  });
+
+  it("detects a pocket pair under the board (hole pair, no board pair)", () => {
+    // 7♠ 7♥ on K♦ 9♣ 2s — under the board but still a real made pair of the hero's own.
+    const m = detectMadeHand(hole("7s", "7h"), h(["Kd", "9c", "2s"]));
+    expect(m).not.toBeNull();
+    expect(m!.label).toBe("a pair");
+  });
+
+  it("detects a real two pair that uses a hole card", () => {
+    // K♠ 9♥ on K♦ 9♣ 2s — both pairs use a hole card.
+    const m = detectMadeHand(hole("Ks", "9h"), h(["Kd", "9c", "2s"]));
+    expect(m!.label).toBe("two pair");
+  });
 });
 
 describe("made-hand reconciliation (findings #1/#2/#3)", () => {
@@ -213,6 +242,13 @@ describe("made-hand reconciliation (findings #1/#2/#3)", () => {
     expect(e.madeHand?.label).toBe("two pair");
     const c = conclusionFrom({ trueWinPct: 66, breakEvenPct: 0, toCall: 0, madeHand: e.madeHand });
     expect(c.sentence.toLowerCase()).toContain("value");
+  });
+
+  it("(iter-07 #2b) a free check with a made hand at LOW equity is called marginal, not 'ahead'", () => {
+    const c = conclusionFrom({ trueWinPct: 35, breakEvenPct: 0, toCall: 0, madeHand: { category: 1, label: "top pair" } });
+    expect(c.sentence.toLowerCase()).not.toContain("ahead");
+    expect(c.sentence.toLowerCase()).toContain("marginal");
+    expect(c.sentence).toContain("35%");
   });
 
   it("(b) the gap explanation DIFFERS between a pure-draw spot and a made-hand spot", () => {
