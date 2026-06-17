@@ -3,6 +3,75 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.9.0] — 2026-06-18
+
+### Reviewer-iteration-4 fixes — board-street regression, no contradictory coaching
+
+A fourth independent first-time-user playtest (`docs/playtest/reviews/iter-03.md`)
+caught two regressions the v0.8.0 round had introduced, plus a layer of coaching
+copy that could contradict itself or mislead. All fixed. UI/coaching-only — the
+one `HandRecord` touch is an additive optional field (no schema-version change).
+
+### Fixed
+
+- **You can see the street you're deciding again (regression).** v0.8.0's table
+  changes left the community board capped to the action-replay cursor even on a
+  static decision, so "Deciding your flop" showed no flop, "turn" showed only the
+  flop, etc. — you were acting blind to the current street. The board is now
+  capped only while the bot-action reveal animation walks; on your decision (and
+  at showdown) it shows the full dealt board (`boardShowCount` helper in
+  `components/table/PokerTable.tsx`). Locked in by a `HandFlow` test asserting
+  flop→3, turn→4, river→5 cards at each hero decision.
+- **Bet/raise feedback can't contradict itself.** A river bet could be graded
+  "❌ Mistake — not enough behind it" while the same panel's headline said "you
+  only need ~0% … that gap is why continuing makes money over time" — call/draw
+  pot-odds language mis-applied to a bet. The "you only need ~Y% / makes money"
+  headline and the "needed %" equity-bar marker now render ONLY when you're
+  facing a bet and deciding whether to call; a flagged bet never claims it makes
+  money (`core/analysis/explain.ts`, `components/FeedbackPanel.tsx`).
+- **The verdict tag matches the action and street.** A preflop raise no longer
+  gets a "called too wide" tag, and a river fold is no longer labeled "good
+  preflop discipline" — new `played_too_wide` and `good_fold_discipline` tags
+  cover those spots (`core/analysis/conceptTags.ts`, `analyze.ts`).
+- **Honest fold rationale.** Folding a near-dead hand to a big all-in is now
+  explained by the low win-chance vs the price, not "the pot isn't big enough"
+  (which was false when the pot was huge) (`core/analysis/explain.ts`).
+- **Raise amounts read consistently.** The button "Raise to N", the round
+  summary, and the hand review now all show the same total-raise-to number
+  (additive optional `toAmount` carried through `core/handFlow.ts` and the action
+  record), instead of the button saying "to 2 BB" while the log said "to 1 BB".
+- **Coaching depth no longer leaks.** Conceptual shows plain words with no equity
+  % and no "chart-based" badge; Equity + Heuristics surfaces the win-rate; Strict
+  charts keeps the chart/GTO citation — each depth now stays in its lane
+  (`core/analysis/explain.ts`).
+- **The EV table only lists legal actions.** On an unopened spot it no longer
+  shows a phantom "if you call …" row (`core/analysis/analyze.ts`).
+- **Constrained-size center/seat overlap reduced.** The center pot + "THIS ROUND"
+  summary is bounded and anchored clear of the hero seat so it doesn't hide the
+  pot or collide with "You" at small/narrow sizes
+  (`components/table/PokerTable.tsx`, `app/globals.css`).
+
+### Changed
+
+- **Surprising equity reads less mysterious.** The assumed-range note next to a
+  win-chance now reads "… vs an assumed range of hands, not their actual cards,"
+  so e.g. a high queen-high equity heads-up against a calling station is
+  explained rather than confusing (`components/FeedbackPanel.tsx`). No equity-math
+  change.
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or
+  prior fixes); evidence at `docs/playtest/reviews/iter-03.md`. Two reported items
+  were stale hot-reload artifacts and are NOT bugs in shipped code (`/favicon.ico`
+  returns 200; `resultLine` is correctly defined) — a recap-conclusion render test
+  for win and loss was added as a guard regardless. Verified: `tsc --noEmit`
+  clean, ESLint clean, **329** tests passing (+18), including a board-shows-current-
+  street test and bet-vs-call copy tests. The implementer ran an explicit
+  self-check for new contradictions in the board + analysis-copy changes. True
+  pixel layout verification at 800×600 / 600×900 is exercised by the next
+  fresh-reviewer playtest. See `docs/pmos/features/2026-06-18_reviewer-iter4-fixes/`.
+
 ## [0.8.0] — 2026-06-18
 
 ### Reviewer-iteration-3 fixes — variance framing, unit consistency, depth-aware coaching
