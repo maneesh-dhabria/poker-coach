@@ -3,6 +3,92 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.8.0] — 2026-06-18
+
+### Reviewer-iteration-3 fixes — variance framing, unit consistency, depth-aware coaching
+
+A third independent first-time-user playtest (`docs/playtest/reviews/iter-02.md`)
+confirmed the v0.6.0/v0.7.0 fixes landed (the reviewer praised the Mental Math
+reconciliation, the live unit toggle, and that the action bar is never clipped),
+then surfaced a fresh layer of 12 negative moments. All are fixed here.
+UI/coaching-only — no `HandRecord` schema change. The one core change is to the
+decision **analysis** explanation copy (`core/analysis/explain.ts`); the chart
+still owns every preflop recommendation and `gtoClaim` is unchanged, so the
+honesty invariant holds.
+
+### Fixed
+
+- **A well-played loss now reads as variance, not a contradiction.** When you
+  lose a hand but none of your graded decisions were mistakes, the recap shows a
+  plain note by default: "good decision, unlucky result — that's variance; we
+  grade the decision, not the outcome… these are long-run averages, not this one
+  hand." Previously that reconciling idea was buried in a collapsed expander, so
+  a newcomer who went all-in at ~92% and lost felt the app contradicted itself.
+  The note is suppressed when the loss was at least partly a flagged mistake
+  (`components/HandRecap.tsx`).
+- **The Hand review and Result line now respect the BB/$ toggle.** In BB mode the
+  recap's per-decision rows, the `· pot X` tag, and the "Result" line were still
+  printing dollars while everything else showed BB — mixed units on one screen.
+  They now format in the session unit (`components/HandRecap.tsx`,
+  `components/RightPanel.tsx`).
+- **The end-of-hand "Result" no longer appears mid-hand.** The running
+  per-decision review still updates live, but the "Result:" conclusion and the
+  `/poker-coach last` pointer (and the variance/reconcile notes) only render once
+  the hand is actually over (`components/HandRecap.tsx`,
+  `components/RightPanel.tsx`).
+- **The feedback caption stops promising absent numbers.** The "the numbers below
+  (Mental Math) are for this decision" caption now appears only when a post-flop
+  Mental Math block is actually open and available
+  (`components/MentalMathSection.tsx`, `components/RightPanel.tsx`).
+- **Instant-feedback-OFF copy is accurate.** It now says the running hand review
+  still populates live as you play and that only the big top verdict/equity block
+  is hidden — instead of the misleading "you'll get a review when the hand ends"
+  (`components/RightPanel.tsx`).
+- **Coaching depth now changes the preflop explanation.** "Equity + Heuristics"
+  leads with the win-rate and a plain reason (naming the chart as the source);
+  "Strict charts" keeps the chart/GTO citation; "Conceptual" stays plain-words.
+  Previously every preflop verdict read "chart-based" regardless of the chosen
+  depth (`core/analysis/explain.ts`).
+- **Constrained window sizes no longer collide.** The felt keeps a fixed aspect
+  ratio and scales to fit both width and height, seat insets are pulled in, and
+  the center pot/round-summary is anchored clear of the hero seat — so at small/
+  short/narrow sizes seats aren't clipped off the edge and the center readouts
+  aren't hidden behind "You" (`components/table/PokerTable.tsx`, `app/globals.css`).
+- **Showdown names the winner.** The center banner now reads "You win with …" /
+  "&lt;Bot&gt; wins with …" instead of an unattributed hand label that looked like
+  it described the hero's hand (`components/table/PokerTable.tsx`).
+- **The Mental Math box isn't jarring at showdown.** At hand-complete it shows a
+  short "hand complete — see the hand review" note instead of reverting to the
+  "deal a hand and reach the flop" placeholder (`components/MentalMathSection.tsx`).
+
+### Changed
+
+- **The "balanced" table plays a touch gentler for newcomers.** Its composition
+  was softened (less relentless aggression, fewer giant call-down pots) so a new
+  player isn't routinely stacked in a few hands; combined with the variance note
+  above, a sound-but-unlucky loss is now explained rather than discouraging
+  (`core/bots/personas.ts`). Demo fixtures regenerated for the new preflop copy.
+
+### Added
+
+- **Setup context for newcomers.** The setup screen now states the blind size and
+  what the chosen starting stack is worth (e.g. "Blinds $1/$2 — 100 BB = $200")
+  and notes that stacks carry over hand-to-hand like a real cash game, so the
+  initial dollar amounts and later uneven bot stacks aren't a mystery
+  (`components/SetupScreen.tsx`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or
+  prior fixes); evidence at `docs/playtest/reviews/iter-02.md`. Verified:
+  `tsc --noEmit` clean, ESLint clean, **311** unit/component tests passing (new
+  tests for the variance note, recap units, mid-hand gating, depth-aware preflop
+  copy, the layout aspect-ratio contract, winner attribution, the blind/carryover
+  notes, and the Mental Math showdown state). The responsive fix is verified at
+  the CSS-contract level (jsdom has no layout engine); true pixel behavior at
+  800×600 / 600×900 is exercised by the next fresh-reviewer playtest. See
+  `docs/pmos/features/2026-06-18_reviewer-iter3-fixes/`.
+
 ## [0.7.0] — 2026-06-17
 
 ### Reviewer-iteration-2 fixes — Mental Math integrity + responsive play
