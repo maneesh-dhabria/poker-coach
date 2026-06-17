@@ -60,6 +60,10 @@ export interface ExplainParams {
   // The hero's open/raise-to size in big blinds, when this is a preflop OPEN (iter-06 #3). Enables
   // flagging an absurd oversize without false-positiving normal 2–4 BB opens.
   openSizeBb?: number;
+  // True when a postflop value bet is grossly UNDER-sized relative to the pot (iter-08 #1): the copy
+  // must NOT praise it as standard "get money in while ahead" value — it charges no draws / builds no
+  // pot. Symmetric to the oversize flag.
+  betTooSmall?: boolean;
 }
 
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
@@ -127,6 +131,7 @@ export function formatExplanation(
     numActiveOpponents: ei.numActiveOpponents,
     madeHand: ei.madeHand ?? null,
     openSizeBb: ei.openSizeBb,
+    betTooSmall: ei.betTooSmall,
     bigBlind,
   });
 }
@@ -185,10 +190,14 @@ function preflop(p: ExplainParams): string {
   const ing = p.chartAction ? CHART_VERB_ING[p.chartAction] : "playing";
   const opps = opponentPhrase(p.numActiveOpponents);
   const equityNote = `your equity (your share of the pot — how often you win) with ${label} is about ${win}% to win against ${opps}`;
+  // At Equity+Heuristics depth we lead with the odds and call it "the standard play" — we do NOT name
+  // the preflop chart here (explicit chart citations are reserved for Strict depth, which keeps its
+  // chart badge + "the baseline chart says…"). The meaning is unchanged: this IS the standard
+  // recommendation; only the non-jargon wording differs (iter-08 #5).
   if (!p.heroDeviates) {
-    return `By the odds, ${equityNote}, so ${ing}${where} is the standard, profitable play here — which is what the baseline chart recommends too.`;
+    return `By the odds, ${equityNote}, so ${ing}${where} is the standard, profitable play here.`;
   }
-  return `By the odds, ${equityNote}; the math favors ${ing}${where} instead, and your line differs from that higher-EV default (the baseline chart agrees).`;
+  return `By the odds, ${equityNote}; the math favors ${ing}${where} instead, and your line differs from that higher-EV standard play.`;
 }
 
 function valuecheck(p: ExplainParams): string {
@@ -201,6 +210,11 @@ function aggression(p: ExplainParams): string {
   const win = Math.round(p.equityPct);
   const act = p.action === "raise" ? "Raising" : "Betting";
   const noun = p.action === "raise" ? "raise" : "bet";
+  // A grossly UNDER-sized value bet (iter-08 #1): you're ahead, but this bet is far too small to do
+  // its job — it charges draws almost nothing and barely builds the pot. Praise the read, flag the
+  // size. Takes precedence so the headline is the sizing, not "good value".
+  if (p.betTooSmall)
+    return `You're ahead with ~${win}%, but this ${noun} is far too small — it charges draws almost nothing and barely builds the pot. Size up to get paid while you're in front.`;
   // A made hand with low equity is never a "bluff with no equity" (iter-06 #1): it has real showdown
   // value, so the low win% is about being multiway on a dangerous board, not about having nothing.
   // This takes precedence over the generic thin copy so the made hand is always named, not hidden.
@@ -289,6 +303,10 @@ function conceptual(p: ExplainParams): string {
       const raising = p.action === "raise";
       // Present-participle built explicitly so "bet" never becomes "beting" (iter-06 #2).
       const acting = raising ? "raising" : "betting";
+      // A grossly under-sized value bet, in plain words (iter-08 #1): you're ahead, but the bet is far
+      // too small to charge draws or build the pot. Flag the size, not the read.
+      if (p.betTooSmall)
+        return `You're ahead, but that ${raising ? "raise" : "bet"} is far too small — it barely charges draws or builds the pot. Make it bigger so you actually get paid while you're in front.`;
       // A made hand still has showdown value — never call it a bluff/"nothing here" (iter-06 #1).
       // Checked first (and for the vulnerable low-equity case) so the made hand is always named.
       if (p.madeHand && p.equityPct < 33)

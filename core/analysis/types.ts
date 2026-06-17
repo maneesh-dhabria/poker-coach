@@ -53,4 +53,7 @@ export interface ExplanationInput {
   madeHand?: { category: number; label: string } | null;
   // The hero's open size in big blinds when the open is flagged as oversized (iter-06 #3).
   openSizeBb?: number;
+  // True when a postflop value bet was flagged as grossly under-sized (iter-08 #1), so a re-formatted
+  // sentence still says the bet is too small to charge draws / build the pot.
+  betTooSmall?: boolean;
 }

@@ -133,6 +133,10 @@ export function MentalMathSection({
   const open = useSessionStore((s) => s.mentalMathOpen);
   const setOpen = useSessionStore((s) => s.setMentalMathOpen);
   const displayUnit = useSessionStore((s) => s.displayUnit);
+  // The coaching depth gates jargon: in Conceptual ("plain words, no numbers") we suppress the named
+  // "Rule of 2 & 4" jargon and the Preflop Chart tab reference (iter-08 #4).
+  const coachingDepth = useSessionStore((s) => s.settings.coachingDepth);
+  const conceptual = coachingDepth === "conceptual";
 
   const [outsOverride, setOutsOverride] = useState<number | null>(null);
   const [showOverride, setShowOverride] = useState(false);
@@ -215,7 +219,11 @@ export function MentalMathSection({
               <Note>Deal a hand and reach the flop to use Mental Math.</Note>
             ))}
           {estimate.status === "preflop" && (
-            <Note>The Rule of 2 &amp; 4 is for the flop and turn. For preflop, see the Preflop Chart tab.</Note>
+            <Note>
+              {conceptual
+                ? "Counting outs is for the flop and turn, once cards are still to come. There's nothing to count before the flop."
+                : "The Rule of 2 & 4 is for the flop and turn. For preflop, see the Preflop Chart tab."}
+            </Note>
           )}
           {estimate.status === "river" && (
             <>
@@ -236,6 +244,7 @@ export function MentalMathSection({
               trueWinPct={trueWinPct}
               input={input}
               displayUnit={displayUnit}
+              conceptual={conceptual}
               outsOverride={outsOverride}
               setOutsOverride={setOutsOverride}
               showOverride={showOverride}
@@ -254,6 +263,7 @@ function Steps({
   trueWinPct,
   input,
   displayUnit,
+  conceptual,
   outsOverride,
   setOutsOverride,
   showOverride,
@@ -264,6 +274,7 @@ function Steps({
   trueWinPct: number | null;
   input: MentalInput;
   displayUnit: "usd" | "bb";
+  conceptual: boolean;
   outsOverride: number | null;
   setOutsOverride: (n: number | null) => void;
   showOverride: boolean;
@@ -347,7 +358,9 @@ function Steps({
       <div style={STEP_CARD}>
         <div style={STEP_HEAD}>
           <span>Step 2 · Chance you hit</span>
-          <span style={{ color: "var(--ink-soft)", textTransform: "none" }}>Rule of 2 &amp; 4</span>
+          {!conceptual && (
+            <span style={{ color: "var(--ink-soft)", textTransform: "none" }}>Rule of 2 &amp; 4</span>
+          )}
         </div>
         <p style={{ margin: "2px 0", fontSize: 13 }}>
           {estimate.street === "flop" ? "Flop → ×4" : "Turn → ×2"} → about{" "}
@@ -472,6 +485,11 @@ function TrueEquityCheck({
   const exact = estimate.exactHitPct;
   const potAfter = (estimate.potOdds?.potAfterCall ?? input.potBefore + input.toCall);
   const evCall = (trueWinPct / 100) * potAfter - input.toCall;
+  // Match the dollar-EV verb to the ACTUAL action so the line never says "Calling" about a bet
+  // (iter-08 #2). When there's a bet to call (toCall > 0) the hero is calling; with no bet to face
+  // (toCall === 0) the money goes in as a bet, so the EV is the value of betting. The math
+  // (trueWin × pot − toCall) is identical — toCall is 0 for a bet — only the label changes.
+  const evVerb = input.toCall > 0 ? "Calling" : "Betting";
 
   return (
     <div
@@ -503,7 +521,7 @@ function TrueEquityCheck({
       <details style={{ marginTop: 6 }}>
         <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ink-soft)" }}>Show the dollar EV ▸</summary>
         <p data-testid="mm-ev" style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>
-          Calling is worth about {money(evCall, displayUnit)} on average (based on the true equity).
+          {evVerb} is worth about {money(evCall, displayUnit)} on average (based on the true equity).
         </p>
       </details>
     </div>

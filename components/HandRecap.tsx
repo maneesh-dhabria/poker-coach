@@ -106,6 +106,10 @@ export function HandRecap({
       <ol style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "grid", gap: 10 }}>
         {decisions.map((d, i) => {
           const m = VERDICT_META[d.analysis.verdict];
+          // Disambiguate a 2nd+ hero action on the SAME street (e.g. bet then call a raise on the
+          // turn) so two "Turn —" rows don't read identically (iter-08 #6). Prefix the later one with
+          // "then" → "Turn — you then called …".
+          const sameStreetAsPrev = i > 0 && decisions[i - 1].street === d.street;
           return (
             <li
               key={d.decisionId ?? i}
@@ -128,6 +132,7 @@ export function HandRecap({
               <div style={{ display: "grid", gap: 2 }}>
                 <div style={{ fontWeight: 600 }}>
                   <span style={{ color: m.color }}>{STREET_LABEL[d.street] ?? d.street}</span> — you{" "}
+                  {sameStreetAsPrev ? "then " : ""}
                   {actionLabel(d.heroAction, displayUnit)}
                   <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
                     · pot {formatMoney(Math.round(d.spot.potBefore), displayUnit, BIG_BLIND)}

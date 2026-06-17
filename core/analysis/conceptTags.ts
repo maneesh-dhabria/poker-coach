@@ -18,6 +18,9 @@ export const CONCEPT_TAGS = [
   // A preflop open/raise whose SIZE is far larger than a standard open (the decision to raise can
   // still be right — only the size is off) (iter-06 #3).
   "preflop_oversize",
+  // A postflop bet whose SIZE is far too small relative to the pot (a token underbet that charges no
+  // draws and builds no pot) — the decision to bet may be fine, but the size gives up value (iter-08 #1).
+  "bet_too_small",
   "overfold_vs_aggression",
   "wrong_sizing",
   "preflop_chart_deviation",

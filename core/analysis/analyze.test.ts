@@ -221,6 +221,48 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.verdict).toBe("good");
   });
 
+  // iter-08 #1 — bet-SIZE awareness on the value path, symmetric to the preflop oversize check.
+  it("a normal ~half-pot value bet still grades good (not penalized for size)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 360,
+      toCall: 0,
+      equityPct: 75,
+      street: "flop",
+      raiseToAmount: 180, // 50% pot — a perfectly standard value-bet size
+    });
+    expect(a.verdict).toBe("good");
+    expect(a.conceptTags).not.toContain("bet_too_small");
+  });
+
+  it("a small but legitimate ~25% pot value bet is NOT flagged as too small", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 360,
+      toCall: 0,
+      equityPct: 75,
+      street: "flop",
+      raiseToAmount: 90, // 25% pot — a legitimate small bet, above the conservative cutoff
+    });
+    expect(a.conceptTags).not.toContain("bet_too_small");
+  });
+
+  it("a grossly under-sized bet ($2 into $360 ≈ 0.6% pot) is flagged, not praised as value", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 360,
+      toCall: 0,
+      equityPct: 50,
+      street: "flop",
+      raiseToAmount: 2, // ~0.6% pot — a comical underbet (the iter-08 #1 scenario)
+    });
+    expect(a.verdict).toBe("thin");
+    expect(a.conceptTags).toContain("bet_too_small");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("get money in while ahead");
+    expect(lower).toContain("too small");
+  });
+
   it("conceptual depth omits raw numbers even for preflop chart feedback", () => {
     const a = analyze({
       action: "fold",

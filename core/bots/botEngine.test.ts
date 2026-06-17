@@ -61,6 +61,53 @@ describe("decide — policy", () => {
   });
 });
 
+// iter-08 #3 — the loose station call-down is PRICE-AWARE: a station still calls NORMAL-sized bets
+// loosely, but folds trash to a gross overbet (no real player peels a 2× overbet with air).
+const STATION: BotParams = {
+  style: "Calling Station",
+  skill: "Beginner",
+  vpip: 0.6,
+  aggression: 0.1,
+  bluffFreq: 0,
+  callStation: 1, // maximally loose
+  raiseSizePct: 0.5,
+  noise: 0,
+};
+
+describe("decide — price-aware station (iter-08 #3)", () => {
+  it("a max-station FOLDS trash facing a gross overbet (potOdds ≳0.8)", () => {
+    // toCall 800 into a potBefore of 100 → potOdds = 800/900 ≈ 0.89 (a ~8× overbet).
+    const spot: BotSpot = {
+      legal: { toAct: 1, actions: ["fold", "call"], toCall: 800, minRaiseTo: 0, maxRaiseTo: 0 },
+      hole: ["7c", "2d"].map(c) as [Card, Card],
+      board: ["Qs", "9c", "4d"].map(c), // air
+      potBefore: 100,
+    };
+    // Deterministic across many seeds — the random light call-down must be switched off at this price.
+    for (let seed = 1; seed <= 50; seed++) {
+      expect(decide(spot, STATION, mulberry32(seed)).type).toBe("fold");
+    }
+  });
+
+  it("a max-station still CALLS weak hands loosely vs a normal ~half-pot bet (via the random peel)", () => {
+    // toCall 5 into potBefore 10 → potOdds = 5/15 ≈ 0.33 (a half-pot bet). A WEAK hand (air) below the
+    // value-call threshold: the only way it calls is the station's loose random call-down — so this
+    // proves the peel still fires at a normal price (station flavor preserved, not turned into a nit).
+    const spot: BotSpot = {
+      legal: { toAct: 1, actions: ["fold", "call"], toCall: 5, minRaiseTo: 0, maxRaiseTo: 0 },
+      hole: ["7c", "2d"].map(c) as [Card, Card],
+      board: ["Qs", "9c", "4d"].map(c), // air — strength below the value-call threshold
+      potBefore: 10,
+    };
+    let calls = 0;
+    for (let seed = 1; seed <= 50; seed++) {
+      if (decide(spot, STATION, mulberry32(seed)).type === "call") calls++;
+    }
+    // Loose peel must fire at least sometimes at a normal price (full slack, price below the cap).
+    expect(calls).toBeGreaterThan(0);
+  });
+});
+
 describe("fuzz — bots never produce an illegal action", () => {
   it("plays 500 full hands through the engine with no illegal action", () => {
     const persona: BotParams = {

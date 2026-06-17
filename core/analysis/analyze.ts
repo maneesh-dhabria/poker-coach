@@ -60,6 +60,8 @@ interface Branch {
   heroDeviates?: boolean;
   // True when the preflop OPEN size is absurd and the explanation should flag it (iter-06 #3).
   flagOversize?: boolean;
+  // True when a postflop value bet is grossly UNDER-sized and the explanation should flag it (iter-08 #1).
+  flagUndersize?: boolean;
 }
 
 export function analyze(input: AnalyzeInput): DecisionAnalysis {
@@ -88,7 +90,15 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       ? input.raiseToAmount / input.bigBlind
       : undefined;
 
-  const branch = route(input, madeHand, openSizeBb);
+  // The size of a CLEAN postflop bet (no prior bet to call) as a fraction of the pot, for the
+  // undersize check (iter-08 #1). Only a first-in bet is sized here — a raise facing a bet is a more
+  // complex sizing question this conservative rule deliberately skips. Absent ⇒ size unchecked.
+  const betPotFraction =
+    action === "bet" && toCall === 0 && input.raiseToAmount && potBefore > 0
+      ? input.raiseToAmount / potBefore
+      : undefined;
+
+  const branch = route(input, madeHand, openSizeBb, betPotFraction);
 
   const plainExplanation = buildExplanation({
     kind: branch.kind,
@@ -107,6 +117,7 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     numActiveOpponents: input.numActiveOpponents,
     madeHand,
     openSizeBb: branch.flagOversize ? openSizeBb : undefined,
+    betTooSmall: branch.flagUndersize ?? false,
   });
 
   return {
@@ -135,6 +146,7 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       numActiveOpponents: input.numActiveOpponents,
       ...(madeHand ? { madeHand } : {}),
       ...(branch.flagOversize && openSizeBb !== undefined ? { openSizeBb } : {}),
+      ...(branch.flagUndersize ? { betTooSmall: true } : {}),
     },
   };
 }
@@ -143,7 +155,17 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
 // standard open is ~2–4 BB; even a fat 4–5x is well under 10, so this never flags a normal open.
 const OVERSIZE_OPEN_BB = 10;
 
-function route(input: AnalyzeInput, madeHand: MadeHand | null, openSizeBb?: number): Branch {
+// A clean bet smaller than this fraction of the pot is a gross UNDERBET (iter-08 #1). A standard
+// small bet is ~25–33% pot, so this conservative ~15% cutoff never flags a legitimate small bet — it
+// only catches token underbets ($2 into $360 ≈ 0.6% pot) that charge no draws and build no pot.
+const UNDERSIZE_BET_FRACTION = 0.15;
+
+function route(
+  input: AnalyzeInput,
+  madeHand: MadeHand | null,
+  openSizeBb?: number,
+  betPotFraction?: number,
+): Branch {
   const { action, equityPct } = input;
   const street = input.street ?? "preflop";
 
@@ -164,7 +186,11 @@ function route(input: AnalyzeInput, madeHand: MadeHand | null, openSizeBb?: numb
 
   // 2..5 postflop / no-chart heuristics.
   if (action === "check") return checkBranch(equityPct);
-  if (action === "bet" || action === "raise") return aggressionBranch(equityPct, madeHand);
+  if (action === "bet" || action === "raise") {
+    const undersize =
+      betPotFraction !== undefined && betPotFraction < UNDERSIZE_BET_FRACTION;
+    return aggressionBranch(equityPct, madeHand, undersize);
+  }
   if (action === "fold") {
     // No chips to call means checking is free — folding forfeits a free look at the pot and is
     // strictly dominated by checking. That's a different (and always wrong) decision than folding
@@ -244,7 +270,11 @@ function checkBranch(equityPct: number): Branch {
   return { ...base, verdict: "good", severity: 0, conceptTags: [] };
 }
 
-function aggressionBranch(equityPct: number, madeHand: MadeHand | null): Branch {
+function aggressionBranch(
+  equityPct: number,
+  madeHand: MadeHand | null,
+  undersize = false,
+): Branch {
   const base = { kind: "aggression" as const, gtoClaim: false };
   if (equityPct < 33) {
     // A MADE hand (pair or better) bet at low equity is NOT a bluff with no equity — it has real
@@ -255,6 +285,11 @@ function aggressionBranch(equityPct: number, madeHand: MadeHand | null): Branch 
       return { ...base, verdict: "thin", severity: 1, conceptTags: ["made_hand_thin_value"] };
     return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_no_equity"] };
   }
+  // A grossly UNDER-sized value bet (iter-08 #1): betting may be fine, but a token underbet charges
+  // no draws and builds no pot, so we never praise it as standard "get money in while ahead" value.
+  // Symmetric to the preflop oversize flag — downgrade to ⚠️ thin and tag bet_too_small.
+  if (undersize)
+    return { ...base, verdict: "thin", severity: 1, conceptTags: ["bet_too_small"], flagUndersize: true };
   if (equityPct < 50)
     return { ...base, verdict: "thin", severity: 1, conceptTags: ["thin_value_good"] };
   return { ...base, verdict: "good", severity: 0, conceptTags: [] };

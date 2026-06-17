@@ -89,7 +89,21 @@ export function decide(spot: BotSpot, params: BotParams, rng: RNG): Action {
 
   // Facing a bet.
   const potOdds = legal.toCall / (potBefore + legal.toCall);
-  const stationSlack = params.callStation * 0.25;
+
+  // Price-aware station slack (iter-08 #3). A calling station's loose call-down is realistic vs
+  // NORMAL-sized bets, but no real player — not even a station — peels a gross overbet with trash.
+  // So the slack shrinks toward 0 as the price worsens (potOdds rises): full slack at a small bet,
+  // ~0 by the time the price hits a big overbet. potOdds of a half-pot bet ≈ 0.33; a pot-sized bet ≈
+  // 0.5; a 2× overbet ≈ 0.67. We keep meaningful slack through ~half-pot, then taper it out.
+  const SLACK_FULL_BELOW = 0.34; // ~half-pot or smaller → full slack
+  const SLACK_ZERO_ABOVE = 0.6; // ~pot-and-a-half+ overbet → no slack
+  const priceFactor =
+    potOdds <= SLACK_FULL_BELOW
+      ? 1
+      : potOdds >= SLACK_ZERO_ABOVE
+        ? 0
+        : (SLACK_ZERO_ABOVE - potOdds) / (SLACK_ZERO_ABOVE - SLACK_FULL_BELOW);
+  const stationSlack = params.callStation * 0.25 * priceFactor;
 
   if (strength >= 0.7) {
     if (can("raise") && rng() < params.aggression) return sizeTo("raise");
@@ -100,7 +114,12 @@ export function decide(spot: BotSpot, params: BotParams, rng: RNG): Action {
     if (can("call")) return { type: "call" };
   }
   if (strength < 0.3 && can("raise") && rng() < params.bluffFreq * 0.5) return sizeTo("raise");
-  if (rng() < params.callStation * 0.4 && can("call")) return { type: "call" };
+  // The random light call-down is only taken when the price is NOT bad — facing a gross overbet, even
+  // a Calling Station folds trash (iter-08 #3). Below the cap a station still calls loosely vs a
+  // normal bet, preserving the station flavor; above it the random peel is switched off entirely.
+  const STATION_PRICE_CAP = 0.5; // up to ~a pot-sized bet a station may still peel light
+  if (potOdds <= STATION_PRICE_CAP && rng() < params.callStation * 0.4 && can("call"))
+    return { type: "call" };
 
   return can("fold") ? { type: "fold" } : can("check") ? { type: "check" } : { type: "call" };
 }

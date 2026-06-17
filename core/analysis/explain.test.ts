@@ -97,11 +97,14 @@ describe("preflop explanation reflects coaching depth (iter-03 #7)", () => {
     expect(s.toLowerCase()).toMatch(/standard|baseline/);
   });
 
-  it("Equity+Heuristics leads with the odds/equity and still names the chart as the source", () => {
+  it("Equity+Heuristics leads with the odds/equity and calls it 'the standard play' (no chart jargon)", () => {
     const s = buildExplanation(spot("equity"));
     expect(s).toMatch(/\d+%/); // cites the win-rate
     expect(s.toLowerCase()).toMatch(/odds|equity/);
-    expect(s.toLowerCase()).toMatch(/chart/); // honesty: the recommendation is still chart-based
+    // iter-08 #5: chart citations are reserved for Strict depth — Equity refers to "the standard
+    // play", never names the baseline chart.
+    expect(s.toLowerCase()).not.toContain("baseline chart");
+    expect(s.toLowerCase()).toMatch(/standard/);
     // equity word, when used, is defined inline (matches the T18 guard).
     if (/\bequity\b/i.test(s)) {
       expect(s).toMatch(/equity\b[^.]*\b(share of the pot|how often you win)/i);
@@ -111,6 +114,21 @@ describe("preflop explanation reflects coaching depth (iter-03 #7)", () => {
   it("Strict leans on the chart/GTO citation", () => {
     const s = buildExplanation(spot("strict"));
     expect(s.toLowerCase()).toMatch(/baseline chart/);
+  });
+
+  // iter-08 #5: the chart citation must appear ONLY at Strict depth, for both the agree and deviate
+  // sentences. Equity uses "the standard play"; Strict says "the baseline chart".
+  it("Equity-depth deviate copy doesn't name the chart, Strict-depth still does", () => {
+    const deviate = (depth: "equity" | "strict"): ExplainParams => ({
+      ...spot(depth),
+      verdict: "thin",
+      heroDeviates: true,
+    });
+    const eq = buildExplanation(deviate("equity"));
+    const strict = buildExplanation(deviate("strict"));
+    expect(eq.toLowerCase()).not.toContain("baseline chart");
+    expect(eq.toLowerCase()).toMatch(/standard/);
+    expect(strict.toLowerCase()).toContain("baseline chart");
   });
 });
 

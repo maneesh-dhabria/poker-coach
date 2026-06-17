@@ -52,6 +52,28 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.getByText(/no money won or lost/i)).toBeInTheDocument();
   });
 
+  // iter-08 #6 — when the hero bets then calls a raise on the SAME street, the second same-street row
+  // is prefixed with "then" so two "Turn —" rows don't read identically.
+  it("disambiguates a 2nd same-street hero action with 'then'", () => {
+    const decisions = [
+      decision("turn", "bet", 110, { action: "bet", potBefore: 100, toCall: 0, equityPct: 85 }, 110),
+      decision("turn", "call", 54, { action: "call", potBefore: 320, toCall: 54, equityPct: 80 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={200} />);
+    // The first turn row is NOT prefixed; the second IS ("you then called").
+    expect(screen.getByText(/you then called/i)).toBeInTheDocument();
+    expect(screen.getByText(/you bet/i)).toBeInTheDocument();
+  });
+
+  it("does NOT add 'then' for the first action on a street", () => {
+    const decisions = [
+      decision("preflop", "call", 2, { action: "call", potBefore: 6, toCall: 2, equityPct: 55 }),
+      decision("flop", "bet", 20, { action: "bet", potBefore: 12, toCall: 0, equityPct: 70 }, 20),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={10} />);
+    expect(screen.queryByText(/you then/i)).toBeNull();
+  });
+
   it("renders nothing with no decisions", () => {
     const { container } = render(<HandRecap decisions={[]} heroNet={0} />);
     expect(container.firstChild).toBeNull();

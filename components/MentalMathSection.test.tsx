@@ -58,7 +58,11 @@ function setFlow(flow: unknown) {
 beforeEach(() => {
   cleanup();
   act(() => {
-    useSessionStore.setState({ mentalMathOpen: true, displayUnit: "usd" });
+    useSessionStore.setState((s) => ({
+      mentalMathOpen: true,
+      displayUnit: "usd",
+      settings: { ...s.settings, coachingDepth: "equity" },
+    }));
     useGameStore.setState({ flow: null, tick: 0, seed: 1 });
   });
 });
@@ -274,6 +278,60 @@ describe("MentalMathSection — made-hand reconciliation (findings #1/#2/#3)", (
     setFlow(topPairGutshot());
     render(<MentalMathSection enabled verdictEquityPct={72} />);
     expect(screen.getByTestId("mm-made-hand").textContent?.toLowerCase()).toContain("often ahead");
+  });
+});
+
+describe("MentalMathSection — dollar-EV verb matches the action (iter-08 #2)", () => {
+  it("a value BET (no bet to call) says 'Betting is worth …', not 'Calling'", () => {
+    // toCall 0 → there is no bet to call; the money goes in as a BET. Trip-queens-style value bet.
+    setFlow(
+      fakeFlow({
+        hole: [c("Qs"), c("Qd")],
+        board: [c("Qh"), c("4h"), c("8c"), c("2d")],
+        street: "turn",
+        toCall: 0,
+        potBefore: 220,
+      }),
+    );
+    render(<MentalMathSection enabled verdictEquityPct={85} />);
+    const ev = screen.getByTestId("mm-ev").textContent ?? "";
+    expect(ev).toMatch(/Betting is worth/);
+    expect(ev).not.toMatch(/Calling is worth/);
+  });
+
+  it("facing a bet (toCall > 0) still says 'Calling is worth …'", () => {
+    setFlow(fakeFlow({ toCall: 20, potBefore: 60 })); // drawing spot, facing a bet
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    const ev = screen.getByTestId("mm-ev").textContent ?? "";
+    expect(ev).toMatch(/Calling is worth/);
+    expect(ev).not.toMatch(/Betting is worth/);
+  });
+});
+
+describe("MentalMathSection — Conceptual depth hides jargon (iter-08 #4)", () => {
+  it("the preflop note contains no 'Rule of 2 & 4' and no Preflop Chart reference at Conceptual depth", () => {
+    act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "conceptual" } })));
+    setFlow(fakeFlow({ street: "preflop", board: [] }));
+    render(<MentalMathSection enabled />);
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    expect(body).not.toMatch(/Rule of 2 ?& ?4/i);
+    expect(body).not.toMatch(/Preflop Chart/i);
+  });
+
+  it("a flop drawing spot at Conceptual depth shows no 'Rule of 2 & 4' label", () => {
+    act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "conceptual" } })));
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    expect(body).not.toMatch(/Rule of 2 ?& ?4/i);
+  });
+
+  it("keeps the 'Rule of 2 & 4' jargon at Equity depth (numbers expected)", () => {
+    act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "equity" } })));
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    expect(body).toMatch(/Rule of 2 ?& ?4/i);
   });
 });
 
