@@ -3,6 +3,71 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.17.0] — 2026-06-18
+
+### Reviewer-iteration-12 fixes — Mental Math always matches its verdict
+
+A twelfth independent first-time-user playtest (`docs/playtest/reviews/iter-12.md`)
+confirmed the iter-11 fixes held (chart never folds AA/KK, no "played well" after a
+flagged play, Conceptual digit-free, low-equity bets agree with their EV table) and
+found that the Mental Math block could contradict the verdict it sits under. Root cause:
+Mental Math recomputed its outs/equity routine from the LIVE hand state, but the verdict
+above it is frozen to the decision (and the panel persists between decisions since
+v0.14.0) — so after a card was dealt, Mental Math drifted a street ahead of its own
+verdict. Coaching-analysis + UI only; `HandRecord` schema-version unchanged (the new
+fields are additive optional).
+
+### Fixed
+
+- **Mental Math now describes exactly the decision its verdict describes.** It used to
+  show "you have two pair" (the just-dealt turn card) under a "middle pair" (flop)
+  verdict, with a stale opponent count and a hand label that drifted between streets.
+  Mental Math is now pinned to the frozen decision snapshot — same hole cards, board,
+  street, opponent count, and made-hand label as the verdict — so the two can never
+  disagree. (Added optional `board`/`street` to the analysis's explanation input;
+  `core/analysis/{types,analyze}.ts`, `components/{FeedbackPanel,MentalMathSection}.tsx`.)
+- **Step 3 ("shade for opponents") no longer calls a draw chance a win chance.** With a
+  made pair, the panel showed "~54% to win" up top but "~14–16% to win" in Step 3 — that
+  smaller number is the chance to *improve the draw*, not to win. It's now labeled "to
+  hit your draw," with a note that the real win chance already includes the made hand, so
+  only one figure in the panel is ever labeled "to win" (`components/MentalMathSection.tsx`,
+  `core/mental/estimate.ts`).
+- **Strict mode no longer pretends an off-chart spot is chart-backed.** When no baseline
+  chart covers a spot, Strict depth used to silently fall back to pot-odds language that
+  looked identical to Equity mode. It now shows an explicit "No baseline chart covers
+  this spot — grading by equity and pot odds instead" note. And iso-raising over a
+  limper is no longer graded against the raise-first-in chart (and ❌-flagged): a limped
+  pot is now detected and treated as off-chart, so a standard isolation raise isn't
+  punished as a chart deviation (`components/FeedbackPanel.tsx`, `core/analysis/analyze.ts`,
+  `core/handFlow.ts`).
+
+### Polish
+
+- A player who folded with no money in shows "$0" instead of "+$0" (no sign on a zero)
+  (`core/money.ts`, `components/table/Seat.tsx`).
+- In big-blind mode the EV expander reads as a unit-neutral label instead of "Show the
+  dollar EV" (`components/FeedbackPanel.tsx`).
+- A ~44% check is now described as "roughly a coin-flip — keep the pot small" rather than
+  "little to bet for," which undersold it (`core/analysis/explain.ts`).
+
+### Notes (intentional, left as-is)
+
+- The same min-bet can read "Bet too small" into a big pot but only "Thin value" into a
+  small one — sizing is graded pot-relative, so a $2 bet is ~4% of a $48 pot but ~17% of
+  a $12 pot. Same-street calls can flip from ❌ to ✅ as the price changes — that's correct
+  pot-odds. The ⚠️ oversized all-in counts in the "thin" tally, matching its severity.
+  Sub-800px seat text is small but never clipped/overlapping — an accepted scale-to-fit
+  tradeoff.
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or prior
+  fixes); evidence at `docs/playtest/reviews/iter-12.md`. Verified: `tsc --noEmit` clean,
+  ESLint clean, production build clean, **446** tests passing (+15), including a guard
+  that feeds a conflicting live turn board under a frozen flop decision and asserts
+  Mental Math still shows the flop hand/street. See
+  `docs/pmos/features/2026-06-18_reviewer-iter12-fixes/`.
+
 ## [0.16.0] — 2026-06-18
 
 ### Reviewer-iteration-11 fixes — closing the edges the last round opened
