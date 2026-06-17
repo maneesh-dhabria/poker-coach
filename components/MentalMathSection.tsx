@@ -112,12 +112,17 @@ function BreakEvenBar({ pct }: { pct: number }) {
 export function MentalMathSection({
   enabled,
   verdictEquityPct,
+  betBeatsCheck,
 }: {
   enabled: boolean;
   // The verdict's win-% (analysis.numbers.equityPct) — the SAME figure the equity bar shows. Used as
   // the single "true win" everywhere in Mental Math so the two can never drift (iter-07 #1). Null on
   // off-turn / no-equity spots, in which case the "Check your work" block is hidden.
   verdictEquityPct?: number | null;
+  // On a free street (no bet to call, no made hand) Step 6 must agree with the bet-vs-check EV the
+  // verdict's EV table shows on the same card (iter-11 #4). True when betting is the higher-EV action
+  // (analysis ev.raise > ev.call) — then Step 6 recommends betting, not "take the free card".
+  betBeatsCheck?: boolean;
 }) {
   const flow = useGameStore((s) => s.flow);
   // Whether the current hand has finished. At showdown the live decision clears, so the estimate
@@ -252,6 +257,7 @@ export function MentalMathSection({
               input={input}
               displayUnit={displayUnit}
               conceptual={conceptual}
+              betBeatsCheck={betBeatsCheck}
               outsOverride={outsOverride}
               setOutsOverride={setOutsOverride}
               showOverride={showOverride}
@@ -271,6 +277,7 @@ function Steps({
   input,
   displayUnit,
   conceptual,
+  betBeatsCheck,
   outsOverride,
   setOutsOverride,
   showOverride,
@@ -282,6 +289,7 @@ function Steps({
   input: MentalInput;
   displayUnit: "usd" | "bb";
   conceptual: boolean;
+  betBeatsCheck?: boolean;
   outsOverride: number | null;
   setOutsOverride: (n: number | null) => void;
   showOverride: boolean;
@@ -451,6 +459,7 @@ function Steps({
                   breakEvenPct: estimate.potOdds.breakEvenPct,
                   toCall: estimate.potOdds.toCall,
                   madeHand: estimate.madeHand,
+                  betBeatsCheck,
                 })
               : estimate.decision!;
           // When there's no bet to call the hero is deciding whether to bet or check — not facing a

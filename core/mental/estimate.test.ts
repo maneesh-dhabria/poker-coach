@@ -276,6 +276,37 @@ describe("made-hand reconciliation (findings #1/#2/#3)", () => {
     expect(c.sentence).toContain("35%");
   });
 
+  // iter-11 #4: on a free street with NO made hand, Step 6 must agree with the bet-vs-check EV the
+  // panel shows on the same card. When betting is the higher-EV action, recommend betting (a +EV
+  // semi-bluff) — never "take the free card" against a positive bet EV.
+  it("(iter-11 #4) free street, no made hand, betting is +EV → Step 6 recommends betting, not a free card", () => {
+    const c = conclusionFrom({
+      trueWinPct: 30,
+      breakEvenPct: 0,
+      toCall: 0,
+      madeHand: null,
+      betBeatsCheck: true,
+    });
+    expect(c.profitable).toBe(true);
+    const lower = c.sentence.toLowerCase();
+    expect(lower).toContain("betting");
+    expect(lower).not.toContain("just take it");
+    expect(lower).not.toMatch(/free card[^—]*take/);
+  });
+
+  it("(iter-11 #4) free street, no made hand, betting is NOT +EV → keeps the free-card line", () => {
+    const c = conclusionFrom({
+      trueWinPct: 30,
+      breakEvenPct: 0,
+      toCall: 0,
+      madeHand: null,
+      betBeatsCheck: false,
+    });
+    const lower = c.sentence.toLowerCase();
+    expect(lower).toContain("free card");
+    expect(lower).toContain("take it");
+  });
+
   it("(b) the gap explanation DIFFERS between a pure-draw spot and a made-hand spot", () => {
     const madeGap = gapExplanation({
       exactHitPct: 16,

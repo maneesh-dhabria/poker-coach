@@ -325,6 +325,42 @@ describe("oversized preflop open copy flags the SIZE (iter-06 #3)", () => {
   });
 });
 
+// iter-11 #5 (NIT): a chart fold's "plays poorly after the flop" praise must only add the "especially
+// out of position" clause for genuinely OOP seats — CO and BTN are LATE position, so the clause is
+// wrong there.
+describe("preflop chart-fold copy is position-accurate about OOP (iter-11 #5)", () => {
+  const fold = (position: string): ExplainParams => ({
+    kind: "preflop",
+    verdict: "good",
+    depth: "equity",
+    unit: "usd",
+    action: "fold",
+    potBefore: 6,
+    toCall: 0,
+    equityPct: 35,
+    potOddsPct: 0,
+    hand: ["6c", "2d"],
+    position,
+    chartAction: "fold",
+    heroDeviates: false,
+    numActiveOpponents: 5,
+  });
+
+  it("a CO fold's copy does NOT say 'out of position'", () => {
+    const s = buildExplanation(fold("CO")).toLowerCase();
+    expect(s).not.toContain("out of position");
+    expect(s).toContain("plays poorly after the flop");
+  });
+
+  it("a BTN fold's copy does NOT say 'out of position'", () => {
+    expect(buildExplanation(fold("BTN")).toLowerCase()).not.toContain("out of position");
+  });
+
+  it("a UTG (early/OOP) fold's copy still says 'out of position'", () => {
+    expect(buildExplanation(fold("UTG")).toLowerCase()).toContain("out of position");
+  });
+});
+
 describe("explanation sentence renders in the display unit (iter-04 #3)", () => {
   // The price() branch is the money-bearing one ("It costs you $X to win a $Y pot").
   const priceFold: ExplainParams = {

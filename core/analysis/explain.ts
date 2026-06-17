@@ -221,10 +221,13 @@ function preflop(p: ExplainParams): string {
   // (raise/call), where the standard line does make money over time.
   if (!p.heroDeviates) {
     if (p.chartAction === "fold") {
-      // Raw equity can look tempting preflop, but a weak offsuit hand plays poorly out of position
-      // over four streets — so the chart folds it even when its one-shot win% looks playable. Naming
-      // that reconciles the headline win% with the fold verdict (iter-09 #1).
-      return `By the odds, ${equityNote} — that can look tempting, but a hand like this plays poorly after the flop, especially out of position, so ${ing}${where} is the standard play here.`;
+      // Raw equity can look tempting preflop, but a weak offsuit hand plays poorly over four streets —
+      // so the chart folds it even when its one-shot win% looks playable. Naming that reconciles the
+      // headline win% with the fold verdict (iter-09 #1). Only add the "out of position" clause for a
+      // genuinely OOP seat (blinds/UTG/MP) — CO and BTN are LATE position, so the clause is wrong
+      // there (iter-11 #5).
+      const oopClause = isOutOfPosition(p.position) ? ", especially out of position" : "";
+      return `By the odds, ${equityNote} — that can look tempting, but a hand like this plays poorly after the flop${oopClause}, so ${ing}${where} is the standard play here.`;
     }
     return `By the odds, ${equityNote}, so ${ing}${where} is the standard, profitable play here.`;
   }
@@ -247,8 +250,14 @@ function aggression(p: ExplainParams): string {
   if (p.betTooSmall)
     // Name the made hand when there is one (iter-10 #3): the size critique stands on top of the
     // made-hand context, so the user hears both "you have a hand" and "but it's far too small".
+    // The undersize branch only fires for a genuine value bet (made hand present, or equity ≥ 50%),
+    // so this copy is never reached by a low-equity airball (iter-11 #1). Still, a made hand can be
+    // value-bet at LOW multiway equity — so only claim "in front" when the win% actually backs it;
+    // otherwise frame it as showdown value that's too cheap, without asserting a lead.
     return p.madeHand
-      ? `You have ${p.madeHand.label}, but this ${noun} is far too small to get value — it charges draws almost nothing and barely builds the pot. Size up to get paid while you're in front.`
+      ? p.equityPct >= 50
+        ? `You have ${p.madeHand.label}, but this ${noun} is far too small to get value — it charges draws almost nothing and barely builds the pot. Size up to get paid while you're in front.`
+        : `You have ${p.madeHand.label} — some showdown value — but this ${noun} is far too small to get value or charge draws. Size up so the bet actually does its job.`
       : `You're ahead with ~${win}%, but this ${noun} is far too small — it charges draws almost nothing and barely builds the pot. Size up to get paid while you're in front.`;
   // A made hand with low equity is never a "bluff with no equity" (iter-06 #1): it has real showdown
   // value, so the low win% is about being multiway on a dangerous board, not about having nothing.
@@ -346,7 +355,9 @@ function conceptual(p: ExplainParams): string {
       // too small to charge draws or build the pot. Flag the size, not the read.
       if (p.betTooSmall)
         return p.madeHand
-          ? `You have ${p.madeHand.label}, but that ${raising ? "raise" : "bet"} is far too small to get value — it barely charges draws or builds the pot. Make it bigger so you actually get paid while you're in front.`
+          ? p.equityPct >= 50
+            ? `You have ${p.madeHand.label}, but that ${raising ? "raise" : "bet"} is far too small to get value — it barely charges draws or builds the pot. Make it bigger so you actually get paid while you're in front.`
+            : `You have ${p.madeHand.label} — some showdown value — but that ${raising ? "raise" : "bet"} is far too small to do its job. Make it bigger so it charges draws and builds the pot.`
           : `You're ahead, but that ${raising ? "raise" : "bet"} is far too small — it barely charges draws or builds the pot. Make it bigger so you actually get paid while you're in front.`;
       // A made hand still has showdown value — never call it a bluff/"nothing here" (iter-06 #1).
       // Checked first (and for the vulnerable low-equity case) so the made hand is always named.

@@ -78,4 +78,47 @@ describe("PreflopChartTab", () => {
       expect(getByText(/72o — Fold from BB/i)).toBeTruthy();
     });
   });
+
+  // iter-11 #2 (MAJOR): the chart only models opening (first-in) ranges per position + BB defense vs a
+  // raise. Selecting Facing = "vs a raise" at any NON-BB position has no modeled range, so it must show
+  // the explanatory panel — NEVER a fabricated all-Fold grid that reads "AA — Fold from BTN".
+  describe("non-BB + vs a raise (#2)", () => {
+    for (const pos of ["BTN", "CO", "UTG", "MP", "SB"] as const) {
+      it(`${pos} + vs a raise shows the explanatory panel and no 'Fold from ${pos}' detail`, () => {
+        const { getByLabelText, getByTestId, queryByRole, queryByText } = render(
+          <PreflopChartTab heroPosition={pos} />,
+        );
+        fireEvent.change(getByLabelText(/facing/i), { target: { value: "raise" } });
+        expect(getByTestId("chart-no-range")).toBeTruthy();
+        // no grid to click ⇒ no fabricated all-fold cells / detail card
+        expect(queryByRole("grid")).toBeNull();
+        expect(queryByText(new RegExp(`AA — Fold from ${pos}`, "i"))).toBeNull();
+      });
+    }
+
+    it("BB + vs a raise still renders the real defend grid (AA is a non-fold action)", () => {
+      const { getByLabelText, getByText, queryByTestId, getByRole } = render(
+        <PreflopChartTab heroPosition="BB" />,
+      );
+      fireEvent.change(getByLabelText(/facing/i), { target: { value: "raise" } });
+      expect(queryByTestId("chart-no-range")).toBeNull();
+      expect(getByRole("grid")).toBeTruthy();
+      fireEvent.click(getByLabelText(/AA, /));
+      // AA defends — never a fold vs a raise.
+      expect(getByText(/AA — (Raise|Call) from BB/i)).toBeTruthy();
+    });
+
+    it("first-in (unopened) still renders the real opening grid for each position", () => {
+      for (const pos of ["UTG", "MP", "CO", "BTN", "SB"] as const) {
+        const { getByLabelText, getByText, getByRole, unmount } = render(
+          <PreflopChartTab heroPosition={pos} />,
+        );
+        // facing defaults to unopened ⇒ real opening grid
+        expect(getByRole("grid")).toBeTruthy();
+        fireEvent.click(getByLabelText(/AA, /));
+        expect(getByText(new RegExp(`AA — Raise from ${pos}`, "i"))).toBeTruthy();
+        unmount();
+      }
+    });
+  });
 });

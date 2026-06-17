@@ -336,8 +336,13 @@ export function conclusionFrom(args: {
   breakEvenPct: number;
   toCall: number;
   madeHand: MadeHand | null;
+  // On a free street (toCall <= 0, no made hand) Step 6 must agree with the bet-vs-check EV the panel
+  // shows on the SAME card (iter-11 #4). When betting is the higher-EV action it's a +EV semi-bluff —
+  // Step 6 must recommend betting, not "take the free card" (which once contradicted "Betting is worth
+  // ~$9"). When omitted/false it keeps the free-card line. Optional so existing callers are unaffected.
+  betBeatsCheck?: boolean;
 }): { profitable: boolean; sentence: string } {
-  const { trueWinPct, breakEvenPct, toCall, madeHand } = args;
+  const { trueWinPct, breakEvenPct, toCall, madeHand, betBeatsCheck } = args;
   const win = Math.round(trueWinPct);
   const lead = madeHand ? ` You already have ${madeHand.label}.` : "";
   // "Ahead" only when the unified win-% is actually high — never claim a lead against the equity
@@ -353,6 +358,16 @@ export function conclusionFrom(args: {
         sentence: ahead
           ? `You're ahead ~${win}% of the time with ${madeHand.label} — betting it for value is right.`
           : `You have ${madeHand.label} and win ~${win}% — a thin value bet here, not a check-back.`,
+      };
+    }
+    // No made hand, free street. If the same EV the panel shows says betting is the higher-EV action,
+    // Step 6 must recommend BETTING (a +EV semi-bluff with your equity) — never "take the free card"
+    // against a positive bet EV (iter-11 #4). Only when checking is at least as good do we keep the
+    // free-card line.
+    if (betBeatsCheck) {
+      return {
+        profitable: true,
+        sentence: `Betting is the higher-EV play here — a semi-bluff with your ~${win}% equity — rather than just taking the free card.`,
       };
     }
     return {

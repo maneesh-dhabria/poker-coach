@@ -280,12 +280,17 @@ function aggressionBranch(
   undersize = false,
 ): Branch {
   const base = { kind: "aggression" as const, gtoClaim: false };
-  // A grossly UNDER-sized bet is a SIZE problem regardless of hand strength (iter-10 #3). Earlier the
-  // made-hand branch returned first and swallowed the size check, so a $2-into-$36 bet with a made
-  // hand drew no sizing comment. Surface the size critique first; when a made hand is ALSO present,
-  // keep its context (the made_hand_thin_value tag) on top of bet_too_small so the chip set still
-  // says "you have a hand", and the copy names both the hand and the bad size.
-  if (undersize) {
+  // A grossly UNDER-sized bet by a hero who is plausibly VALUE-betting is a SIZE problem (iter-10 #3):
+  // a $2-into-$36 bet with a made hand once drew no sizing comment because the made-hand branch
+  // returned first. Surface the size critique — but ONLY when the hero is actually value-betting (a
+  // made hand is present, OR equity is high enough to be ahead). The "you're ahead / size up to get
+  // paid while you're in front" framing is value-bet framing; firing it for a low-equity A-high
+  // airball (iter-11 #1) told a beginner to bet BIGGER with a hand the EV table says to check, and
+  // called ~13% equity "ahead". So a sub-threshold bet that is NOT a value bet (no made hand AND low
+  // equity) falls through to the low-equity bluff branch below — a ❌ mistake that AGREES with its EV
+  // table and never claims a lead.
+  const isValueBet = madeHand != null || equityPct >= 50;
+  if (undersize && isValueBet) {
     const tags: ConceptTag[] = ["bet_too_small"];
     if (madeHand) tags.push("made_hand_thin_value");
     return { ...base, verdict: "thin", severity: 1, conceptTags: tags, flagUndersize: true };

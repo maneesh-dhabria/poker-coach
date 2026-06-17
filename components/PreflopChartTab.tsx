@@ -9,7 +9,7 @@
 // on-demand fallback only for any key the table somehow lacks (FR-56).
 import { useEffect, useState } from "react";
 import { Card } from "@/core/cards";
-import { Position, Facing, ChartAction, chartAction } from "@/core/charts/preflop";
+import { Position, Facing, ChartAction, chartAction, chartApplies } from "@/core/charts/preflop";
 import { equity } from "@/core/equity/equity";
 import equityTable from "@/core/charts/preflopEquity.json";
 import { useGameStore } from "@/store/gameStore";
@@ -74,12 +74,15 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
   const [facing, setFacing] = useState<Facing>("unopened");
   const [selected, setSelected] = useState<string | null>(null);
 
-  // The big blind has no opening range; with facing = unopened there's nothing honest to show, so we
-  // replace the all-Fold grid + detail with an explanatory panel (iter-10 #1).
-  const noOpenRange = position === "BB" && facing === "unopened";
+  // The chart only models two kinds of range: an opening (first-in) range for UTG/MP/CO/BTN/SB, and a
+  // big-blind defend range vs a raise. For ANY other (position, facing) combo there is NO real range —
+  // chartAction would fold every hand, fabricating "Fold AA from BTN" (iter-11 #2). So whenever the
+  // chart doesn't apply we show an explanatory panel instead of the grid + detail card, NEVER a
+  // fabricated all-fold grid. (Previously only BB-unopened was special-cased — iter-10 #1.)
+  const noRange = !chartApplies(position, facing);
 
   const detail =
-    selected && !noOpenRange
+    selected && !noRange
       ? {
           key: selected,
           hand: selected.slice(0, 2),
@@ -126,24 +129,49 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
         </div>
       </div>
 
-      {noOpenRange ? (
-        <div
-          className="card"
-          data-testid="chart-bb-no-open"
-          style={{ marginTop: 12 }}
-          aria-live="polite"
-        >
-          <h3 style={{ marginTop: 0 }}>The big blind has no opening range here</h3>
-          <p style={{ margin: "4px 0", lineHeight: 1.5 }}>
-            With no raise to act against, the big blind doesn&apos;t open — it simply checks its option
-            and sees the flop for free. So there&apos;s no &ldquo;first-in&rdquo; chart for the big
-            blind: even pocket Aces aren&apos;t a &ldquo;fold&rdquo; here, they just check and play on.
-          </p>
-          <p style={{ margin: "4px 0", lineHeight: 1.5, color: "var(--ink-soft)", fontSize: 13 }}>
-            Switch <strong>Facing</strong> to <strong>vs a raise</strong> to see how the big blind
-            should defend against an open.
-          </p>
-        </div>
+      {noRange ? (
+        position === "BB" && facing === "unopened" ? (
+          <div
+            className="card"
+            data-testid="chart-bb-no-open"
+            style={{ marginTop: 12 }}
+            aria-live="polite"
+          >
+            <h3 style={{ marginTop: 0 }}>The big blind has no opening range here</h3>
+            <p style={{ margin: "4px 0", lineHeight: 1.5 }}>
+              With no raise to act against, the big blind doesn&apos;t open — it simply checks its
+              option and sees the flop for free. So there&apos;s no &ldquo;first-in&rdquo; chart for the
+              big blind: even pocket Aces aren&apos;t a &ldquo;fold&rdquo; here, they just check and play
+              on.
+            </p>
+            <p style={{ margin: "4px 0", lineHeight: 1.5, color: "var(--ink-soft)", fontSize: 13 }}>
+              Switch <strong>Facing</strong> to <strong>vs a raise</strong> to see how the big blind
+              should defend against an open.
+            </p>
+          </div>
+        ) : (
+          // Any non-BB position facing "vs a raise" — the chart models opening ranges and big-blind
+          // defense, but NOT a separate per-position defend-vs-a-raise range. We must never fabricate
+          // an all-fold grid here (it once read "AA — Fold from BTN" — iter-11 #2).
+          <div
+            className="card"
+            data-testid="chart-no-range"
+            style={{ marginTop: 12 }}
+            aria-live="polite"
+          >
+            <h3 style={{ marginTop: 0 }}>No {position} range vs a raise in this chart</h3>
+            <p style={{ margin: "4px 0", lineHeight: 1.5 }}>
+              This chart models opening (first-in) ranges for each position and big-blind defense vs a
+              raise. It doesn&apos;t carry a separate {position}-vs-a-raise range — and folding a premium
+              like AA or KK to a raise would be flatly wrong, so we don&apos;t show a grid here rather
+              than fake one.
+            </p>
+            <p style={{ margin: "4px 0", lineHeight: 1.5, color: "var(--ink-soft)", fontSize: 13 }}>
+              Switch <strong>Facing</strong> to <strong>first in (unopened)</strong> to see {position}
+              &apos;s opening range.
+            </p>
+          </div>
+        )
       ) : (
         <div
           role="grid"
@@ -171,7 +199,7 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
         </div>
       )}
 
-      {noOpenRange ? null : detail ? (
+      {noRange ? null : detail ? (
         <div className="card" style={{ marginTop: 12 }} aria-live="polite">
           <h3 style={{ marginTop: 0 }}>
             {detail.key} — {ACTION_LABEL[detail.action]} from {position}

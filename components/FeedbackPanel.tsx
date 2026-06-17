@@ -377,7 +377,7 @@ export function FeedbackPanel({
       {/* Mental Math walk-through — a collapsible coaching section on the live hand (spec §4). The
           verdict's equity (the SAME figure the bar shows) is passed in as the single "true win" so
           Mental Math can never show a different win-% for the same decision (iter-07 #1). */}
-      <MentalMathSection enabled={enabled} verdictEquityPct={eq} />
+      <MentalMathSection enabled={enabled} verdictEquityPct={eq} betBeatsCheck={ev.raise > ev.call} />
     </aside>
   );
 }

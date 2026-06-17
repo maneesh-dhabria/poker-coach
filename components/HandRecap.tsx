@@ -54,12 +54,30 @@ function actionLabel(
 
 // Plain result wording. A net of $0 (e.g. after a fold) isn't "winning $0" — say it neutrally so
 // folding doesn't read as a win (finding #9). Won/lost otherwise, in the display unit (finding #2).
-function resultLine(heroNet: number | null, unit: MoneyUnit): string {
+// At conceptual depth ("plain words, no numbers") the result line carries NO amount — won/lost/neutral
+// only — so the whole panel stays digit-free (iter-11 #6). Equity/Strict keep the numeric amount.
+function resultLine(heroNet: number | null, unit: MoneyUnit, conceptual: boolean): string {
   const net = heroNet ?? 0;
   const money = (n: number) => formatMoney(n, unit, BIG_BLIND);
-  if (net > 0) return `Result: you won ${money(net)}.`;
-  if (net < 0) return `Result: you lost ${money(Math.abs(net))}.`;
-  return "Result: no money won or lost this hand.";
+  if (net > 0) return conceptual ? "You won this hand." : `Result: you won ${money(net)}.`;
+  if (net < 0)
+    return conceptual ? "You lost this hand." : `Result: you lost ${money(Math.abs(net))}.`;
+  return conceptual ? "No money won or lost this hand." : "Result: no money won or lost this hand.";
+}
+
+// The decision tally in words, for conceptual depth (no digits — iter-11 #6). "one thin, one mistake"
+// etc.; omits zero categories; "all clean" when nothing was flagged.
+const NUM_WORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
+function numWord(n: number): string {
+  return n < NUM_WORD.length ? NUM_WORD[n] : String(n);
+}
+function tallyWords(c: { good: number; thin: number; mistake: number }): string {
+  const parts: string[] = [];
+  if (c.good > 0) parts.push(`${numWord(c.good)} good`);
+  if (c.thin > 0) parts.push(`${numWord(c.thin)} thin`);
+  if (c.mistake > 0) parts.push(`${numWord(c.mistake)} mistake${c.mistake === 1 ? "" : "s"}`);
+  if (parts.length === 0) return "no decisions yet";
+  return parts.join(" · ");
 }
 
 function counts(decisions: HeroDecisionRecord[]) {
@@ -88,6 +106,11 @@ export function HandRecap({
   if (decisions.length === 0) return null;
   const c = counts(decisions);
   const flagged = c.mistake + c.thin > 0;
+  // The whole panel must show zero digits at Conceptual depth (iter-11 #6): the verdict CARD was
+  // already number-free, but the tally ("0 good · 1 mistake") and Result line ("you lost 1 BB") still
+  // leaked digits. Depth is per-decision; treat the recap as conceptual when EVERY graded decision is
+  // (a single-depth session — the normal case — so any mixed-depth session keeps its digits).
+  const conceptual = decisions.every((d) => d.analysis.coachingDepth === "conceptual");
 
   // Did the hero actually CONTEST this hand (so a loss can be a "played well, unlucky" beat) rather
   // than fold cheaply for the blind? Contesting = voluntarily putting chips in (a call/bet/raise) OR
@@ -106,7 +129,9 @@ export function HandRecap({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
         <h2 style={{ margin: 0 }}>Hand review</h2>
         <span style={{ fontSize: 13, color: "var(--ink-soft)" }}>
-          {c.good} good · {c.thin} thin · {c.mistake} mistake{c.mistake === 1 ? "" : "s"}
+          {conceptual
+            ? tallyWords(c)
+            : `${c.good} good · ${c.thin} thin · ${c.mistake} mistake${c.mistake === 1 ? "" : "s"}`}
         </span>
       </div>
 
@@ -174,7 +199,7 @@ export function HandRecap({
       {handComplete ? (
         <>
           <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 12 }}>
-            {resultLine(heroNet, displayUnit)} For a deeper plain-language write-up of this hand, run{" "}
+            {resultLine(heroNet, displayUnit, conceptual)} For a deeper plain-language write-up of this hand, run{" "}
             <code>/poker-coach last</code> in your terminal, then open the Coaching panel and hit Refresh.
           </p>
 
@@ -187,14 +212,28 @@ export function HandRecap({
             </p>
           ) : null}
 
-          {/* The mirror case (finding #1): you LOST the hand but every graded decision was sound (no
-              ❌ mistake). A trusting newcomer who saw "~92%" then lost their stack needs the variance
-              bridge surfaced by DEFAULT, not buried in a "Show the numbers" expander. */}
-          {heroNet !== null && heroNet < 0 && c.mistake === 0 && contested ? (
+          {/* The mirror case (finding #1): you LOST the hand but every graded decision was CLEAN — no
+              ❌ mistake AND no ⚠️ thin (iter-11 #3). A trusting newcomer who saw "~92%" then lost their
+              stack needs the variance bridge surfaced by DEFAULT. Gating on `!flagged` (not just
+              mistake===0) stops "played well" praise appearing after a ⚠️ thin play like an oversized
+              shove — praising a play the same recap just flagged teaches the wrong lesson. */}
+          {heroNet !== null && heroNet < 0 && !flagged && contested ? (
             <p data-testid="recap-variance" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
               Good decision, unlucky result — that&apos;s variance. We grade the decision, not the
               outcome: these win % are long-run averages, not this one hand. Played well, lost anyway —
               that happens, and it evens out over time.
+            </p>
+          ) : null}
+
+          {/* A LOSS that WAS flagged (a ⚠️ thin or ❌ mistake): this is NOT variance — there's a play to
+              review. Previously this case hit neither branch (the won-but-flagged branch is heroNet ≥ 0)
+              and silently showed nothing, which read as inconsistent next to clean-loss variance copy
+              (iter-11 #3). Mirror the won-flagged wording so a flagged loss always gets an honest
+              "review the flagged play" note instead of silence. */}
+          {heroNet !== null && heroNet < 0 && flagged ? (
+            <p data-testid="recap-loss-flagged" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
+              You lost this hand, and the {c.mistake > 0 ? "❌" : "⚠️"} above flags a play to review —
+              that&apos;s where the leak is, not variance.
             </p>
           ) : null}
         </>

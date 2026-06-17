@@ -240,4 +240,96 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.getByText(/raised to 2 BB/i)).toBeInTheDocument();
     expect(screen.queryByText(/raised to 1 BB/i)).toBeNull();
   });
+
+  // iter-11 #3 (MAJOR): the "played well, unlucky variance" footer must be suppressed for ANY flagged
+  // play — a ⚠️ thin (e.g. an oversized shove) counts, not just a ❌ mistake. And a flagged loss must
+  // get a consistent "review the flagged play" note instead of silence.
+  describe("variance footer never praises a flagged play (iter-11 #3)", () => {
+    // An oversized ~52 BB preflop shove grades ⚠️ thin (preflop_oversize) — a flagged-but-not-mistake play.
+    const oversizedShove = (): HeroDecisionRecord =>
+      decision(
+        "preflop",
+        "raise",
+        104,
+        {
+          action: "raise",
+          potBefore: 3,
+          toCall: 2,
+          equityPct: 60,
+          street: "preflop",
+          hand: ["Qd", "Td"],
+          position: "UTG",
+          facing: "unopened",
+          raiseToAmount: 104,
+          bigBlind: 2,
+        },
+        104,
+      );
+
+    it("a THIN-only contested loss (oversized shove) shows NO 'played well' variance footer", () => {
+      const d = oversizedShove();
+      expect(d.analysis.verdict).toBe("thin"); // guard: it really is a ⚠️ thin play
+      render(<HandRecap decisions={[d]} heroNet={-200} handComplete />);
+      expect(screen.queryByTestId("recap-variance")).toBeNull();
+    });
+
+    it("a flagged loss shows the consistent 'review the flagged play' note", () => {
+      render(<HandRecap decisions={[oversizedShove()]} heroNet={-200} handComplete />);
+      const note = screen.getByTestId("recap-loss-flagged");
+      expect(note.textContent).toMatch(/flags a play to review/i);
+      expect(note.textContent).toMatch(/not variance/i);
+    });
+
+    it("a mistake loss also shows the review note (not silence)", () => {
+      const decisions = [
+        decision("flop", "call", 30, { action: "call", potBefore: 30, toCall: 30, equityPct: 12 }),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-30} handComplete />);
+      expect(screen.queryByTestId("recap-variance")).toBeNull();
+      expect(screen.getByTestId("recap-loss-flagged")).toBeInTheDocument();
+    });
+
+    it("an ALL-GOOD contested loss STILL shows the variance footer (no regression)", () => {
+      const decisions = [
+        decision("river", "bet", 100, { action: "bet", potBefore: 200, toCall: 0, equityPct: 92 }, 100),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-200} handComplete />);
+      expect(screen.getByTestId("recap-variance")).toBeInTheDocument();
+      expect(screen.queryByTestId("recap-loss-flagged")).toBeNull();
+    });
+  });
+
+  // iter-11 #6 (NIT): at Conceptual depth the WHOLE panel (card + result + review tally) is digit-free.
+  describe("conceptual depth shows zero digits in result + tally (iter-11 #6)", () => {
+    const conceptualLoss = (): HeroDecisionRecord[] => [
+      decision("flop", "bet", 3, { action: "bet", potBefore: 6, toCall: 0, equityPct: 40, coachingDepth: "conceptual", numActiveOpponents: 2, hole: ["Th", "5c"], board: ["Td", "3s", "Ah"], raiseToAmount: 3 }, 3),
+    ];
+
+    it("the result line carries no amount at conceptual depth", () => {
+      const recap = render(<HandRecap decisions={conceptualLoss()} heroNet={-2} handComplete />).getByTestId("hand-recap");
+      expect(recap.textContent).toMatch(/You lost this hand\./);
+      expect(recap.textContent).not.toMatch(/Result: you lost/i);
+    });
+
+    it("the whole recap renders no digit at conceptual depth", () => {
+      const { container } = render(<HandRecap decisions={conceptualLoss()} heroNet={-2} handComplete />);
+      // The embedded analysis sentence + result + tally must all be digit-free.
+      expect(container.textContent).not.toMatch(/\d/);
+    });
+
+    it("the tally uses words, not digits, at conceptual depth", () => {
+      render(<HandRecap decisions={conceptualLoss()} heroNet={-2} handComplete />);
+      const recap = screen.getByTestId("hand-recap");
+      expect(recap.textContent).not.toMatch(/\d good|\d thin|\d mistake/);
+    });
+
+    it("Equity depth STILL shows the numeric result + tally (no regression)", () => {
+      const decisions = [
+        decision("flop", "bet", 3, { action: "bet", potBefore: 6, toCall: 0, equityPct: 70 }, 3),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-4} handComplete />);
+      expect(screen.getByText(/Result: you lost \$4/i)).toBeInTheDocument();
+      expect(screen.getByText(/good · .*thin · .*mistake/i)).toBeInTheDocument();
+    });
+  });
 });

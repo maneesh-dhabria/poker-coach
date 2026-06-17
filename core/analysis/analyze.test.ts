@@ -340,6 +340,63 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.plainExplanation).not.toContain("$"); // conceptual: no digits
   });
 
+  // iter-11 #1 (MAJOR): an undersized bet at LOW equity with NO made hand (A-high airball, ~13%) must
+  // NOT be praised as "you're ahead, size up to get paid while you're in front" — that value framing
+  // contradicts its own EV table (betting is -EV). It must fall through to the low-equity bluff branch:
+  // a ❌ mistake that agrees with the EV table, never claiming a lead.
+  it("an undersized bet at LOW equity with no made hand is a bluff MISTAKE, not bet_too_small (#1)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 42,
+      toCall: 0,
+      equityPct: 13, // A-high airball — clearly behind
+      street: "flop",
+      numActiveOpponents: 1,
+      raiseToAmount: 2, // min-bet into $42 ≈ 5% pot — undersized
+    });
+    expect(a.verdict).toBe("mistake"); // agrees with the EV table (betting is -EV), not "thin value"
+    expect(a.conceptTags).not.toContain("bet_too_small");
+    expect(a.conceptTags).not.toContain("made_hand_thin_value");
+    expect(a.conceptTags).toContain("bluff_no_equity"); // < NO_EQUITY_PCT (20)
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("ahead");
+    expect(lower).not.toContain("in front");
+    expect(lower).not.toContain("size up");
+  });
+
+  it("an undersized bet at MID equity (~25%) with no made hand is a thin-bluff MISTAKE, not bet_too_small (#1)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 42,
+      toCall: 0,
+      equityPct: 25, // some equity, but still behind — a light semi-bluff, not value
+      street: "flop",
+      numActiveOpponents: 1,
+      raiseToAmount: 2,
+    });
+    expect(a.verdict).toBe("mistake");
+    expect(a.conceptTags).not.toContain("bet_too_small");
+    expect(a.conceptTags).toContain("bluff_thin_equity");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("in front");
+  });
+
+  // The complement (don't reopen iter-10 #3): an undersized bet WHEN value-betting (high equity, no
+  // made hand) is still flagged for SIZE — bet_too_small — and may honestly say "ahead".
+  it("an undersized bet at HIGH equity (value) is still bet_too_small (#1 keeps iter-10 #3)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 42,
+      toCall: 0,
+      equityPct: 70, // genuinely ahead — value bet
+      street: "flop",
+      raiseToAmount: 2,
+    });
+    expect(a.verdict).toBe("thin");
+    expect(a.conceptTags).toContain("bet_too_small");
+    expect(a.plainExplanation.toLowerCase()).toContain("too small");
+  });
+
   it("conceptual depth omits raw numbers even for preflop chart feedback", () => {
     const a = analyze({
       action: "fold",
