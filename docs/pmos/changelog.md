@@ -3,6 +3,58 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.12.0] — 2026-06-18
+
+### Reviewer-iteration-7 fixes — one win-% per decision, hole-card-aware made hands
+
+A seventh independent first-time-user playtest (`docs/playtest/reviews/iter-07.md`)
+confirmed the structural wins held (layout clean at every window size, board matches
+the street, BB/$ reconciles everywhere, verdict tags match the action/street, no
+"-$0", no spelling errors, console clean) and surfaced one deeper theme: the Mental
+Math block was reasoning from a *different* equity number than the verdict, so a
+single panel could show two contradictory win-percentages and call a board-only pair
+"your" hand. All fixed at the root. Coaching-analysis + UI only; no `HandRecord`
+schema-version change.
+
+### Fixed
+
+- **One win-percentage per decision.** The Mental Math block used to run its own
+  equity Monte Carlo with a different opponent basis than the verdict, so the panel
+  could read "You win ~35% / thin" directly above "True win ≈ 64% / you're often
+  ahead." Mental Math now reads the verdict's own equity (`analysis.numbers.
+  equityPct`) for its true-win figure, Step-6 conclusion, gap explanation, and dollar
+  EV — the second Monte Carlo is gone, so the two numbers can never drift
+  (`components/{FeedbackPanel,MentalMathSection}.tsx`).
+- **A board-only pair is no longer called "your" made hand.** Holding 6♠J♥ (just
+  J-high) on a 8♦8♣Q♦ board used to say "you already have a pair, so you're often
+  ahead" — at ~3% equity — because the evaluator saw the board's pair of eights.
+  `detectMadeHand` now credits a made hand only when the hero's hole cards actually
+  improve on the board alone, so "playing the board" no longer reads as a made hand.
+  (This also flows into the bet verdict: such a hand correctly grades as a bluff
+  again, since the hero truly has nothing) (`core/mental/estimate.ts`).
+- **"Often ahead" tracks the real equity.** The made-hand "you're often ahead" line
+  now only appears when the win-chance is actually high (≳55%). Top pair at ~35%
+  multiway now reads "you have top pair, but with N players still in you're only
+  ~35% to win — it's marginal, not a sure lead," matching the verdict instead of
+  contradicting it (`components/MentalMathSection.tsx`).
+- **Honest pending copy.** The "Deciding your <street>…" card no longer promises
+  "the numbers below (Mental Math)" when no Mental Math block is shown there; it now
+  says the verdict, equity, and math appear once you act
+  (`components/RightPanel.tsx`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or
+  prior fixes); evidence at `docs/playtest/reviews/iter-07.md`. The reviewer
+  explicitly confirmed every prior structural fix held. Verified: `tsc --noEmit`
+  clean, ESLint clean, production build clean, **372** tests passing, including a
+  Mental-Math-equals-verdict-equity test and hole-card-participation cases for
+  `detectMadeHand`. Cross-checked both reported scenarios (J-high on a paired board
+  at ~3%; top pair at ~35% multiway): the verdict, equity bar, Mental Math true-win,
+  made-hand line, gap explanation, and dollar EV now all show one consistent win-%
+  and never claim a lead the equity contradicts. See
+  `docs/pmos/features/2026-06-18_reviewer-iter7-fixes/`.
+
 ## [0.11.0] — 2026-06-18
 
 ### Reviewer-iteration-6 fixes — a made hand is never a "bluff", honest sizing & EV labels
