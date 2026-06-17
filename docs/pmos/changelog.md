@@ -3,6 +3,77 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.10.0] — 2026-06-18
+
+### Reviewer-iteration-5 fixes — scale-to-fit table, honest multiway equity, BB everywhere
+
+A fifth independent first-time-user playtest (`docs/playtest/reviews/iter-04.md`)
+confirmed the v0.9.0 regressions stayed fixed (the board shows the street you're
+deciding; no win-vs-verdict contradictions; tags match the action) and surfaced a
+fresh layer — the long-standing small-window layout break, a mislabeled equity
+number, and units that didn't fully follow the BB/$ toggle. All addressed. UI +
+coaching-copy only; no `HandRecord` schema-version change (one additive optional
+field).
+
+### Fixed
+
+- **The table never overlaps itself at any window size (the 800×600 demon, fixed
+  for real).** Prior rounds positioned seats by percent but the seat tiles were
+  fixed-pixel, so on a short, narrow window the hero "You" seat grew to cover the
+  center "Pot" readout. The table interior now renders at a fixed 760×520 design
+  box and is uniformly `transform: scale()`-d to fit its container
+  (`useFitScale` + a `ResizeObserver`). Because the whole table scales as one
+  rigid unit, elements that don't overlap at full size can't overlap at any
+  smaller size — so every window size is safe, not just the ones we happened to
+  test. Action buttons stay outside the scaled box at full, tappable size
+  (`components/table/PokerTable.tsx`).
+- **Honest preflop equity label.** The live verdict used to say e.g. "~31%
+  against a random hand" — but that 31% is the multiway number (vs the other
+  players still in), while "a random hand" implies heads-up (where the same hand
+  is ~85%), contradicting the References chart's own 1-on-1 figure. It now reads
+  "~N% to win against the N opponents still in," so the live number and the
+  teaching chart no longer appear to disagree (`core/analysis/explain.ts`).
+- **BB mode is now BB everywhere — including the explanation sentences.** Toggling
+  to BB used to convert seats, pots, and headers but leave the plain-math
+  sentences in dollars (e.g. "you called 54 BB" directly above "it costs you $108
+  to win a $560 pot"). The live-feedback and hand-review sentences now render in
+  the chosen unit ("54 BB to win a 280 BB pot"). The canonical dollar sentence is
+  still stored in the hand record for the coach (additive `explanationInput` on
+  the analysis; new pure `formatExplanation`) (`core/analysis/*`,
+  `components/{FeedbackPanel,HandRecap}.tsx`).
+- **"raiseing" → "raising".** The preflop verdict built the verb naively; a small
+  verb map now yields raising / calling / folding (`core/analysis/explain.ts`).
+- **"Unlucky — variance" footer only fires when you actually contested the hand.**
+  It used to appear on any losing hand with no flagged mistakes — including
+  folding a trash hand for just the blind, which is no bad beat. It now requires
+  that you played past preflop or voluntarily put money in
+  (`components/HandRecap.tsx`).
+
+### Changed
+
+- **Coaching depth stays in its lane.** The "chart-based" badge is now shown only
+  in Strict charts mode; Equity + Heuristics leads with the win-rate (the text may
+  still note the chart agrees — honesty preserved), and Conceptual stays plain
+  (`components/{FeedbackPanel,HandRecap}.tsx`, `core/analysis/explain.ts`).
+- **Conceptual copy varies by action** (a raise vs a bet no longer get the
+  identical sentence) (`core/analysis/explain.ts`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or
+  prior fixes); evidence at `docs/playtest/reviews/iter-04.md`. The reviewer's
+  reported console ReferenceErrors were re-verified as stale hot-reload artifacts —
+  there is no `setState`-in-render and no out-of-scope identifier in the shipped
+  components, and `npm run build` compiles clean. One finding (a top-pair verdict
+  reading "thin" on the flop but "value" on the turn) is correct poker and was
+  intentionally left as-is; each verdict already names the street it judges.
+  Verified: `tsc --noEmit` clean, ESLint clean, production build clean, **350**
+  tests passing (+15), including a scale-to-fit math test and BB-sentence tests.
+  The implementer ran an explicit no-new-contradiction self-check (equity bar vs
+  sentence draw from the same number; multiway count reconciles with References by
+  design). True pixel layout verification at 800×600 is the next fresh-reviewer
+  playtest. See `docs/pmos/features/2026-06-18_reviewer-iter5-fixes/`.
+
 ## [0.9.0] — 2026-06-18
 
 ### Reviewer-iteration-4 fixes — board-street regression, no contradictory coaching
