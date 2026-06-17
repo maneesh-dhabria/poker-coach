@@ -3,6 +3,60 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.11.0] — 2026-06-18
+
+### Reviewer-iteration-6 fixes — a made hand is never a "bluff", honest sizing & EV labels
+
+A sixth independent first-time-user playtest (`docs/playtest/reviews/iter-06.md`)
+confirmed the structural wins held — the table scales cleanly at every window size,
+the board always matches the street being decided, BB/$ reconciles everywhere, and
+the decision-not-outcome framing prevents win-vs-verdict contradictions. It surfaced
+one real correctness bug plus polish. All fixed. Coaching-analysis + UI only; no
+`HandRecord` schema-version change (additive optional fields).
+
+### Fixed
+
+- **A made hand is never called a "bluff with no equity."** Betting two pair
+  (4♠2♠ on a 3♠4♣3♦ flop) used to be graded "❌ Mistake · bluff no equity" because
+  the aggression verdict keyed purely on a low equity number — which is genuinely
+  low multiway against five all-in players, but the hand is a made value hand, not
+  a bluff. The verdict now factors in the made hand (via the existing pure
+  `detectMadeHand`): a low-equity bet/raise WITH a made hand grades ⚠️ thin
+  (`made_hand_thin_value`) and the copy names it as a value bet with showdown value
+  — no "bluff"/"no equity"/"nothing behind it." A genuine no-made-hand low-equity
+  bet still grades ❌ and is still called a bluff (`core/analysis/{analyze,explain,
+  conceptTags}.ts`; hero cards threaded additively through `core/handFlow.ts`).
+- **Absurd preflop open sizes are no longer praised as "standard."** A ~52 BB
+  open (half stack) used to be graded "✅ Good · the standard, profitable play." A
+  first-in open of ≥10 BB now grades ⚠️ thin (`preflop_oversize`) and the copy
+  flags that the SIZE is far larger than a standard open — the decision to raise can
+  be right, the sizing isn't. Normal 2–4 BB opens are unaffected (`core/analysis/*`).
+- **EV "Show the numbers" table lists the right actions for the spot.** After a
+  preflop open-raise it no longer offered phantom "if you check / if you bet" rows;
+  it now shows fold/raise (facing a bet → fold/call/raise; unopened postflop →
+  check/bet) (`components/FeedbackPanel.tsx`).
+- **"beting" → "betting"** in the Conceptual feedback copy (`core/analysis/explain.ts`).
+- **No more "-$0".** Amounts that round to zero render as "$0" / "0 BB" with no
+  stray minus sign (`core/money.ts`).
+- **Essentially-breakeven calls grade ⚠️ thin, not ❌ mistake.** The price-branch
+  "thin" band widened to within ~2 points of breakeven; clearly -EV calls stay
+  mistakes (`core/analysis/analyze.ts`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or
+  prior fixes); evidence at `docs/playtest/reviews/iter-06.md`. The reviewer
+  explicitly confirmed: layout clean at all five window sizes (the scale-to-fit
+  table held), board cards always match the street, units reconcile everywhere, no
+  win-vs-verdict contradictions, console clean. A prior playtest (iter-05) had hit a
+  corrupted dev-server build (all JS/CSS bundles 404'd → nothing hydrated); that was
+  an environment issue, resolved by a clean `.next` rebuild, and produced no product
+  changes. Verified: `tsc --noEmit` clean, ESLint clean, production build clean,
+  **363** tests passing, including made-hand-value-vs-bluff cases, oversize-open
+  cases, and EV-row-label cases. Confirmed the made-hand bet's verdict, tag,
+  explanation, and EV table now all agree (no residual "bluff" wording). See
+  `docs/pmos/features/2026-06-18_reviewer-iter6-fixes/`.
+
 ## [0.10.0] — 2026-06-18
 
 ### Reviewer-iteration-5 fixes — scale-to-fit table, honest multiway equity, BB everywhere
