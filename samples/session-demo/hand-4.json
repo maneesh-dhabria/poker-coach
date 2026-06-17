@@ -316,7 +316,11 @@
             "Ts",
             "2d"
           ],
-          "numActiveOpponents": 2
+          "numActiveOpponents": 2,
+          "madeHand": {
+            "category": 1,
+            "label": "a pair"
+          }
         }
       }
     },
@@ -366,7 +370,11 @@
             "Ts",
             "2d"
           ],
-          "numActiveOpponents": 2
+          "numActiveOpponents": 2,
+          "madeHand": {
+            "category": 1,
+            "label": "a pair"
+          }
         }
       }
     }

@@ -15,4 +15,10 @@ describe("formatMoney", () => {
   it("guards a zero/invalid big blind in bb mode", () => {
     expect(() => formatMoney(20, "bb", 0)).not.toThrow();
   });
+  // iter-06 #5: a tiny negative magnitude that rounds to zero must render "$0", never "-$0".
+  it("normalizes a near-zero negative to $0 (no leading minus)", () => {
+    expect(formatMoney(-0.3, "usd", 2)).toBe("$0");
+    expect(formatMoney(-0, "usd", 2)).toBe("$0");
+    expect(formatMoney(-0.05, "bb", 2)).toBe("0 BB"); // -0.025 BB → rounds to 0, no "-0"
+  });
 });

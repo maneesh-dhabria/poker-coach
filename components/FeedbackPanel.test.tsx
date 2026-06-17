@@ -135,12 +135,13 @@ describe("FeedbackPanel — bet/raise feedback is consistent (iter-03 #2)", () =
 });
 
 describe("FeedbackPanel — EV table lists only legal actions (iter-03 #8)", () => {
-  it("an unopened (no bet to call) spot has no 'call' row", () => {
+  it("an unopened CHECK spot shows check / bet, with no phantom 'call' row", () => {
+    // A true check spot (hero checked, no bet to call) → the choices were check or bet.
     const a = analyze({
-      action: "bet",
+      action: "check",
       potBefore: 20,
       toCall: 0,
-      equityPct: 58,
+      equityPct: 40,
       unit: "bb",
       street: "river",
     });
@@ -149,7 +150,7 @@ describe("FeedbackPanel — EV table lists only legal actions (iter-03 #8)", () 
         analysis={a}
         enabled
         displayUnit="bb"
-        context={{ street: "river", potBefore: 20, toCall: 0, action: "bet" }}
+        context={{ street: "river", potBefore: 20, toCall: 0, action: "check" }}
       />,
     );
     const text = screen.getByTestId("feedback-panel").textContent ?? "";
@@ -170,6 +171,36 @@ describe("FeedbackPanel — EV table lists only legal actions (iter-03 #8)", () 
     const text = screen.getByTestId("feedback-panel").textContent ?? "";
     expect(text).toMatch(/average result if you fold/i);
     expect(text).toMatch(/average result if you call/i);
+    expect(text).toMatch(/average result if you raise/i);
+  });
+
+  // iter-06 #4: a preflop OPEN-raise (hero raised first-in, no bet to call) had no check option and
+  // no bet to call — its EV table must show fold/raise, never a phantom "check" row, and label the
+  // aggressive line "raise".
+  it("a preflop open-raise EV table has no 'check' row and labels the aggressive option 'raise'", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 55,
+      unit: "usd",
+      coachingDepth: "equity",
+      street: "preflop",
+      hand: ["Ah", "Kh"],
+      position: "CO",
+      facing: "unopened",
+    });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "preflop", potBefore: 3, toCall: 0, action: "raise" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).not.toMatch(/average result if you check/i);
+    expect(text).not.toMatch(/average result if you call/i);
+    expect(text).toMatch(/average result if you fold/i);
     expect(text).toMatch(/average result if you raise/i);
   });
 });

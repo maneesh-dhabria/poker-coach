@@ -237,6 +237,12 @@ export class HandFlow {
       position: spot.position,
       facing: spot.facing,
       assumedRange: "a typical opponent range",
+      // iter-06 #1/#3: pass the hero cards + board (made-hand detection) and the raise-to size +
+      // big blind (oversize check). All additive/optional in analyze().
+      hole: spot.hole,
+      board: spot.board,
+      ...(toAmount !== undefined ? { raiseToAmount: toAmount } : {}),
+      bigBlind: this.input.config.bigBlind,
     });
 
     const decision: HeroDecisionRecord = {

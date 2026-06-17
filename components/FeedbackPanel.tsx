@@ -92,13 +92,18 @@ function whyLine(eq: number, need: number | null): string {
   return `You win ~${win}% but need ~${n}% — you come up short, so this loses money over time.`;
 }
 
-// Which EV rows to list — ONLY the actions actually legal in this spot (iter-03 #8). Facing a bet
-// (toCall > 0) the choices are fold / call / raise; unopened (toCall === 0) they are check / bet —
-// there is no "call" when nobody bet into the hero, so listing a "call" row reads as a phantom
-// option. Returns label + value pairs in the verb the hero would actually use.
+// Which EV rows to list — ONLY the actions actually legal in this spot (iter-03 #8, iter-06 #4).
+//   • facing a bet (toCall > 0): fold / call / raise.
+//   • preflop OPEN-raise (hero raised first-in, no bet to call): fold / raise — preflop there's a
+//     blind to fold and no check option, so a "check" row is a phantom action (the reviewer's #4),
+//     and the aggressive line is labeled "raise". (A limp to call ⇒ toCall > 0 ⇒ facing-a-bet case.)
+//   • unopened POSTFLOP spot (no bet to call — a check or a lead bet): check / bet. There's no fold
+//     when checking is free, so the alternative to betting is checking, not folding.
+// Returns label + value pairs in the verb the hero would actually use.
 function evRows(
   ev: { fold: number; call: number; raise: number },
   facingBet: boolean,
+  preflopOpen: boolean,
 ): { label: string; value: number }[] {
   if (facingBet) {
     return [
@@ -107,8 +112,15 @@ function evRows(
       { label: "raise", value: ev.raise },
     ];
   }
-  // Unopened: checking takes a free look (its long-run value is the would-be "call" line — taking
-  // the pot to showdown without paying), and betting is the aggressive line.
+  // Preflop first-in open-raise: the choices were fold the blind or raise — never "check" (#4).
+  if (preflopOpen) {
+    return [
+      { label: "fold", value: ev.fold },
+      { label: "raise", value: ev.raise },
+    ];
+  }
+  // Unopened postflop spot: checking takes a free look (its long-run value is the would-be "call"
+  // line — taking the pot to showdown without paying), and betting is the aggressive line.
   return [
     { label: "check", value: ev.call },
     { label: "bet", value: ev.raise },
@@ -168,6 +180,8 @@ export function FeedbackPanel({
   const action = context?.action;
   const isAggressive = action === "bet" || action === "raise";
   const facingBet = (context?.toCall ?? (need !== null ? 1 : 0)) > 0 && !isAggressive;
+  // A preflop first-in open-raise (no bet to call): its EV table is fold/raise, not check/bet (#4).
+  const preflopOpen = !facingBet && isAggressive && context?.street === "preflop";
   // Show the win-vs-need headline only on a genuine facing-a-bet continue decision. On a bet/raise
   // (or an unopened spot) the "you only need ~Y% / makes money over time" framing is meaningless and
   // would contradict a ❌ bet verdict (iter-03 #2), so it is never rendered there.
@@ -256,7 +270,7 @@ export function FeedbackPanel({
               Show the numbers
             </summary>
             <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6, display: "grid", gap: 2 }}>
-              {evRows(ev, facingBet).map((r) => (
+              {evRows(ev, facingBet, preflopOpen).map((r) => (
                 <span key={r.label}>Average result if you {r.label}: {money(r.value, unit)}</span>
               ))}
               <span style={{ marginTop: 4 }}>

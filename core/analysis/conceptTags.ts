@@ -11,7 +11,13 @@ export const CONCEPT_TAGS = [
   "fold_too_tight",
   "value_bet_missed",
   "thin_value_good",
+  // A genuine made hand (pair or better) bet thin/vulnerable multiway — value, NOT a bluff. Keeps a
+  // low-equity made-hand bet from being mislabeled "bluff_no_equity" (iter-06 #1).
+  "made_hand_thin_value",
   "bluff_no_equity",
+  // A preflop open/raise whose SIZE is far larger than a standard open (the decision to raise can
+  // still be right — only the size is off) (iter-06 #3).
+  "preflop_oversize",
   "overfold_vs_aggression",
   "wrong_sizing",
   "preflop_chart_deviation",

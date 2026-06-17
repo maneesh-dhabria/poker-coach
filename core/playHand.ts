@@ -133,6 +133,12 @@ export function playHand(input: PlayHandInput): HandRecord {
         position,
         facing,
         assumedRange: "a typical opponent range",
+        // iter-06 #1/#3: hero cards + board for made-hand detection; raise-to size + big blind for
+        // the oversize check. Additive/optional.
+        hole,
+        board: h.board,
+        ...(action.type === "bet" || action.type === "raise" ? { raiseToAmount: action.amount } : {}),
+        bigBlind: input.config.bigBlind,
       });
 
       heroDecisions.push({

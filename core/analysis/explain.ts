@@ -5,6 +5,7 @@ import { Card, rankOf, suitOf } from "@/core/cards";
 import { Verdict, CoachingDepth, Unit, HeroAction, DecisionAnalysis } from "@/core/analysis/types";
 import { ChartAction } from "@/core/charts/preflop";
 import { handCategoryLabel } from "@/core/eval/handEval";
+import { MadeHand } from "@/core/mental/types";
 
 const SUIT_SYMBOL: Record<string, string> = { c: "♣", d: "♦", h: "♥", s: "♠" };
 
@@ -53,6 +54,12 @@ export interface ExplainParams {
   // Big blind in dollars, so the explanation sentence's money renders in BB when unit==="bb"
   // (iter-04 #3). Optional; defaults to the $1/$2 table's 2.
   bigBlind?: number;
+  // A made hand (pair or better) the hero already holds, if any (iter-06 #1). When present, a
+  // low-equity bet/raise is honest VALUE with showdown value — never a "bluff with no equity".
+  madeHand?: MadeHand | null;
+  // The hero's open/raise-to size in big blinds, when this is a preflop OPEN (iter-06 #3). Enables
+  // flagging an absurd oversize without false-positiving normal 2–4 BB opens.
+  openSizeBb?: number;
 }
 
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
@@ -118,6 +125,8 @@ export function formatExplanation(
     chartAction: ei.chartAction,
     heroDeviates: ei.heroDeviates,
     numActiveOpponents: ei.numActiveOpponents,
+    madeHand: ei.madeHand ?? null,
+    openSizeBb: ei.openSizeBb,
     bigBlind,
   });
 }
@@ -153,6 +162,13 @@ function preflop(p: ExplainParams): string {
   const rec = p.chartAction ? CHART_VERB[p.chartAction] : "play";
   const where = p.position ? ` from ${p.position}` : "";
 
+  // An absurdly oversized OPEN (iter-06 #3): raising can be right, but the SIZE is far off, so we
+  // never call it "the standard, profitable play". Lead with the size, keep it depth-light.
+  if (p.openSizeBb !== undefined) {
+    const bb = Math.round(p.openSizeBb);
+    return `Raising ${label}${where} can be fine, but ${bb} BB is far bigger than a standard open (about 2–3 BB) — that size bloats the pot out of position and risks a lot to win a little. Size it down to a normal open.`;
+  }
+
   // Strict charts → the chart/GTO citation it has always given.
   if (p.depth === "strict") {
     if (!p.heroDeviates) return `The baseline chart says ${rec} ${label}${where} — that's standard.`;
@@ -183,8 +199,15 @@ function valuecheck(p: ExplainParams): string {
 
 function aggression(p: ExplainParams): string {
   const win = Math.round(p.equityPct);
-  if (p.verdict === "good") return `Betting for value with ~${win}% is good — get money in while ahead.`;
-  if (p.verdict === "thin") return `A thin bet with ~${win}% — fine as value or a semi-bluff, but it's marginal.`;
+  const act = p.action === "raise" ? "Raising" : "Betting";
+  const noun = p.action === "raise" ? "raise" : "bet";
+  // A made hand with low equity is never a "bluff with no equity" (iter-06 #1): it has real showdown
+  // value, so the low win% is about being multiway on a dangerous board, not about having nothing.
+  // This takes precedence over the generic thin copy so the made hand is always named, not hidden.
+  if (p.madeHand && p.equityPct < 33)
+    return `You have ${p.madeHand.label} — a real made hand with showdown value, so this is a value ${noun}. But multiway on a dangerous board your ~${win}% to win is low, so it's a thin, vulnerable ${noun}.`;
+  if (p.verdict === "good") return `${act} for value with ~${win}% is good — get money in while ahead.`;
+  if (p.verdict === "thin") return `A thin ${noun} with ~${win}% — fine as value or a semi-bluff, but it's marginal.`;
   return `You're betting with only ~${win}% and little chance of folding out a better hand — there's not enough behind it.`;
 }
 
@@ -250,6 +273,9 @@ function conceptual(p: ExplainParams): string {
         ? "This was a spot to keep going, not fold."
         : "You're continuing too loosely here — folding is cleaner.";
     case "preflop":
+      // Oversized open: flag the SIZE in plain words, no numbers (iter-06 #3).
+      if (p.openSizeBb !== undefined)
+        return "Raising can be fine here, but that's a much bigger open than usual — it bloats the pot and risks a lot to win a little. Make it a normal-sized raise.";
       return p.heroDeviates
         ? "This differs from the standard baseline line for this spot."
         : "This is the standard line for this spot.";
@@ -261,7 +287,12 @@ function conceptual(p: ExplainParams): string {
       // Vary the copy by the action so a raise and a bet don't read identically (iter-04 #8): a
       // raise puts in MORE on top of a bet, a bet opens the betting. Same judgement, different verb.
       const raising = p.action === "raise";
-      const act = raising ? "raise" : "bet";
+      // Present-participle built explicitly so "bet" never becomes "beting" (iter-06 #2).
+      const acting = raising ? "raising" : "betting";
+      // A made hand still has showdown value — never call it a bluff/"nothing here" (iter-06 #1).
+      // Checked first (and for the vulnerable low-equity case) so the made hand is always named.
+      if (p.madeHand && p.equityPct < 33)
+        return `You already have ${p.madeHand.label} — a real made hand with showdown value, so this is a value ${raising ? "raise" : "bet"}. But multiway on a dangerous board it's thin, so it's a marginal bet.`;
       if (p.verdict === "good")
         return raising
           ? "Strong hand — raising for value is right; build the pot while you're ahead."
@@ -270,7 +301,7 @@ function conceptual(p: ExplainParams): string {
         return raising
           ? "A marginal raise — fine to push a thin edge, but it's borderline."
           : "A marginal bet — fine as thin value or a semi-bluff.";
-      return `You're ${act}ing with little behind it — there's not enough here.`;
+      return `You're ${acting} with little behind it — there's not enough here.`;
     }
     case "freecheckfold":
       return "There was no bet to fold to — checking is free. Never fold when you can see the next card for nothing.";

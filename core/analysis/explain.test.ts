@@ -204,6 +204,82 @@ describe("Conceptual aggression copy varies by action (iter-04 #8)", () => {
   it("a good raise and a good bet differ too", () => {
     expect(buildExplanation(agg("raise", "good"))).not.toEqual(buildExplanation(agg("bet", "good")));
   });
+
+  // iter-06 #2: the low-equity conceptual bet copy must read "betting", never "beting".
+  it("the conceptual low-equity bet copy says 'betting', not 'beting'", () => {
+    const s = buildExplanation(agg("bet", "mistake"));
+    expect(s).toContain("betting");
+    expect(s).not.toContain("beting");
+  });
+});
+
+describe("made-hand aggression copy is value, not a bluff (iter-06 #1)", () => {
+  const base = (
+    depth: CoachingDepth,
+    madeHand: { category: number; label: string } | null,
+  ): ExplainParams => ({
+    kind: "aggression",
+    verdict: madeHand ? "thin" : "mistake",
+    depth,
+    unit: "usd",
+    action: "bet",
+    potBefore: 32,
+    toCall: 0,
+    equityPct: 18,
+    potOddsPct: 0,
+    numActiveOpponents: 5,
+    madeHand,
+  });
+
+  it("equity depth: a low-equity made-hand bet names the hand and never says 'bluff'/'no equity'", () => {
+    const s = buildExplanation(base("equity", { category: 3, label: "two pair" })).toLowerCase();
+    expect(s).toContain("two pair");
+    expect(s).not.toContain("bluff");
+    expect(s).not.toContain("no equity");
+    expect(s).not.toContain("nothing");
+  });
+
+  it("conceptual depth: a low-equity made-hand bet names the hand and never says 'bluff'", () => {
+    const s = buildExplanation(base("conceptual", { category: 3, label: "two pair" })).toLowerCase();
+    expect(s).toContain("two pair");
+    expect(s).not.toContain("bluff");
+  });
+
+  it("a true no-made-hand low-equity bet still reads as 'nothing behind it' (bluff)", () => {
+    const s = buildExplanation(base("equity", null)).toLowerCase();
+    expect(s).toContain("not enough behind it");
+  });
+});
+
+describe("oversized preflop open copy flags the SIZE (iter-06 #3)", () => {
+  const open = (depth: CoachingDepth): ExplainParams => ({
+    kind: "preflop",
+    verdict: "thin",
+    depth,
+    unit: "usd",
+    action: "raise",
+    potBefore: 3,
+    toCall: 2,
+    equityPct: 60,
+    potOddsPct: 0,
+    hand: ["Qd", "Td"],
+    position: "UTG",
+    chartAction: "raise",
+    heroDeviates: false,
+    openSizeBb: 52,
+  });
+
+  it("equity depth: flags the oversize and does not praise it as 'the standard, profitable play'", () => {
+    const s = buildExplanation(open("equity")).toLowerCase();
+    expect(s).toMatch(/bigger than a standard open|size it down/);
+    expect(s).not.toContain("standard, profitable play");
+  });
+
+  it("conceptual depth: flags the size in plain words with no numbers", () => {
+    const s = buildExplanation(open("conceptual"));
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).toMatch(/bigger|normal-sized/);
+  });
 });
 
 describe("explanation sentence renders in the display unit (iter-04 #3)", () => {

@@ -48,4 +48,9 @@ export interface ExplanationInput {
   position?: string;
   hand?: [string, string];
   numActiveOpponents?: number;
+  // A made hand the hero already holds (iter-06 #1), so a re-formatted sentence still says "value
+  // bet, not a bluff" rather than "no equity". Structural to avoid importing core/mental here.
+  madeHand?: { category: number; label: string } | null;
+  // The hero's open size in big blinds when the open is flagged as oversized (iter-06 #3).
+  openSizeBb?: number;
 }

@@ -254,7 +254,11 @@
             "4d",
             "Qh"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "madeHand": {
+            "category": 2,
+            "label": "two pair"
+          }
         }
       }
     },
@@ -306,7 +310,11 @@
             "4d",
             "Qh"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "madeHand": {
+            "category": 2,
+            "label": "two pair"
+          }
         }
       }
     }

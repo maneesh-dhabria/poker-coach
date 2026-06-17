@@ -8,10 +8,14 @@ export function formatMoney(dollars: number, unit: MoneyUnit, bigBlind: number):
   if (unit === "bb" && bigBlind > 0) {
     const bb = dollars / bigBlind;
     // Round to ≤1 decimal, then strip a trailing ".0".
-    const rounded = Math.round(bb * 10) / 10;
+    let rounded = Math.round(bb * 10) / 10;
+    if (rounded === 0) rounded = 0; // collapse a tiny -0 so we never render "-0 BB" (iter-06 #5)
     const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
     return `${text} BB`;
   }
-  const neg = dollars < 0 ? "-" : "";
-  return `${neg}$${Math.round(Math.abs(dollars))}`;
+  const whole = Math.round(Math.abs(dollars));
+  // A magnitude that rounds to zero must read "$0", never "-$0" (iter-06 #5): the sign is dropped
+  // once the displayed value is zero.
+  const neg = dollars < 0 && whole !== 0 ? "-" : "";
+  return `${neg}$${whole}`;
 }

@@ -154,10 +154,60 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.conceptTags).toContain("value_bet_missed");
   });
 
-  it("flags betting with no equity as a no-equity bluff", () => {
-    const a = analyze({ action: "bet", potBefore: 20, toCall: 0, equityPct: 18, street: "turn" });
+  it("flags betting with no equity as a no-equity bluff (no made hand)", () => {
+    // 7-high with no pair on this board → genuinely no made hand, low equity ⇒ a real bluff.
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 18,
+      street: "turn",
+      hole: ["7c", "2d"],
+      board: ["Ah", "Kd", "Qs", "9h"],
+    });
     expect(a.verdict).toBe("mistake");
     expect(a.conceptTags).toContain("bluff_no_equity");
+  });
+
+  // iter-06 #1: a MADE hand (two pair) bet at low multiway equity is VALUE, not a no-equity bluff.
+  // The tag/verdict must NOT be bluff_no_equity, and the explanation must not say "bluff"/"no equity".
+  it("does NOT tag a low-equity MADE-hand bet as a no-equity bluff (#1)", () => {
+    // 4s2s on a 3s4c3d flop = two pair (fours & threes); ~18% multiway vs 5 all-ins.
+    const a = analyze({
+      action: "bet",
+      potBefore: 32,
+      toCall: 0,
+      equityPct: 18,
+      street: "flop",
+      numActiveOpponents: 5,
+      hole: ["4s", "2s"],
+      board: ["3s", "4c", "3d"],
+    });
+    expect(a.conceptTags).not.toContain("bluff_no_equity");
+    expect(a.conceptTags).toContain("made_hand_thin_value");
+    expect(a.verdict).not.toBe("mistake"); // a value bet, not a "mistake bluff"
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("bluff");
+    expect(lower).not.toContain("no equity");
+    expect(lower).not.toContain("nothing");
+    expect(lower).toContain("two pair"); // names the made hand
+  });
+
+  it("the conceptual made-hand bet copy also avoids 'bluff' and names the made hand (#1)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 32,
+      toCall: 0,
+      equityPct: 18,
+      street: "flop",
+      coachingDepth: "conceptual",
+      numActiveOpponents: 5,
+      hole: ["4s", "2s"],
+      board: ["3s", "4c", "3d"],
+    });
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("bluff");
+    expect(lower).toContain("two pair");
   });
 
   it("treats a thin bet as marginal value", () => {
@@ -244,6 +294,60 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     });
     expect(conceptualDepth.plainExplanation.toLowerCase()).not.toContain("pot isn't big enough");
     expect(conceptualDepth.plainExplanation.toLowerCase()).toMatch(/wins too rarely|win back/);
+  });
+
+  // iter-06 #3: a NORMAL ~3 BB open is unflagged "good"; an absurd ~50 BB open is flagged for size
+  // and never praised as "the standard, profitable play".
+  it("does not flag a normal ~3 BB preflop open (#3)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 60,
+      street: "preflop",
+      hand: hand("Ah", "Kh"),
+      position: "CO",
+      facing: "unopened",
+      raiseToAmount: 6, // ~3 BB at $1/$2
+      bigBlind: 2,
+    });
+    expect(a.verdict).toBe("good");
+    expect(a.conceptTags).not.toContain("preflop_oversize");
+    expect(a.conceptTags).toContain("good_preflop_discipline");
+  });
+
+  it("flags an absurd ~52 BB preflop open for size and does not call it standard (#3)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 60,
+      street: "preflop",
+      hand: hand("Qd", "Td"),
+      position: "UTG",
+      facing: "unopened",
+      raiseToAmount: 104, // ~52 BB at $1/$2
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).toContain("preflop_oversize");
+    expect(a.verdict).not.toBe("good");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("standard, profitable play");
+    expect(lower).toMatch(/bigger than a standard open|size it down/);
+  });
+
+  // iter-06 #6: an essentially-breakeven price-branch call (edge within a small band of 0) grades
+  // ⚠️ thin, not ❌ mistake; a clearly -EV call stays a mistake.
+  it("grades a near-breakeven call as thin, not a mistake (#6)", () => {
+    // potBefore 32, toCall 5 → breakeven 5/37 = 13.5%; 14% equity ⇒ edge +0.5 ⇒ thin.
+    const breakeven = analyze({ action: "call", potBefore: 32, toCall: 5, equityPct: 14 });
+    expect(breakeven.verdict).toBe("thin");
+    // A call ~1.5 below the price is still thin (the widened band), not a hard mistake.
+    const slightlyUnder = analyze({ action: "call", potBefore: 32, toCall: 5, equityPct: 12 });
+    expect(slightlyUnder.verdict).toBe("thin");
+    // A clearly -EV call (edge well below -2) stays a mistake.
+    const badCall = analyze({ action: "call", potBefore: 11, toCall: 4, equityPct: 18 });
+    expect(badCall.verdict).toBe("mistake");
   });
 
   it("populates the EV block for all three options", () => {

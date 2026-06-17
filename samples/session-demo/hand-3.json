@@ -283,7 +283,11 @@
             "2d",
             "2s"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "madeHand": {
+            "category": 3,
+            "label": "three of a kind"
+          }
         }
       }
     },
@@ -335,7 +339,11 @@
             "2d",
             "2s"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "madeHand": {
+            "category": 3,
+            "label": "three of a kind"
+          }
         }
       }
     },
@@ -387,7 +395,11 @@
             "2d",
             "2s"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "madeHand": {
+            "category": 6,
+            "label": "a full house"
+          }
         }
       }
     },
@@ -439,7 +451,11 @@
             "2d",
             "2s"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "madeHand": {
+            "category": 6,
+            "label": "a full house"
+          }
         }
       }
     }
