@@ -299,6 +299,47 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(lower).toContain("too small");
   });
 
+  // iter-10 #3: a tiny bet WITH a made hand must still be flagged for its SIZE — the made-hand branch
+  // used to return first and swallow the size critique ($2 into $36 ≈ 5% pot drew no comment).
+  it("a tiny bet with a made hand is flagged for SIZE, keeping the made-hand context (#3)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 36,
+      toCall: 0,
+      equityPct: 40,
+      street: "flop",
+      numActiveOpponents: 2,
+      hole: ["Th", "5c"], // pairs the Ten on the board → middle pair (a made hand)
+      board: ["Td", "3s", "Ah"],
+      raiseToAmount: 2, // $2 into $36 ≈ 5.6% pot — the reviewer's gross underbet
+    });
+    expect(a.verdict).toBe("thin");
+    expect(a.conceptTags).toContain("bet_too_small"); // size critique surfaces
+    expect(a.conceptTags).toContain("made_hand_thin_value"); // made-hand context kept
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("too small");
+    expect(lower).toContain("pair"); // names the made hand (top/middle/bottom pair)
+  });
+
+  it("the conceptual copy for a tiny made-hand bet also flags the size and names the hand (#3)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 36,
+      toCall: 0,
+      equityPct: 40,
+      street: "flop",
+      coachingDepth: "conceptual",
+      numActiveOpponents: 2,
+      hole: ["Th", "5c"],
+      board: ["Td", "3s", "Ah"],
+      raiseToAmount: 2,
+    });
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("too small");
+    expect(lower).toContain("pair");
+    expect(a.plainExplanation).not.toContain("$"); // conceptual: no digits
+  });
+
   it("conceptual depth omits raw numbers even for preflop chart feedback", () => {
     const a = analyze({
       action: "fold",

@@ -80,6 +80,24 @@ describe("buildMentalEstimate — status routing", () => {
     expect(e.status).toBe("no-draw");
     expect(e.potOdds?.breakEvenPct).toBe(25);
   });
+
+  // iter-10 #6: with no draw AND no made hand the preview must NOT hedge "you may already have the
+  // best hand" (it's false with air) — it says honestly that you're likely behind / a bluff.
+  it("no-draw + no made hand does not claim 'best hand' and says you're behind (#6)", () => {
+    const e = buildMentalEstimate({ ...base, hole: hole("6h", "5h"), board: h(["Kh", "9c", "2d"]), street: "flop" });
+    expect(e.madeHand).toBeNull();
+    const s = e.plainSummary.toLowerCase();
+    expect(s).not.toContain("best hand");
+    expect(s).toContain("behind");
+  });
+
+  // iter-10 #6: a no-draw spot WITH a made hand keeps the honest "often ahead already" framing.
+  it("no-draw + made hand keeps the 'often ahead already' framing (#6)", () => {
+    // Pocket Kings on a dry board with no extra outs → a made hand, no draw.
+    const e = buildMentalEstimate({ ...base, hole: hole("Kc", "Kd"), board: h(["Kh", "9c", "2d"]), street: "flop" });
+    expect(e.madeHand).not.toBeNull();
+    expect(e.plainSummary.toLowerCase()).toContain("ahead");
+  });
 });
 
 describe("buildMentalEstimate — pot odds & decision", () => {
@@ -242,12 +260,19 @@ describe("made-hand reconciliation (findings #1/#2/#3)", () => {
     expect(e.madeHand?.label).toBe("two pair");
     const c = conclusionFrom({ trueWinPct: 66, breakEvenPct: 0, toCall: 0, madeHand: e.madeHand });
     expect(c.sentence.toLowerCase()).toContain("value");
+    // iter-10 #2: a made hand worth betting must not be framed as taking a free card.
+    expect(c.sentence.toLowerCase()).not.toContain("free");
+    expect(c.sentence.toLowerCase()).not.toContain("take it");
   });
 
-  it("(iter-07 #2b) a free check with a made hand at LOW equity is called marginal, not 'ahead'", () => {
+  it("(iter-07 #2b / iter-10 #2) a no-bet made hand at LOW equity is a thin value bet, not 'ahead' and not a free-card check-back", () => {
     const c = conclusionFrom({ trueWinPct: 35, breakEvenPct: 0, toCall: 0, madeHand: { category: 1, label: "top pair" } });
     expect(c.sentence.toLowerCase()).not.toContain("ahead");
-    expect(c.sentence.toLowerCase()).toContain("marginal");
+    // iter-10 #2: on a bet-or-check spot the conclusion must NOT tell the user to take the free card.
+    expect(c.sentence.toLowerCase()).not.toContain("free");
+    expect(c.sentence.toLowerCase()).not.toContain("take it");
+    // It's framed as a (thin) value bet instead.
+    expect(c.sentence.toLowerCase()).toMatch(/thin value bet/);
     expect(c.sentence).toContain("35%");
   });
 

@@ -31,8 +31,10 @@ function ActionBadge({ action, unit, bigBlind }: { action: SeatAction; unit: Mon
       style={{
         display: "inline-block",
         marginTop: 6,
-        fontSize: 11,
-        fontWeight: 700,
+        // Slightly larger + bolder so the "$" glyph on a "Call $2" badge reads as currency, not a
+        // stray digit ("Call 12") at small scale-to-fit sizes (iter-10 #8b). Geometry unchanged.
+        fontSize: 12,
+        fontWeight: 800,
         color: "#10231a",
         background: meta.color,
         borderRadius: "var(--r-pill)",
@@ -82,7 +84,9 @@ export function Seat({
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <strong>{seat.name}</strong>
+        {/* An explicit, slightly larger seat-name size so the name stays legible when scale-to-fit
+            shrinks the design box at small viewports (iter-10 #8a). Geometry unchanged. */}
+        <strong style={{ fontSize: 13 }}>{seat.name}</strong>
         <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>{seat.position}</span>
         {seat.isButton ? (
           <span
@@ -107,7 +111,7 @@ export function Seat({
           onClick={toggleDisplayUnit}
           style={{
             color: "var(--ink-soft)",
-            fontSize: 12,
+            fontSize: 13,
             background: "transparent",
             border: "none",
             padding: 0,
@@ -117,7 +121,7 @@ export function Seat({
           {formatMoney(seat.stack, displayUnit, bigBlind)}
         </button>
       ) : (
-        <div style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+        <div style={{ color: "var(--ink-soft)", fontSize: 13 }}>
           {formatMoney(seat.stack, displayUnit, bigBlind)}
         </div>
       )}

@@ -345,6 +345,69 @@ describe("FeedbackPanel — depth-aware presentation (iter-03 #7)", () => {
   });
 });
 
+describe("FeedbackPanel — Conceptual context line has zero digits (iter-10 #4)", () => {
+  // A postflop check at conceptual depth WITH a context line (the spot the reviewer saw showing
+  // "pot was $6 when you acted"). The whole card must contain no digit/currency.
+  const conceptualCheck = analyze({
+    action: "check",
+    potBefore: 6,
+    toCall: 0,
+    equityPct: 40,
+    coachingDepth: "conceptual",
+    street: "flop",
+  });
+
+  it("renders no digits anywhere on the conceptual card, even with a pot context", () => {
+    render(
+      <FeedbackPanel
+        analysis={conceptualCheck}
+        enabled
+        context={{ street: "flop", potBefore: 6, toCall: 0, action: "check" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).not.toMatch(/\d/); // ZERO digits anywhere on the card
+    expect(text).not.toContain("$");
+    // The street label still shows, just without the pot amount.
+    expect(screen.getByTestId("feedback-context").textContent).toMatch(/flop decision/i);
+    expect(screen.getByTestId("feedback-context").textContent).not.toMatch(/pot was/i);
+  });
+
+  it("Equity depth STILL shows the pot amount in the context line", () => {
+    const eq = analyze({ action: "check", potBefore: 6, toCall: 0, equityPct: 40, street: "flop" });
+    render(
+      <FeedbackPanel
+        analysis={eq}
+        enabled
+        context={{ street: "flop", potBefore: 6, toCall: 0, action: "check" }}
+      />,
+    );
+    expect(screen.getByTestId("feedback-context").textContent).toMatch(/pot was \$6 when you acted/i);
+  });
+});
+
+describe("FeedbackPanel — concept-tag chips use clean labels (iter-10 #7)", () => {
+  it("renders a clean label for a known tag, not the raw slug", () => {
+    // A tiny made-hand bet → tags include made_hand_thin_value (chip "Thin value", not the slug).
+    const a = analyze({
+      action: "bet",
+      potBefore: 36,
+      toCall: 0,
+      equityPct: 40,
+      street: "flop",
+      numActiveOpponents: 2,
+      hole: ["Th", "5c"],
+      board: ["Td", "3s", "Ah"],
+      raiseToAmount: 2,
+    });
+    render(<FeedbackPanel analysis={a} enabled />);
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/Thin value/);
+    expect(text).not.toMatch(/made hand thin value/); // no crammed slug
+    expect(text).toMatch(/Bet too small/); // bet_too_small → clean label too
+  });
+});
+
 describe("FeedbackPanel — explanation sentence honors the display unit (iter-04 #3)", () => {
   it("renders the cost/pot amounts in BB, not dollars, when displayUnit is bb", () => {
     // $108 to call into a $560 pot ($452 before) at 12% equity → a price-branch fold sentence.

@@ -229,6 +229,18 @@ describe("Conceptual aggression copy varies by action (iter-04 #8)", () => {
     expect(s).toContain("betting");
     expect(s).not.toContain("beting");
   });
+
+  // iter-10 #5: a ✅ value bet can be a marginal made hand (e.g. middle pair), so the conceptual
+  // "good" copy must NOT assert "strong hand" — it frames it around being ahead instead.
+  it("the conceptual value-bet 'good' copy does not call a marginal hand 'strong'", () => {
+    const sBet = buildExplanation(agg("bet", "good"));
+    expect(sBet.toLowerCase()).not.toContain("strong hand");
+    expect(sBet.toLowerCase()).toContain("ahead");
+    expect(sBet.toLowerCase()).toContain("value");
+    const sRaise = buildExplanation(agg("raise", "good"));
+    expect(sRaise.toLowerCase()).not.toContain("strong hand");
+    expect(sRaise.toLowerCase()).toContain("ahead");
+  });
 });
 
 describe("made-hand aggression copy is value, not a bluff (iter-06 #1)", () => {

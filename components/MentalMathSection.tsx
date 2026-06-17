@@ -453,10 +453,14 @@ function Steps({
                   madeHand: estimate.madeHand,
                 })
               : estimate.decision!;
+          // When there's no bet to call the hero is deciding whether to bet or check — not facing a
+          // "call" — so the heading must not read "The call" on a bet-or-check spot (iter-10 #2).
+          const step6Label =
+            estimate.potOdds && estimate.potOdds.toCall <= 0 ? "Step 6 · The decision" : "Step 6 · The call";
           return (
             <div style={STEP_CARD}>
               <div style={STEP_HEAD}>
-                <span>Step 6 · The call</span>
+                <span>{step6Label}</span>
               </div>
               <p style={{ margin: "2px 0", fontSize: 13 }}>
                 <strong

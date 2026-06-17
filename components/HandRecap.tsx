@@ -23,7 +23,14 @@ const STREET_LABEL: Record<string, string> = {
 
 // Format a money figure in the session's display unit ($/BB) so the recap never mixes units with
 // the rest of the screen (finding #2): the live feedback, buttons, and table all honor the toggle.
-function actionLabel(a: { action: string; amount: number; toAmount?: number }, unit: MoneyUnit): string {
+function actionLabel(
+  a: { action: string; amount: number; toAmount?: number },
+  unit: MoneyUnit,
+  // At conceptual depth ("plain words, no numbers") the recap row carries no digits/currency, so the
+  // action verb omits the amount ("bet" not "bet $3") — keeping the whole conceptual card digit-free
+  // (iter-10 #4). Equity/Strict keep the amount.
+  conceptual = false,
+): string {
   const money = (n: number) => formatMoney(n, unit, BIG_BLIND);
   // A bet/raise is described by its TOTAL raise-to level (the number the action button offered, e.g.
   // "Raise to 2 BB"), not the chips-added increment — so "raised to N" here matches the button and
@@ -35,11 +42,11 @@ function actionLabel(a: { action: string; amount: number; toAmount?: number }, u
     case "check":
       return "checked";
     case "call":
-      return `called ${money(a.amount)}`;
+      return conceptual ? "called" : `called ${money(a.amount)}`;
     case "bet":
-      return `bet ${money(level)}`;
+      return conceptual ? "bet" : `bet ${money(level)}`;
     case "raise":
-      return `raised to ${money(level)}`;
+      return conceptual ? "raised" : `raised to ${money(level)}`;
     default:
       return a.action;
   }
@@ -133,10 +140,15 @@ export function HandRecap({
                 <div style={{ fontWeight: 600 }}>
                   <span style={{ color: m.color }}>{STREET_LABEL[d.street] ?? d.street}</span> — you{" "}
                   {sameStreetAsPrev ? "then " : ""}
-                  {actionLabel(d.heroAction, displayUnit)}
-                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
-                    · pot {formatMoney(Math.round(d.spot.potBefore), displayUnit, BIG_BLIND)}
-                  </span>
+                  {actionLabel(d.heroAction, displayUnit, d.analysis.coachingDepth === "conceptual")}
+                  {/* At conceptual depth ("plain words, no numbers") the recap row carries no digits
+                      either — drop the "· pot $X" amount (iter-10 #4). Per-decision depth, so a
+                      mixed-depth session still shows amounts on its equity/strict rows. */}
+                  {d.analysis.coachingDepth !== "conceptual" && (
+                    <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
+                      · pot {formatMoney(Math.round(d.spot.potBefore), displayUnit, BIG_BLIND)}
+                    </span>
+                  )}
                   {/* "chart-based" is a Strict-mode badge (iter-04 #7) — only show it on a strict-depth
                       decision, matching the live feedback panel; honest only when gtoClaim. */}
                   {d.analysis.gtoClaim && d.analysis.coachingDepth === "strict" ? (

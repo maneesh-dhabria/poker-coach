@@ -280,6 +280,16 @@ function aggressionBranch(
   undersize = false,
 ): Branch {
   const base = { kind: "aggression" as const, gtoClaim: false };
+  // A grossly UNDER-sized bet is a SIZE problem regardless of hand strength (iter-10 #3). Earlier the
+  // made-hand branch returned first and swallowed the size check, so a $2-into-$36 bet with a made
+  // hand drew no sizing comment. Surface the size critique first; when a made hand is ALSO present,
+  // keep its context (the made_hand_thin_value tag) on top of bet_too_small so the chip set still
+  // says "you have a hand", and the copy names both the hand and the bad size.
+  if (undersize) {
+    const tags: ConceptTag[] = ["bet_too_small"];
+    if (madeHand) tags.push("made_hand_thin_value");
+    return { ...base, verdict: "thin", severity: 1, conceptTags: tags, flagUndersize: true };
+  }
   if (equityPct < 33) {
     // A MADE hand (pair or better) bet at low equity is NOT a bluff with no equity — it has real
     // showdown value (iter-06 #1). The low win% is about being multiway on a dangerous board, so it's
@@ -294,11 +304,6 @@ function aggressionBranch(
       return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_no_equity"] };
     return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_thin_equity"] };
   }
-  // A grossly UNDER-sized value bet (iter-08 #1): betting may be fine, but a token underbet charges
-  // no draws and builds no pot, so we never praise it as standard "get money in while ahead" value.
-  // Symmetric to the preflop oversize flag — downgrade to ⚠️ thin and tag bet_too_small.
-  if (undersize)
-    return { ...base, verdict: "thin", severity: 1, conceptTags: ["bet_too_small"], flagUndersize: true };
   if (equityPct < 50)
     return { ...base, verdict: "thin", severity: 1, conceptTags: ["thin_value_good"] };
   return { ...base, verdict: "good", severity: 0, conceptTags: [] };

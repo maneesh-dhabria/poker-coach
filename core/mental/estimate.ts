@@ -235,7 +235,9 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
       street,
       madeHand
         ? `No extra outs to count — but you already have ${madeHand.label}, so you're often ahead already.`
-        : "No clear drawing outs — you may already have the best hand, or be drawing thin.",
+        // No draw AND no made hand → don't hedge "you may already have the best hand" when the hero
+        // is holding air (it's false). Say honestly that they're likely behind (iter-10 #6).
+        : "No clear draw and no made hand yet — you're likely behind, so you'd be betting as a bluff or giving up.",
     );
     e.outs = breakdown;
     e.potOdds = potOdds;
@@ -264,7 +266,10 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
       toCall <= 0
         ? {
             profitable: true,
-            sentence: `You already have ${madeHand.label} — it's free to see the next card, so take it (and you may want to bet it for value).`,
+            // No bet to call: the hero is first to act with a made hand, so this is a value-bet
+            // decision, not a "take the free card" check-back (iter-10 #2). Defer the precise
+            // value/marginal call to conclusionFrom once true equity resolves.
+            sentence: `You already have ${madeHand.label} — this is a spot to bet it for value, not just check. Check the true win % below.`,
           }
         : {
             profitable: true,
@@ -340,11 +345,14 @@ export function conclusionFrom(args: {
   const ahead = trueWinPct >= 55;
   if (toCall <= 0) {
     if (madeHand) {
+      // No bet to call AND a made hand: this is a bet-or-check decision, and the recommended line
+      // is to BET the made hand for value — so the conclusion must not tell the user to "take the
+      // free card" (iter-10 #2). Ahead → clear value bet; marginal → a thin value bet, still a bet.
       return {
         profitable: true,
         sentence: ahead
-          ? `It's free to see the next card, and you're ahead ~${win}% of the time — take it, and consider betting ${madeHand.label} for value.`
-          : `It's free to see the next card — take it. You have ${madeHand.label} but only win ~${win}%, so it's marginal, not a clear lead.`,
+          ? `You're ahead ~${win}% of the time with ${madeHand.label} — betting it for value is right.`
+          : `You have ${madeHand.label} and win ~${win}% — a thin value bet here, not a check-back.`,
       };
     }
     return {

@@ -15,9 +15,30 @@ const VERDICT_META = {
   mistake: { icon: "❌", label: "Mistake", color: "var(--mistake)" },
 } as const;
 
-// Humanize a concept tag enum ("call_too_wide" → "call too wide") for a small context chip.
+// Clean human labels for the known concept tags so the chips don't read as crammed slugs like
+// "made hand thin value" or "bluff thin equity" (iter-10 #7). Anything unmapped falls back to the
+// prettified slug. (The ⚠️ "Oversized" VERDICT-badge special-case is separate and unchanged.)
+const TAG_LABELS: Record<string, string> = {
+  made_hand_thin_value: "Thin value",
+  thin_value_good: "Thin value",
+  bluff_thin_equity: "Light semi-bluff",
+  bluff_no_equity: "Bluff (no equity)",
+  preflop_oversize: "Oversized",
+  bet_too_small: "Bet too small",
+  call_too_wide: "Called too wide",
+  played_too_wide: "Played too wide",
+  fold_too_tight: "Folded too tight",
+  good_preflop_discipline: "Good discipline",
+  good_fold_discipline: "Good fold",
+  preflop_chart_deviation: "Off the chart",
+  value_bet_missed: "Missed value",
+  call_correct_price: "Right price",
+};
+
+// Humanize a concept tag for a small context chip — a clean label when known, else the prettified
+// slug ("some_new_tag" → "some new tag").
 function tagLabel(tag: string): string {
-  return tag.replace(/_/g, " ");
+  return TAG_LABELS[tag] ?? tag.replace(/_/g, " ");
 }
 
 function VerdictBadge({
@@ -151,8 +172,16 @@ const STREET_WORD: Record<string, string> = {
 // Anchors the card to the decision it describes: by the time the user reads this, the bots have
 // acted and the board/pot on the table have moved on, so we say which street + pot the numbers are
 // about ("when you acted") to kill the "these % don't match the screen" confusion.
-function contextLine(ctx: { street: string; potBefore: number }, unit: MoneyUnit): string {
+// At conceptual depth ("plain words, no numbers") the context line must contain ZERO digits/currency
+// (iter-10 #4) — so we drop the "· pot was $X" amount and keep only the plain street label. Equity
+// and Strict keep the pot amount.
+function contextLine(
+  ctx: { street: string; potBefore: number },
+  unit: MoneyUnit,
+  conceptual: boolean,
+): string {
   const word = STREET_WORD[ctx.street] ?? ctx.street;
+  if (conceptual) return `Your ${word} decision`;
   return `Your ${word} decision · pot was ${money(ctx.potBefore, unit)} when you acted`;
 }
 
@@ -264,7 +293,7 @@ export function FeedbackPanel({
           data-testid="feedback-context"
           style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}
         >
-          {contextLine(context, unit)}
+          {contextLine(context, unit, depth === "conceptual")}
         </div>
       ) : null}
 

@@ -161,6 +161,29 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(recap.textContent).not.toMatch(/called \$|pot \$|lost \$|won \$/i);
   });
 
+  // iter-10 #4 — a conceptual-depth decision row carries NO digits (no "· pot $X", no "$" amount on
+  // the action verb), since Conceptual promises plain words / no numbers. Equity rows still show them.
+  it("omits the pot amount and action amount on a conceptual decision row (#4)", () => {
+    const decisions = [
+      decision("flop", "bet", 3, { action: "bet", potBefore: 6, toCall: 0, equityPct: 70, coachingDepth: "conceptual" }, 3),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={4} />);
+    const row = screen.getByTestId("recap-decision");
+    expect(row.textContent).toMatch(/you bet/i);
+    expect(row.textContent).not.toMatch(/\$/); // no currency on the conceptual row
+    expect(row.textContent).not.toMatch(/· pot/i); // no pot amount suffix
+  });
+
+  it("STILL shows the pot + amount on an equity-depth decision row (#4 regression)", () => {
+    const decisions = [
+      decision("flop", "bet", 3, { action: "bet", potBefore: 6, toCall: 0, equityPct: 70 }, 3),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={4} />);
+    const row = screen.getByTestId("recap-decision");
+    expect(row.textContent).toMatch(/you bet \$3/i);
+    expect(row.textContent).toMatch(/· pot \$10/i); // spot.potBefore is fixed at 10 by the helper
+  });
+
   // iter-03 #3 — the end-of-hand CONCLUSION only appears once the hand is complete.
   it("hides the Result line + variance/coach notes mid-hand, shows them when complete (#3)", () => {
     const decisions = [

@@ -44,4 +44,38 @@ describe("PreflopChartTab", () => {
     fireEvent.change(select, { target: { value: "UTG" } });
     expect(select.value).toBe("UTG");
   });
+
+  // iter-10 #1 (MAJOR): with Position = BB + the unopened/first-in facing the chart has NO open
+  // range, so it must NOT render a "Fold AA/AKs from BB" grid or detail — it shows an explanatory
+  // panel instead. The big blind never opens unopened (it just checks its option).
+  describe("BB + unopened facing (#1)", () => {
+    it("shows the explanatory panel, not an all-Fold grid", () => {
+      const { getByLabelText, getByTestId, queryByRole } = render(<PreflopChartTab />);
+      fireEvent.change(getByLabelText(/position/i), { target: { value: "BB" } });
+      // facing defaults to unopened
+      expect(getByTestId("chart-bb-no-open")).toBeTruthy();
+      // the 13×13 grid is absent (no clickable all-Fold cells)
+      expect(queryByRole("grid")).toBeNull();
+    });
+
+    it("never shows a 'AA — Fold from BB' or 'AKs — Fold from BB' detail", () => {
+      const { getByLabelText, queryByText } = render(<PreflopChartTab heroPosition="BB" />);
+      // hero seat BB ⇒ position defaults to BB, facing unopened ⇒ explanatory panel, no grid to click.
+      expect(getByLabelText(/facing/i)).toBeTruthy();
+      expect(queryByText(/AA — Fold from BB/i)).toBeNull();
+      expect(queryByText(/AKs — Fold from BB/i)).toBeNull();
+    });
+
+    it("restores a real chart when Facing is switched to 'vs a raise' for BB", () => {
+      const { getByLabelText, getByText, getByTestId } = render(<PreflopChartTab heroPosition="BB" />);
+      fireEvent.change(getByLabelText(/facing/i), { target: { value: "raise" } });
+      // The explanatory panel is gone; AA defends as a raise (a real chart action), not a fold.
+      expect(() => getByTestId("chart-bb-no-open")).toThrow();
+      fireEvent.click(getByLabelText(/AA, /));
+      expect(getByText(/AA — Raise from BB/i)).toBeTruthy();
+      // A junk hand the BB folds to a raise shows a real "Fold" — that IS correct vs a raise.
+      fireEvent.click(getByLabelText(/72o, /));
+      expect(getByText(/72o — Fold from BB/i)).toBeTruthy();
+    });
+  });
 });

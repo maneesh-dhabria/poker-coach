@@ -66,68 +66,112 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
   useEffect(() => {
     if (!userPicked && heroPos) setPosition(heroPos);
   }, [heroPos, userPicked]);
-  const facing: Facing = "unopened";
+  // The action the hero is facing (iter-10 #1). The chart models two cases: an unopened first-in
+  // (RFI) range and a defend-vs-a-raise range. The BB has NO open-first-in range — with no raise to
+  // act against it just checks its option — so chartAction(BB, "unopened") folds every hand. Rather
+  // than print a misleading "Fold AA from BB" grid, we let the user pick the facing and show an
+  // explanatory panel for the one spot the chart has no range for.
+  const [facing, setFacing] = useState<Facing>("unopened");
   const [selected, setSelected] = useState<string | null>(null);
 
-  const detail = selected
-    ? {
-        key: selected,
-        hand: selected.slice(0, 2),
-        pct: Math.round(equityFor(selected)),
-        action: chartAction(repCombo(selected), position, facing),
-      }
-    : null;
+  // The big blind has no opening range; with facing = unopened there's nothing honest to show, so we
+  // replace the all-Fold grid + detail with an explanatory panel (iter-10 #1).
+  const noOpenRange = position === "BB" && facing === "unopened";
+
+  const detail =
+    selected && !noOpenRange
+      ? {
+          key: selected,
+          hand: selected.slice(0, 2),
+          pct: Math.round(equityFor(selected)),
+          action: chartAction(repCombo(selected), position, facing),
+        }
+      : null;
 
   return (
     <div className="card">
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <h2 style={{ margin: 0 }}>Preflop chart</h2>
-        <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
-          <span>Position</span>
-          <select
-            aria-label="position"
-            className="select"
-            value={position}
-            onChange={(e) => {
-              setUserPicked(true);
-              setPosition(e.target.value as Position);
-            }}
-          >
-            {POSITIONS.map((p) => (
-              <option key={p} value={p}>
-                {p}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <span>Position</span>
+            <select
+              aria-label="position"
+              className="select"
+              value={position}
+              onChange={(e) => {
+                setUserPicked(true);
+                setPosition(e.target.value as Position);
+              }}
+            >
+              {POSITIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+            <span>Facing</span>
+            <select
+              aria-label="facing"
+              className="select"
+              value={facing}
+              onChange={(e) => setFacing(e.target.value as Facing)}
+            >
+              <option value="unopened">first in (unopened)</option>
+              <option value="raise">vs a raise</option>
+            </select>
+          </label>
+        </div>
       </div>
 
-      <div
-        role="grid"
-        aria-label="starting hands"
-        style={{ display: "grid", gridTemplateColumns: "repeat(13, 1fr)", gap: 2, marginTop: 12 }}
-      >
-        {RANKS.map((_, i) =>
-          RANKS.map((__, j) => {
-            const key = keyAt(i, j);
-            const action = chartAction(repCombo(key), position, facing);
-            return (
-              <button
-                key={key}
-                type="button"
-                className={`chart-cell cell-${action}`}
-                aria-label={`${key}, ${action}`}
-                aria-pressed={selected === key}
-                onClick={() => setSelected(key)}
-              >
-                {key}
-              </button>
-            );
-          }),
-        )}
-      </div>
+      {noOpenRange ? (
+        <div
+          className="card"
+          data-testid="chart-bb-no-open"
+          style={{ marginTop: 12 }}
+          aria-live="polite"
+        >
+          <h3 style={{ marginTop: 0 }}>The big blind has no opening range here</h3>
+          <p style={{ margin: "4px 0", lineHeight: 1.5 }}>
+            With no raise to act against, the big blind doesn&apos;t open — it simply checks its option
+            and sees the flop for free. So there&apos;s no &ldquo;first-in&rdquo; chart for the big
+            blind: even pocket Aces aren&apos;t a &ldquo;fold&rdquo; here, they just check and play on.
+          </p>
+          <p style={{ margin: "4px 0", lineHeight: 1.5, color: "var(--ink-soft)", fontSize: 13 }}>
+            Switch <strong>Facing</strong> to <strong>vs a raise</strong> to see how the big blind
+            should defend against an open.
+          </p>
+        </div>
+      ) : (
+        <div
+          role="grid"
+          aria-label="starting hands"
+          style={{ display: "grid", gridTemplateColumns: "repeat(13, 1fr)", gap: 2, marginTop: 12 }}
+        >
+          {RANKS.map((_, i) =>
+            RANKS.map((__, j) => {
+              const key = keyAt(i, j);
+              const action = chartAction(repCombo(key), position, facing);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  className={`chart-cell cell-${action}`}
+                  aria-label={`${key}, ${action}`}
+                  aria-pressed={selected === key}
+                  onClick={() => setSelected(key)}
+                >
+                  {key}
+                </button>
+              );
+            }),
+          )}
+        </div>
+      )}
 
-      {detail ? (
+      {noOpenRange ? null : detail ? (
         <div className="card" style={{ marginTop: 12 }} aria-live="polite">
           <h3 style={{ marginTop: 0 }}>
             {detail.key} — {ACTION_LABEL[detail.action]} from {position}
