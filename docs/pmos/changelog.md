@@ -3,6 +3,68 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.14.0] — 2026-06-18
+
+### Reviewer-iteration-9 fixes — no preflop fold/EV contradiction, Conceptual stays number-free
+
+A ninth independent first-time-user playtest (`docs/playtest/reviews/iter-09.md`)
+surfaced two issues on code paths earlier rounds hadn't exercised: a preflop chart
+FOLD card that contradicted its own numbers, and the Conceptual depth still leaking
+numbers into Mental Math. Both fixed, plus a batch of polish. Coaching-analysis + UI
+only; no `HandRecord` schema-version change.
+
+### Fixed
+
+- **A preflop fold is no longer praised next to numbers that say "call."** Folding
+  Q5o from the SB used to show "✅ folding is the standard, profitable play" directly
+  beside "you win ~31%, need ~17% — continuing makes money" and an EV table ranking
+  call/raise above fold. The pot-odds "makes money" line, the equity-bar "need ~%"
+  marker, and the EV "Show the numbers" table are inherently a postflop facing-a-bet
+  (price-branch) tool — they're now suppressed on preflop chart decisions, which are
+  graded for position/playability the one-street math can't capture. The preflop
+  fold copy no longer claims immediate "profit" and adds a short out-of-position
+  playability reconciliation (`components/FeedbackPanel.tsx`, `core/analysis/explain.ts`).
+- **Conceptual depth ("plain words, no numbers") now truly has no numbers.** The
+  Mental Math drawer used to still show percentages, outs counting, pot-odds math,
+  and the Rule-of-4 reconciliation even in Conceptual. The whole Mental Math section
+  (and its toggle/caption) is now hidden at Conceptual depth; it stays full-featured
+  at Equity + Heuristics and Strict charts (`components/MentalMathSection.tsx`).
+- **Instant feedback is actually readable between decisions.** Because the bots act
+  instantly, the rich panel (verdict + equity bar + Mental Math) used to be replaced
+  by an empty "Deciding your <street>…" placeholder before you could read it. The
+  panel now keeps your most recent decision's full feedback visible, clearly
+  relabeled "Your last decision — <street>" with a "now deciding your <street>; this
+  updates when you act" note — so it can't be mistaken for the current spot
+  (`components/RightPanel.tsx`).
+- **Position-aware sizing advice.** The oversized-open warning no longer says "out of
+  position" when you're in position (e.g. on the button) (`core/analysis/explain.ts`).
+- **Clearer verdict labels.** An oversized open now reads "⚠️ Oversized" (not the
+  confusing "⚠️ Thin"), and an air bet/shove with ~20–33% equity is worded as a light
+  semi-bluff (`bluff_thin_equity`) rather than "no equity," which is now reserved for
+  genuinely tiny equity (`core/analysis/{analyze,conceptTags}.ts`).
+- **Readability touches.** Brighter red / truer black suit colors and slightly larger
+  suit glyphs on the dark felt; the table uses a touch more of the viewport at very
+  small sizes; and the EV table is now headed "From here on — the average result
+  going forward, not the whole-hand outcome" so it isn't confused with the hand's P&L
+  (`components/table/{Card,PokerTable}.tsx`, `app/globals.css`, `components/FeedbackPanel.tsx`).
+
+### Notes
+
+- One reported inconsistency — Strict depth showing equity language (not a chart
+  citation) for a big-blind open-over-limpers — is intentional and was left as-is: the
+  baseline RFI chart has no "BB opens first-in" range (that isn't a standard
+  open-raise spot), so inventing a chart claim there would violate the honesty
+  invariant. Strict's chart voice fires for every spot the chart actually models.
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or prior
+  fixes); evidence at `docs/playtest/reviews/iter-09.md`. Verified: `tsc --noEmit`
+  clean, ESLint clean, production build clean, **395** tests passing (+10), including a
+  guard that a preflop fold card shows no pro-call contradiction while a postflop river
+  CALL still shows the pot-odds frame, and that Conceptual depth's Mental Math renders
+  no digits. See `docs/pmos/features/2026-06-18_reviewer-iter9-fixes/`.
+
 ## [0.13.0] — 2026-06-18
 
 ### Reviewer-iteration-8 fixes — bet-sizing sanity, action-correct EV, price-aware bots
