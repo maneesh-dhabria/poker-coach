@@ -3,6 +3,55 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.13.0] — 2026-06-18
+
+### Reviewer-iteration-8 fixes — bet-sizing sanity, action-correct EV, price-aware bots
+
+An eighth independent first-time-user playtest (`docs/playtest/reviews/iter-08.md`)
+found NO major issues — every structural fix held (one consistent win-% per decision,
+no false "you already have a hand," legal-only EV tables, clean layout/units/console).
+This release clears the remaining minor/polish findings.
+
+### Fixed
+
+- **A grossly under-sized bet is no longer praised as good value.** Betting $2 into a
+  $360 pot used to grade "✅ Good · get money in while ahead." A clean bet under ~15%
+  of the pot now grades ⚠️ thin (`bet_too_small`) and the copy says the bet is too
+  small to charge draws or build the pot — symmetric to the existing oversized-open
+  check. Normal 25–33%-pot small bets are unaffected (`core/analysis/*`).
+- **The Mental Math dollar-EV line uses the right verb.** On a value bet it used to
+  read "Calling is worth about $X" directly below a "Betting for value" header. It now
+  says "Betting is worth…" / "Raising is worth…" when you put money in, and "Calling
+  is worth…" only when facing a bet (`components/MentalMathSection.tsx`).
+- **Bots fold trash to gross overbets instead of stacking off.** The opponents'
+  loose call-down is now price-aware: the calling-station tendency tapers to zero as
+  the price worsens (full at ~half-pot, gone by a ~1.5× overbet), so five bots no
+  longer cold-call a 30 BB open or stack off 100 BB with bottom pair. Calling stations
+  still call normal ~half-pot bets loosely — they weren't turned into nits
+  (`core/bots/botEngine.ts`).
+- **Plain-words mode stays plain.** At Conceptual depth the Mental Math drawer no
+  longer surfaces the "Rule of 2 & 4" jargon or the Preflop Chart reference; both are
+  kept at Equity/Strict depth (`components/MentalMathSection.tsx`).
+
+### Changed
+
+- **Equity depth says "the standard play," not "the baseline chart."** Explicit chart
+  citations are now reserved for Strict charts depth (which keeps its chart badge); the
+  Equity + Heuristics copy refers to the standard play without naming a chart
+  (`core/analysis/explain.ts`; demo fixtures refreshed to match).
+- **Hand review disambiguates two actions on one street** — a second action on the
+  same street now reads "Turn — you then called $54" (`components/HandRecap.tsx`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or prior
+  fixes); evidence at `docs/playtest/reviews/iter-08.md`. This was the first playtest
+  to surface zero major issues. Verified: `tsc --noEmit` clean, ESLint clean,
+  production build clean, **385** tests passing (+13), including under-size-bet cases,
+  a bet-EV-verb test, and bot price-awareness tests that confirm calling stations still
+  call normal-sized bets loosely (50-seed assertion) while folding trash to overbets.
+  See `docs/pmos/features/2026-06-18_reviewer-iter8-fixes/`.
+
 ## [0.12.0] — 2026-06-18
 
 ### Reviewer-iteration-7 fixes — one win-% per decision, hole-card-aware made hands

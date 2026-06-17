@@ -194,7 +194,7 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with T♠2♦ is about 17% to win against the 3 opponents still in; the math favors folding from BTN instead, and your line differs from that higher-EV default (the baseline chart agrees).",
+        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with T♠2♦ is about 17% to win against the 3 opponents still in; the math favors folding from BTN instead, and your line differs from that higher-EV standard play.",
         "chart": {
           "applies": true,
           "chartAction": "fold",
