@@ -34,7 +34,29 @@ export function RightPanel() {
       >
         {activeTab === "live-feedback" && (
           <>
-            <FeedbackPanel analysis={feedback?.analysis ?? null} enabled={settings.feedbackEnabled} />
+            <FeedbackPanel
+              analysis={feedback?.analysis ?? null}
+              enabled={settings.feedbackEnabled}
+              context={
+                feedback
+                  ? {
+                      street: feedback.street,
+                      potBefore: feedback.spot.potBefore,
+                      toCall: feedback.spot.toCall,
+                    }
+                  : undefined
+              }
+            />
+            {/* Empty state: a big blank pane reads as "broken", so tell the user feedback is coming
+                (only while feedback is on and we don't yet have a decision to show). */}
+            {settings.feedbackEnabled && !feedback?.analysis ? (
+              <aside data-testid="feedback-empty" className="card" style={{ maxWidth: 420 }}>
+                <p style={{ margin: 0, lineHeight: 1.5 }}>
+                  <strong>Make your move</strong> — after each of your decisions I&apos;ll break down
+                  the verdict, your equity, and the plain-English math right here.
+                </p>
+              </aside>
+            ) : null}
             {flow ? (
               <HandRecap decisions={flow.decisions()} heroNet={flow.tableView().heroNet} />
             ) : null}

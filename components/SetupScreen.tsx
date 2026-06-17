@@ -31,8 +31,24 @@ const STYLE_INFO: Record<Style, string> = {
   Nit: "Nit — ultra-tight. Folds almost everything and only shows up with monster hands. Steal pots from it, but believe its big bets.",
   "Calling Station": "Calling Station — loose-passive. Calls a lot, rarely folds or raises. Never bluff it; bet your strong hands for value and get paid.",
 };
+// Short plain-language gloss for each style, shown as an always-visible legend (the native title
+// tooltips above aren't discoverable for a first-time player).
+const STYLE_GLOSS: Record<Style, string> = {
+  TAG: "tight & aggressive",
+  LAG: "loose & aggressive",
+  Nit: "ultra-tight, folds a lot",
+  "Calling Station": "calls a lot, rarely folds",
+};
 const SKILLS: Skill[] = ["Beginner", "Intermediate", "Advanced"];
 const PRESETS: PresetName[] = ["balanced", "aggro", "passive", "reg-heavy"];
+
+// Plain-language meaning of each whole-table preset (shown as a tooltip on the preset buttons).
+const PRESET_INFO: Record<PresetName, string> = {
+  balanced: "A realistic mix of styles and skills — a good default to learn against.",
+  aggro: "Aggressive table — lots of betting and raising. Expect pressure.",
+  passive: "Passive table — opponents call a lot and rarely raise. Bet your good hands.",
+  "reg-heavy": "Tough table of disciplined regulars — tight and skilled.",
+};
 const STACK_PRESETS = [50, 100, 200] as const; // buy-in depth in BB; default 100 (D15)
 const DEPTHS: { value: CoachingDepth; label: string; hint: string }[] = [
   { value: "conceptual", label: "Conceptual", hint: "Plain words, no numbers" },
@@ -116,6 +132,7 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
             <Button
               key={p}
               size="sm"
+              title={PRESET_INFO[p]}
               variant={selectedPreset === p ? "primary" : "ghost"}
               selected={selectedPreset === p}
               onClick={() => setSettings({ personas: tablePreset(p, settings.numOpponents) })}
@@ -128,6 +145,14 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
 
       <section className="card">
         <h2 style={{ marginTop: 0 }}>Opponents</h2>
+        <p data-testid="style-legend" style={{ color: "var(--ink-soft)", fontSize: 12, margin: "0 0 10px" }}>
+          {STYLES.map((s, i) => (
+            <span key={s} title={STYLE_INFO[s]}>
+              <strong>{s}</strong> — {STYLE_GLOSS[s]}
+              {i < STYLES.length - 1 ? " · " : ""}
+            </span>
+          ))}
+        </p>
         {settings.personas.slice(0, settings.numOpponents).map((p, i) => (
           <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6, alignItems: "center" }}>
             <span style={{ width: 64 }}>Bot {i + 1}</span>

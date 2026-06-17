@@ -52,6 +52,22 @@ describe("FeedbackPanel", () => {
     expect(screen.getByText(/average result if you call/i)).toBeInTheDocument();
   });
 
+  it("anchors the card to the street and pot it refers to when given context", () => {
+    const a = analyze({ action: "call", potBefore: 24, toCall: 7, equityPct: 32, unit: "usd" });
+    render(
+      <FeedbackPanel analysis={a} enabled context={{ street: "flop", potBefore: 24, toCall: 7 }} />,
+    );
+    const ctx = screen.getByTestId("feedback-context");
+    expect(ctx.textContent).toMatch(/flop decision/i);
+    expect(ctx.textContent).toMatch(/pot was \$24 when you acted/i);
+  });
+
+  it("omits the context line when no context is given (back-compat)", () => {
+    const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
+    render(<FeedbackPanel analysis={a} enabled />);
+    expect(screen.queryByTestId("feedback-context")).toBeNull();
+  });
+
   it("includes the Mental Math section without disturbing the verdict/equity (FR-01)", () => {
     const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
     render(<FeedbackPanel analysis={a} enabled />);

@@ -89,12 +89,29 @@ function money(n: number, unit: "usd" | "bb"): string {
   return unit === "usd" ? `$${r}` : `${r} bb`;
 }
 
+const STREET_WORD: Record<string, string> = {
+  preflop: "preflop",
+  flop: "flop",
+  turn: "turn",
+  river: "river",
+};
+
+// Anchors the card to the decision it describes: by the time the user reads this, the bots have
+// acted and the board/pot on the table have moved on, so we say which street + pot the numbers are
+// about ("when you acted") to kill the "these % don't match the screen" confusion.
+function contextLine(ctx: { street: string; potBefore: number }): string {
+  const word = STREET_WORD[ctx.street] ?? ctx.street;
+  return `Your ${word} decision · pot was $${Math.round(ctx.potBefore)} when you acted`;
+}
+
 export function FeedbackPanel({
   analysis,
   enabled,
+  context,
 }: {
   analysis: DecisionAnalysis | null;
   enabled: boolean;
+  context?: { street: string; potBefore: number; toCall: number };
 }) {
   if (!enabled || !analysis) return null;
   const showNumbers = analysis.coachingDepth !== "conceptual";
@@ -115,6 +132,15 @@ export function FeedbackPanel({
           <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>chart-based</span>
         ) : null}
       </div>
+
+      {context ? (
+        <div
+          data-testid="feedback-context"
+          style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}
+        >
+          {contextLine(context)}
+        </div>
+      ) : null}
 
       {analysis.conceptTags.length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>

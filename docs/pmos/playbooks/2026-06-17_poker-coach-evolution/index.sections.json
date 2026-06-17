@@ -1,0 +1,50 @@
+[
+  {
+    "id": "what-this-is",
+    "level": 2,
+    "title": "What this is",
+    "parent_id": null
+  },
+  {
+    "id": "starting-point",
+    "level": 2,
+    "title": "v0.2The starting point: a play-and-learn loop",
+    "parent_id": null
+  },
+  {
+    "id": "playing-it",
+    "level": 2,
+    "title": "v0.3Playing it exposed the real product",
+    "parent_id": null
+  },
+  {
+    "id": "confusion-to-feature",
+    "level": 2,
+    "title": "v0.4A confusion turned into a feature",
+    "parent_id": null
+  },
+  {
+    "id": "ux-debt",
+    "level": 2,
+    "title": "v0.5Paying down the UX debt",
+    "parent_id": null
+  },
+  {
+    "id": "where-headed",
+    "level": 2,
+    "title": "nowWhere it's headed",
+    "parent_id": null
+  },
+  {
+    "id": "how-pipeline-shaped",
+    "level": 2,
+    "title": "How the pipeline shaped the whole arc",
+    "parent_id": null
+  },
+  {
+    "id": "takeaway",
+    "level": 2,
+    "title": "What I'd tell another PM",
+    "parent_id": null
+  }
+]

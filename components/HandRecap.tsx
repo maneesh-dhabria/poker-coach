@@ -85,6 +85,9 @@ export function HandRecap({
                 <div style={{ fontWeight: 600 }}>
                   <span style={{ color: m.color }}>{STREET_LABEL[d.street] ?? d.street}</span> — you{" "}
                   {actionLabel(d.heroAction)}
+                  <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
+                    · pot ${Math.round(d.spot.potBefore)}
+                  </span>
                   {d.analysis.gtoClaim ? (
                     <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>
                       chart-based
@@ -105,6 +108,15 @@ export function HandRecap({
         deeper plain-language write-up of this hand, run <code>/poker-coach last</code> in your
         terminal, then open the Coaching panel and hit Refresh.
       </p>
+
+      {/* Reconcile result vs verdict: winning a hand with a flagged decision feels contradictory,
+          so spell out that the verdicts grade the decision, not this one outcome. */}
+      {heroNet !== null && heroNet >= 0 && c.mistake + c.thin > 0 ? (
+        <p data-testid="recap-reconcile" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
+          You won this hand, but the {c.mistake > 0 ? "❌" : "⚠️"} above flags a play that loses money
+          on average — results swing hand to hand, so we grade the decision, not the outcome.
+        </p>
+      ) : null}
     </section>
   );
 }

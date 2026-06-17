@@ -94,13 +94,28 @@ export function PokerTable() {
   };
 
   return (
-    <section style={{ padding: 16 }}>
+    // Fill the left column as a flex column so the felt SHRINKS to fit short viewports while the
+    // action bar (flex:0 0 auto, below) always stays in view — the action controls must never be
+    // clipped on small/zoomed windows (no-scroll contract preserved; felt absorbs the shrinkage).
+    <section
+      style={{
+        padding: 16,
+        height: "100%",
+        minHeight: 0,
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
+      }}
+    >
       <div
         style={{
           position: "relative",
           background: "radial-gradient(ellipse at center, var(--felt), var(--felt-deep))",
           borderRadius: "var(--r-lg)",
-          height: 580,
+          flex: "1 1 auto",
+          minHeight: 0,
+          maxHeight: 580,
+          width: "100%",
           maxWidth: 760,
           margin: "0 auto",
         }}
@@ -142,7 +157,7 @@ export function PokerTable() {
         </div>
       </div>
 
-      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+      <div style={{ flex: "0 0 auto", marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
         {revealing ? (
           <p data-testid="opponents-acting" style={{ color: "var(--ink-soft)" }}>
             Opponents acting…

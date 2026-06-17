@@ -37,6 +37,13 @@ describe("RightPanel", () => {
     expect(screen.getByRole("tab", { name: /live feedback/i })).toHaveAttribute("aria-selected", "false");
   });
 
+  it("shows a friendly empty state on Live Feedback before any decision (not a blank pane)", () => {
+    render(<RightPanel />);
+    const empty = screen.getByTestId("feedback-empty");
+    expect(empty).toBeInTheDocument();
+    expect(empty.textContent).toMatch(/make your move/i);
+  });
+
   it("coerces a stale persisted tab key to live-feedback", () => {
     // @ts-expect-error — simulate an old persisted value outside the new union
     useSessionStore.getState().setActiveTab("rankings");

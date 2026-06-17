@@ -46,4 +46,23 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     const { container } = render(<HandRecap decisions={[]} heroNet={0} />);
     expect(container.firstChild).toBeNull();
   });
+
+  it("reconciles a winning result with a flagged decision (won but it was a mistake)", () => {
+    const decisions = [
+      // K4o call from CO is a mistake by the chart, but the hand can still be won.
+      decision("preflop", "call", 2, { action: "call", potBefore: 6, toCall: 2, equityPct: 18 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={198} />);
+    const note = screen.getByTestId("recap-reconcile");
+    expect(note.textContent).toMatch(/won this hand/i);
+    expect(note.textContent).toMatch(/grade the decision, not the outcome/i);
+  });
+
+  it("does not show the reconcile note when the result and verdicts agree (won, all good)", () => {
+    const decisions = [
+      decision("preflop", "raise", 6, { action: "raise", potBefore: 3, toCall: 0, equityPct: 62 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={14} />);
+    expect(screen.queryByTestId("recap-reconcile")).toBeNull();
+  });
 });

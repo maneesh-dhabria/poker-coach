@@ -50,6 +50,23 @@ describe("SetupScreen", () => {
     );
   });
 
+  it("shows an always-visible plain-language legend for the style jargon", () => {
+    render(<SetupScreen onDeal={() => {}} />);
+    const legend = screen.getByTestId("style-legend");
+    expect(legend.textContent).toMatch(/TAG/);
+    expect(legend.textContent).toMatch(/tight & aggressive/i);
+    expect(legend.textContent).toMatch(/loose & aggressive/i);
+    expect(legend.textContent).toMatch(/ultra-tight/i);
+  });
+
+  it("table-preset buttons carry a plain-language tooltip", () => {
+    render(<SetupScreen onDeal={() => {}} />);
+    expect(screen.getByRole("button", { name: "aggro" })).toHaveAttribute(
+      "title",
+      expect.stringContaining("Aggressive"),
+    );
+  });
+
   it("Deal triggers the start callback", () => {
     const onDeal = vi.fn();
     render(<SetupScreen onDeal={onDeal} />);
