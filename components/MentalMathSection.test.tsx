@@ -308,30 +308,46 @@ describe("MentalMathSection — dollar-EV verb matches the action (iter-08 #2)",
   });
 });
 
-describe("MentalMathSection — Conceptual depth hides jargon (iter-08 #4)", () => {
-  it("the preflop note contains no 'Rule of 2 & 4' and no Preflop Chart reference at Conceptual depth", () => {
-    act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "conceptual" } })));
-    setFlow(fakeFlow({ street: "preflop", board: [] }));
-    render(<MentalMathSection enabled />);
-    const body = screen.getByTestId("mm-body").textContent ?? "";
-    expect(body).not.toMatch(/Rule of 2 ?& ?4/i);
-    expect(body).not.toMatch(/Preflop Chart/i);
-  });
-
-  it("a flop drawing spot at Conceptual depth shows no 'Rule of 2 & 4' label", () => {
+describe("MentalMathSection — Conceptual depth renders nothing numeric (iter-09 #2)", () => {
+  // iter-08 suppressed only the named jargon, leaving the FULL numeric body (percentages, outs, ×4,
+  // pot-odds, Rule-of-4 reconciliation) visible — a depth leak, since Conceptual promises "no
+  // numbers". Mental Math is fundamentally a numeric tool, so at Conceptual depth the cleanest fix is
+  // to render NOTHING AT ALL (section + toggle + caption gone). The plain-words verdict headline is
+  // the Conceptual coaching.
+  it("renders nothing (null) at Conceptual depth — a flop drawing spot", () => {
     act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "conceptual" } })));
     setFlow(fakeFlow());
-    render(<MentalMathSection enabled verdictEquityPct={51} />);
-    const body = screen.getByTestId("mm-body").textContent ?? "";
-    expect(body).not.toMatch(/Rule of 2 ?& ?4/i);
+    const { container } = render(<MentalMathSection enabled verdictEquityPct={51} />);
+    expect(container.firstChild).toBeNull();
+    // No section, no toggle/caption, and crucially zero digits/percentages anywhere.
+    expect(screen.queryByTestId("mm-section")).toBeNull();
+    expect(screen.queryByTestId("mm-header")).toBeNull();
+    expect(container.textContent ?? "").not.toMatch(/[0-9]/);
   });
 
-  it("keeps the 'Rule of 2 & 4' jargon at Equity depth (numbers expected)", () => {
+  it("renders nothing (null) at Conceptual depth — a preflop spot", () => {
+    act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "conceptual" } })));
+    setFlow(fakeFlow({ street: "preflop", board: [] }));
+    const { container } = render(<MentalMathSection enabled />);
+    expect(container.firstChild).toBeNull();
+    expect(container.textContent ?? "").not.toMatch(/[0-9]/);
+  });
+
+  it("DOES render the numeric Mental Math at Equity depth (Rule of 2 & 4 + percentages)", () => {
     act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "equity" } })));
     setFlow(fakeFlow());
     render(<MentalMathSection enabled verdictEquityPct={51} />);
     const body = screen.getByTestId("mm-body").textContent ?? "";
     expect(body).toMatch(/Rule of 2 ?& ?4/i);
+    expect(body).toMatch(/%/);
+  });
+
+  it("DOES render the numeric Mental Math at Strict depth", () => {
+    act(() => useSessionStore.setState((s) => ({ settings: { ...s.settings, coachingDepth: "strict" } })));
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    expect(screen.getByTestId("mm-section")).toBeInTheDocument();
+    expect((screen.getByTestId("mm-body").textContent ?? "")).toMatch(/%/);
   });
 });
 

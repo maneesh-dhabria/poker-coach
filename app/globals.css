@@ -2,7 +2,10 @@
   --felt: #0f3d2e; --felt-deep: #0a2c20; --panel: #15211c; --panel-2: #1d2c26;
   --ink: #eef2ee; --ink-soft: #b8c4bc; --gold: #d8b15a; --gold-deep: #b8923f;
   --good: #3fb96b; --thin: #e0b54a; --mistake: #e5594e;
-  --card-face: #f7f5ef; --hearts: #c62f2f; --spades: #1b1b1b;
+  /* Suit ink (iter-09 #8): a brighter, more saturated red and a true ink-black so red vs black is
+     unmistakable at small glyph sizes on the cream card face (the reviewer twice misread a black
+     suit as its red rank). Card sizing/layout is unchanged — color contrast only. */
+  --card-face: #f7f5ef; --hearts: #d3140e; --spades: #0a0a0a;
   --chip: #e8c869; --chip-edge: #b8923f;
   --r-sm: 6px; --r-md: 10px; --r-lg: 16px; --r-pill: 999px;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.3);

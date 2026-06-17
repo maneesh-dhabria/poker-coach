@@ -50,47 +50,42 @@ export function RightPanel() {
         {activeTab === "live-feedback" && (
           <>
             {/* While a NEW street's decision is pending, the last verdict describes a PRIOR decision
-                (e.g. preflop while you're deciding the flop). Showing it next to Mental Math's
-                current-spot numbers puts two unrelated win%/EV figures on screen at once. So when the
-                pending spot is a later street than the shown verdict, replace the stale card with a
-                "Deciding your <street>…" pending note — only ONE set of numbers describes the decision
-                in front of the user (finding #5). The Mental Math section (inside FeedbackPanel) still
-                tracks the live spot. */}
-            {settings.feedbackEnabled && pendingStreet && isStale ? (
-              <aside data-testid="feedback-pending" className="card" style={{ maxWidth: 420 }}>
-                <p style={{ margin: 0, lineHeight: 1.5 }}>
-                  {/* The pending card REPLACES the FeedbackPanel (which holds the Mental Math block),
-                      so no Mental Math numbers are on screen here — the copy must not promise any
-                      "numbers below" (iter-07 #3). It only explains that the last verdict was for an
-                      earlier street; the verdict + math for this street arrive once the hero acts. */}
-                  <strong>Deciding your {pendingStreet}…</strong> — the verdict, equity, and math for
-                  this {pendingStreet} decision appear once you act. The hand review below still shows
-                  your earlier decisions.
-                </p>
-              </aside>
-            ) : (
+                (e.g. preflop while you're deciding the flop). iter-02 blanked this to an empty
+                "Deciding your <street>…" placeholder so two unrelated win%/EV figures never read AS
+                the current spot — but because bots act instantly, an instant-feedback newcomer then
+                NEVER got to read the verdict + equity bar + Mental Math they turned on (iter-09 #3).
+                So instead of blanking, we KEEP the prior decision's full feedback visible and
+                READABLE, clearly RE-LABELED ("Your last decision — <street>") with a line saying
+                you're now deciding a later street and this updates when you act — so it can't be
+                mistaken for the current spot. (At end-of-hand the feedback clears, which is fine.) */}
+            {settings.feedbackEnabled && feedback ? (
               <FeedbackPanel
-                analysis={feedback?.analysis ?? null}
+                analysis={feedback.analysis ?? null}
                 enabled={settings.feedbackEnabled}
                 displayUnit={displayUnit}
-                context={
-                  feedback
-                    ? {
-                        street: feedback.street,
-                        potBefore: feedback.spot.potBefore,
-                        toCall: feedback.spot.toCall,
-                        // The action the verdict judges — lets the panel keep the call/draw pot-odds
-                        // framing and the "call" EV row to facing-a-bet continue decisions (#2, #8).
-                        action: feedback.heroAction.action,
-                      }
-                    : undefined
+                priorDecision={
+                  pendingStreet && isStale ? { pendingStreet } : null
                 }
+                context={{
+                  street: feedback.street,
+                  potBefore: feedback.spot.potBefore,
+                  toCall: feedback.spot.toCall,
+                  // The action the verdict judges — lets the panel keep the call/draw pot-odds
+                  // framing and the "call" EV row to facing-a-bet continue decisions (#2, #8).
+                  action: feedback.heroAction.action,
+                }}
               />
-            )}
+            ) : settings.feedbackEnabled ? (
+              <FeedbackPanel
+                analysis={null}
+                enabled={settings.feedbackEnabled}
+                displayUnit={displayUnit}
+              />
+            ) : null}
             {/* Empty state: a big blank pane reads as "broken", so tell the user feedback is coming
-                (only while feedback is on, no decision yet, and we're not already showing the
-                pending-decision card above). */}
-            {settings.feedbackEnabled && !feedback?.analysis && !(pendingStreet && isStale) ? (
+                (only while feedback is on and no decision has been graded yet — once there's a
+                verdict, we keep showing it relabeled as the prior decision rather than blanking). */}
+            {settings.feedbackEnabled && !feedback?.analysis ? (
               <aside data-testid="feedback-empty" className="card" style={{ maxWidth: 420 }}>
                 <p style={{ margin: 0, lineHeight: 1.5 }}>
                   <strong>Make your move</strong> — after each of your decisions I&apos;ll break down

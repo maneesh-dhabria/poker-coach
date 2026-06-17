@@ -172,6 +172,13 @@ export function MentalMathSection({
   }, [equityKey]);
 
   if (!enabled) return null;
+  // Conceptual depth promises "Plain words, no numbers" — but Mental Math is fundamentally a numeric
+  // tool (outs counts, ×4, percentages, pot-odds, the Rule-of-4 reconciliation). iter-8 only hid the
+  // named jargon, leaving the numeric body visible — a depth leak (iter-09 #2). The clean fix is to
+  // not render Mental Math AT ALL in Conceptual depth (the section, its toggle, and its caption): the
+  // plain-words verdict headline is the Conceptual coaching. Full numeric Mental Math stays for
+  // Equity + Strict depths.
+  if (conceptual) return null;
 
   const handContext =
     estimate.status === "ok" && input.hole

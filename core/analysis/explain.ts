@@ -32,6 +32,11 @@ function money(amount: number, unit: Unit, bigBlind = BIG_BLIND): string {
 
 const BIG_BLIND = 2; // the W2 table plays $1/$2; persistent config arrives later
 
+// Below this equity a no-made-hand bet/raise is a genuine "no equity" air bluff; at/above it (up to
+// the 33% aggression cutoff) it's a real light/thin semi-bluff, not "no equity" (iter-09 #6b). Kept
+// in sync with analyze.ts's NO_EQUITY_PCT.
+const NO_EQUITY_PCT = 20;
+
 export interface ExplainParams {
   kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
   verdict: Verdict;
@@ -79,6 +84,15 @@ const CHART_VERB_ING: Record<ChartAction, string> = {
 // Phrase the opponent count the live multiway equity is measured against (iter-04 #2). Never the
 // misleading singular "a random hand" (that's the heads-up References number). Falls back to a
 // neutral "the players still in" when the count is unknown.
+// Is the hero out of position for the oversize-open warning (iter-09 #5)? Only the BTN and CO act
+// late enough to be "in position"; everyone else (UTG/MP/SB/BB) is OOP, so the "bloats the pot out
+// of position" clause is honest only for them. Unknown position ⇒ treat as OOP (the common case).
+function isOutOfPosition(position?: string): boolean {
+  if (!position) return true;
+  const ip = position === "BTN" || position === "CO";
+  return !ip;
+}
+
 function opponentPhrase(numActiveOpponents?: number): string {
   if (numActiveOpponents === undefined || numActiveOpponents <= 0) return "the players still in";
   if (numActiveOpponents === 1) return "the 1 opponent still in";
@@ -171,7 +185,14 @@ function preflop(p: ExplainParams): string {
   // never call it "the standard, profitable play". Lead with the size, keep it depth-light.
   if (p.openSizeBb !== undefined) {
     const bb = Math.round(p.openSizeBb);
-    return `Raising ${label}${where} can be fine, but ${bb} BB is far bigger than a standard open (about 2–3 BB) — that size bloats the pot out of position and risks a lot to win a little. Size it down to a normal open.`;
+    // Only say "out of position" when the hero actually IS out of position (iter-09 #5). On the BTN
+    // (and CO) the hero is in position, so the OOP clause is wrong there — use the position-neutral
+    // "risks a lot to win a little" phrasing instead.
+    const oop = isOutOfPosition(p.position);
+    const sizeHarm = oop
+      ? "that size bloats the pot out of position and risks a lot to win a little"
+      : "it bloats the pot and risks a lot to win a little";
+    return `Raising ${label}${where} can be fine, but ${bb} BB is far bigger than a standard open (about 2–3 BB) — ${sizeHarm}. Size it down to a normal open.`;
   }
 
   // Strict charts → the chart/GTO citation it has always given.
@@ -194,7 +215,17 @@ function preflop(p: ExplainParams): string {
   // the preflop chart here (explicit chart citations are reserved for Strict depth, which keeps its
   // chart badge + "the baseline chart says…"). The meaning is unchanged: this IS the standard
   // recommendation; only the non-jargon wording differs (iter-08 #5).
+  // "Standard play" — NOT "profitable" (iter-09 #1). When the chart action is FOLD, "profitable" reads
+  // as a contradiction (the EV of folding is $0 / negative the blind), so we never claim immediate
+  // profit for a fold. We keep "profitable" only when the chart action actually puts money in
+  // (raise/call), where the standard line does make money over time.
   if (!p.heroDeviates) {
+    if (p.chartAction === "fold") {
+      // Raw equity can look tempting preflop, but a weak offsuit hand plays poorly out of position
+      // over four streets — so the chart folds it even when its one-shot win% looks playable. Naming
+      // that reconciles the headline win% with the fold verdict (iter-09 #1).
+      return `By the odds, ${equityNote} — that can look tempting, but a hand like this plays poorly after the flop, especially out of position, so ${ing}${where} is the standard play here.`;
+    }
     return `By the odds, ${equityNote}, so ${ing}${where} is the standard, profitable play here.`;
   }
   return `By the odds, ${equityNote}; the math favors ${ing}${where} instead, and your line differs from that higher-EV standard play.`;
@@ -222,6 +253,10 @@ function aggression(p: ExplainParams): string {
     return `You have ${p.madeHand.label} — a real made hand with showdown value, so this is a value ${noun}. But multiway on a dangerous board your ~${win}% to win is low, so it's a thin, vulnerable ${noun}.`;
   if (p.verdict === "good") return `${act} for value with ~${win}% is good — get money in while ahead.`;
   if (p.verdict === "thin") return `A thin ${noun} with ~${win}% — fine as value or a semi-bluff, but it's marginal.`;
+  // A light/thin bluff: real-but-low equity (~20–33%, no made hand) is a semi-bluff, not "no equity"
+  // (iter-09 #6b). Below ~20% it's a genuine air bluff with almost nothing behind it. Both grade -EV.
+  if (p.equityPct >= NO_EQUITY_PCT)
+    return `${act} ~${win}% with no made hand is a light semi-bluff — you win some of the time, but not enough to push here, so it loses money on average.`;
   return `You're betting with only ~${win}% and little chance of folding out a better hand — there's not enough behind it.`;
 }
 
@@ -319,6 +354,10 @@ function conceptual(p: ExplainParams): string {
         return raising
           ? "A marginal raise — fine to push a thin edge, but it's borderline."
           : "A marginal bet — fine as thin value or a semi-bluff.";
+      // A light/thin semi-bluff (some equity, no made hand) vs genuine air, in plain words (iter-09
+      // #6b). Both lose money on average here.
+      if (p.equityPct >= NO_EQUITY_PCT)
+        return `You're ${acting} as a light semi-bluff — you've got some chances, but not enough here, so it loses money on average.`;
       return `You're ${acting} with little behind it — there's not enough here.`;
     }
     case "freecheckfold":

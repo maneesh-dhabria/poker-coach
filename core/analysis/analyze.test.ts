@@ -210,6 +210,42 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(lower).toContain("two pair");
   });
 
+  // iter-09 #6b: reserve "bluff_no_equity" for genuinely tiny equity (< ~20%). A ~20–33% air-shove
+  // with no made hand is a real light/thin semi-bluff, not "no equity" — tag bluff_thin_equity. The
+  // -EV grade is unchanged (still a ❌ mistake).
+  it("tags a ~31% air bet/shove as a thin/light bluff, NOT 'bluff_no_equity' (#6b)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 31,
+      street: "turn",
+      hole: ["Kc", "Qd"],
+      board: ["7h", "5d", "2s", "9c"],
+    });
+    expect(a.verdict).toBe("mistake"); // still graded -EV
+    expect(a.conceptTags).toContain("bluff_thin_equity");
+    expect(a.conceptTags).not.toContain("bluff_no_equity");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("semi-bluff");
+    expect(lower).not.toContain("no equity");
+  });
+
+  it("still tags a genuinely tiny-equity (<20%) air bet as 'bluff_no_equity' (#6b boundary)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 12,
+      street: "turn",
+      hole: ["7c", "2d"],
+      board: ["Ah", "Kd", "Qs", "9h"],
+    });
+    expect(a.verdict).toBe("mistake");
+    expect(a.conceptTags).toContain("bluff_no_equity");
+    expect(a.conceptTags).not.toContain("bluff_thin_equity");
+  });
+
   it("treats a thin bet as marginal value", () => {
     const a = analyze({ action: "bet", potBefore: 20, toCall: 0, equityPct: 42, street: "flop" });
     expect(a.verdict).toBe("thin");

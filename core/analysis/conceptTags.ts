@@ -15,6 +15,10 @@ export const CONCEPT_TAGS = [
   // low-equity made-hand bet from being mislabeled "bluff_no_equity" (iter-06 #1).
   "made_hand_thin_value",
   "bluff_no_equity",
+  // A light/thin bluff with real-but-low equity (~20–33%) and no made hand — a semi-bluff, NOT a "no
+  // equity" bluff. Reserves the "no equity" wording for genuinely tiny equity (< ~20%) so a 31%
+  // air-shove isn't called "no equity" (iter-09 #6b). The -EV grade is unchanged (still a mistake).
+  "bluff_thin_equity",
   // A preflop open/raise whose SIZE is far larger than a standard open (the decision to raise can
   // still be right — only the size is off) (iter-06 #3).
   "preflop_oversize",

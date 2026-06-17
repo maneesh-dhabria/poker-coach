@@ -49,7 +49,9 @@ export function Card({
       }}
     >
       {rankOf(card)}
-      {SUIT_SYMBOL[suit]}
+      {/* Slightly larger suit glyph (iter-09 #8) so the suit reads at a glance at small scaled sizes,
+          without changing the card box size. */}
+      <span style={{ fontSize: "1.15em", lineHeight: 1 }}>{SUIT_SYMBOL[suit]}</span>
     </span>
   );
 }

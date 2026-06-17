@@ -174,10 +174,12 @@ describe("FeedbackPanel — EV table lists only legal actions (iter-03 #8)", () 
     expect(text).toMatch(/average result if you raise/i);
   });
 
-  // iter-06 #4: a preflop OPEN-raise (hero raised first-in, no bet to call) had no check option and
-  // no bet to call — its EV table must show fold/raise, never a phantom "check" row, and label the
-  // aggressive line "raise".
-  it("a preflop open-raise EV table has no 'check' row and labels the aggressive option 'raise'", () => {
+  // iter-09 #1 SUPERSEDES iter-06 #4: a PREFLOP CHART decision (kind === "preflop", gtoClaim true) is
+  // graded by the chart for playability/position reasons one-street pot-odds math doesn't capture, so
+  // the EV "Show the numbers" mini-table must NOT appear there at all — it would pair an EV ranking
+  // with a chart verdict (e.g. praise a fold while the table ranks call/raise higher). So a preflop
+  // chart open shows NO EV table.
+  it("a preflop chart open shows NO EV 'Show the numbers' table (iter-09 #1)", () => {
     const a = analyze({
       action: "raise",
       potBefore: 3,
@@ -198,10 +200,112 @@ describe("FeedbackPanel — EV table lists only legal actions (iter-03 #8)", () 
       />,
     );
     const text = screen.getByTestId("feedback-panel").textContent ?? "";
-    expect(text).not.toMatch(/average result if you check/i);
-    expect(text).not.toMatch(/average result if you call/i);
-    expect(text).toMatch(/average result if you fold/i);
-    expect(text).toMatch(/average result if you raise/i);
+    expect(text).not.toMatch(/show the numbers/i);
+    expect(text).not.toMatch(/average result if you/i);
+  });
+});
+
+describe("FeedbackPanel — preflop chart fold shows no pro-call contradiction (iter-09 #1)", () => {
+  // The reviewer's MAJOR: a SB folding 5♥Q♣ (chart says fold) showed a "you only need ~17% … makes
+  // money over time" pot-odds line AND a "fold $0 · call $1 · raise $1" EV table — praising folding
+  // while the visible numbers say call/raise is better. A SB folding to the BB IS "facing a bet", so
+  // the price-frame fired on a preflop CHART decision. Gate: the whyLine, the "need ~%" equity marker,
+  // and the EV table never appear on a preflop chart decision.
+  const sbFold = analyze({
+    action: "fold",
+    potBefore: 5,
+    toCall: 1,
+    equityPct: 31,
+    unit: "usd",
+    coachingDepth: "equity",
+    street: "preflop",
+    hand: ["5h", "Qc"],
+    position: "SB",
+    facing: "unopened",
+  });
+
+  it("the SB fold is a preflop chart decision (gtoClaim, good verdict)", () => {
+    expect(sbFold.explanationInput?.kind).toBe("preflop");
+    expect(sbFold.gtoClaim).toBe(true);
+    expect(sbFold.verdict).toBe("good");
+  });
+
+  it("shows NO pro-call 'makes money'/'only need ~%' whyLine and NO EV table on a preflop fold", () => {
+    render(
+      <FeedbackPanel
+        analysis={sbFold}
+        enabled
+        context={{ street: "preflop", potBefore: 5, toCall: 1, action: "fold" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).not.toMatch(/makes money over time/i);
+    expect(text).not.toMatch(/only need ~/i);
+    expect(text).not.toMatch(/show the numbers/i);
+    expect(text).not.toMatch(/average result if you/i);
+    // The "need ~%" marker on the equity bar is also suppressed (no needed tick).
+    expect(screen.queryByTestId("equity-needed")).toBeNull();
+  });
+
+  it("does not praise folding as 'profitable' (the EV of folding is $0)", () => {
+    render(<FeedbackPanel analysis={sbFold} enabled />);
+    expect(screen.getByTestId("plain-math").textContent ?? "").not.toMatch(/profitable/i);
+  });
+
+  // Regression guard (the Hand-4 river CALL the reviewer confirmed CORRECT): a postflop facing-a-bet
+  // call STILL shows both the win-vs-need whyLine and the EV table.
+  it("a postflop facing-a-bet CALL still shows the whyLine AND the EV table (regression)", () => {
+    const a = analyze({ action: "call", potBefore: 22, toCall: 10, equityPct: 79, unit: "usd", street: "river" });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "river", potBefore: 22, toCall: 10, action: "call" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/makes money over time/i);
+    expect(text).toMatch(/show the numbers/i);
+    expect(text).toMatch(/average result if you call/i);
+  });
+});
+
+describe("FeedbackPanel — oversize badge + going-forward EV label (iter-09 #6a/#9)", () => {
+  it("an oversized preflop open shows the 'Oversized' badge, not 'Thin' (#6a)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 55,
+      unit: "usd",
+      coachingDepth: "equity",
+      street: "preflop",
+      hand: ["Td", "2c"],
+      position: "BTN",
+      facing: "unopened",
+      raiseToAmount: 40, // 20 BB open
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).toContain("preflop_oversize");
+    render(<FeedbackPanel analysis={a} enabled />);
+    const badge = screen.getByTestId("verdict-badge").textContent ?? "";
+    expect(badge).toMatch(/oversized/i);
+    expect(badge).not.toMatch(/thin/i);
+    expect(badge).toContain("⚠️"); // keep the same severity icon
+  });
+
+  it("the EV 'Show the numbers' table is labeled as going-forward, not the whole-hand result (#9)", () => {
+    const a = analyze({ action: "check", potBefore: 54, toCall: 0, equityPct: 40, unit: "usd", street: "river" });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "river", potBefore: 54, toCall: 0, action: "check" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/from here on/i);
+    expect(text).toMatch(/not the whole-hand outcome/i);
   });
 });
 

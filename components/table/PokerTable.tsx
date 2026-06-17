@@ -160,7 +160,11 @@ export function PokerTable() {
     // clipped on small/zoomed windows (no-scroll contract preserved; the stage absorbs the shrinkage).
     <section
       style={{
-        padding: 16,
+        // Trimmed from 16 → 8 (iter-09 #4): at extreme-small viewports (e.g. 700×500) the scale-to-fit
+        // shrinks the table far enough that seat/stack/card text is hard to read. Giving the stage back
+        // the surrounding padding lets the fixed design box scale UP a little before clamping, with no
+        // change to the fixed geometry — so the no-overlap / no-clip guarantee (uniform scale) holds.
+        padding: 8,
         height: "100%",
         minHeight: 0,
         display: "flex",

@@ -20,8 +20,18 @@ function tagLabel(tag: string): string {
   return tag.replace(/_/g, " ");
 }
 
-function VerdictBadge({ verdict }: { verdict: DecisionAnalysis["verdict"] }) {
+function VerdictBadge({
+  verdict,
+  conceptTags,
+}: {
+  verdict: DecisionAnalysis["verdict"];
+  conceptTags: DecisionAnalysis["conceptTags"];
+}) {
   const m = VERDICT_META[verdict];
+  // An oversized preflop OPEN grades ⚠️ thin, but "Thin" reads as thin VALUE and confuses (iter-09
+  // #6a). When the oversize tag is present, show the clearer "Oversized" label while keeping the same
+  // ⚠️ icon / thin severity color.
+  const label = conceptTags.includes("preflop_oversize") ? "Oversized" : m.label;
   return (
     <span
       data-testid="verdict-badge"
@@ -36,7 +46,7 @@ function VerdictBadge({ verdict }: { verdict: DecisionAnalysis["verdict"] }) {
         fontWeight: 700,
       }}
     >
-      {m.icon} {m.label}
+      {m.icon} {label}
     </span>
   );
 }
@@ -151,6 +161,7 @@ export function FeedbackPanel({
   enabled,
   context,
   displayUnit = "usd",
+  priorDecision = null,
 }: {
   analysis: DecisionAnalysis | null;
   enabled: boolean;
@@ -158,6 +169,11 @@ export function FeedbackPanel({
   // Whether to render money in dollars or big blinds — mirrors the table/banner toggle so the panel
   // never shows a conflicting unit (finding #7). The verdict/equity come from analysis as before.
   displayUnit?: MoneyUnit;
+  // When set, this verdict describes a PRIOR decision while the hero is now deciding a later street
+  // (iter-09 #3). Instead of blanking the panel (which hid the equity bar / Mental Math from
+  // instant-feedback users), we keep it visible but RE-LABEL it "Your last decision — <street>" with
+  // a line noting the current pending street — so it can't be mistaken for the spot in front of them.
+  priorDecision?: { pendingStreet: string } | null;
 }) {
   if (!enabled || !analysis) return null;
   const depth = analysis.coachingDepth;
@@ -182,10 +198,26 @@ export function FeedbackPanel({
   const facingBet = (context?.toCall ?? (need !== null ? 1 : 0)) > 0 && !isAggressive;
   // A preflop first-in open-raise (no bet to call): its EV table is fold/raise, not check/bet (#4).
   const preflopOpen = !facingBet && isAggressive && context?.street === "preflop";
-  // Show the win-vs-need headline only on a genuine facing-a-bet continue decision. On a bet/raise
-  // (or an unopened spot) the "you only need ~Y% / makes money over time" framing is meaningless and
-  // would contradict a ❌ bet verdict (iter-03 #2), so it is never rendered there.
-  const showWhyLine = facingBet && need !== null;
+  // The branch the verdict actually came from (iter-09 #1). A PREFLOP CHART decision (kind ===
+  // "preflop", gtoClaim true) is graded by the chart for playability/position reasons that one-street
+  // pot-odds math doesn't capture — so the pot-odds "you only need ~Y% / makes money over time"
+  // whyLine, the equity-bar "need ~%" marker, AND the EV "Show the numbers" table must NOT fire there:
+  // a SB folding to the BB is technically "facing a bet", and those frames would praise calling/raising
+  // on a card whose verdict is "the standard play is to fold". The price frames belong to the postflop
+  // PRICE branch (a real facing-a-bet continue decision); the EV table is also fine on the confirmed
+  // postflop value-check / bet spots — so we EXCLUDE the preflop chart branch rather than restrict to
+  // price only, leaving every postflop EV table the reviewer confirmed correct (Hand-1 river check,
+  // Hand-4 river call) intact.
+  const kind = analysis.explanationInput?.kind;
+  const isPreflopChart = kind === "preflop";
+  // Show the win-vs-need headline only on a genuine facing-a-bet PRICE decision. On a bet/raise, an
+  // unopened spot, OR a preflop chart spot the "you only need ~Y% / makes money over time" framing is
+  // meaningless or contradicts the verdict (iter-03 #2, iter-09 #1), so it is never rendered there.
+  const showWhyLine = !isPreflopChart && facingBet && need !== null;
+  // The EV "Show the numbers" mini-table is a price/odds frame: never show it on a preflop chart card
+  // so a preflop fold never pairs a "fold $0 · call $1 · raise $1" table with a "folding is standard"
+  // verdict (iter-09 #1). It still shows on every postflop facing-a-bet / bet / check spot.
+  const showEvTable = !isPreflopChart;
 
   return (
     <aside
@@ -193,8 +225,31 @@ export function FeedbackPanel({
       className="card"
       style={{ maxWidth: 420 }}
     >
+      {/* Prior-decision banner (iter-09 #3): this verdict/equity/Mental-Math describes the hero's LAST
+          decision; they're now deciding a later street. Clearly labeled so it can't be read as the
+          current spot — it updates the moment they act. */}
+      {priorDecision ? (
+        <div
+          data-testid="feedback-prior"
+          style={{
+            fontSize: 12,
+            color: "var(--ink-soft)",
+            marginBottom: 10,
+            paddingBottom: 8,
+            borderBottom: "1px solid #2a3a32",
+          }}
+        >
+          <strong style={{ color: "var(--ink)" }}>
+            Your last decision — {STREET_WORD[context?.street ?? ""] ?? context?.street ?? "previous street"}
+          </strong>
+          <div style={{ marginTop: 2 }}>
+            You&apos;re now deciding your {priorDecision.pendingStreet}; this updates when you act.
+          </div>
+        </div>
+      ) : null}
+
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <VerdictBadge verdict={analysis.verdict} />
+        <VerdictBadge verdict={analysis.verdict} conceptTags={analysis.conceptTags} />
         {/* "chart-based" is a STRICT-mode badge (iter-04 #7): in Strict the chart IS the lens, so the
             badge belongs; in Equity the win-rate framing leads (the sentence may still note the chart
             agrees — honesty preserved — but the badge mustn't read as Strict-mode language); in
@@ -265,19 +320,28 @@ export function FeedbackPanel({
             </div>
           ) : null}
 
-          <details style={{ marginTop: 8 }}>
-            <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ink-soft)" }}>
-              Show the numbers
-            </summary>
-            <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6, display: "grid", gap: 2 }}>
-              {evRows(ev, facingBet, preflopOpen).map((r) => (
-                <span key={r.label}>Average result if you {r.label}: {money(r.value, unit)}</span>
-              ))}
-              <span style={{ marginTop: 4 }}>
-                Higher is better — these are long-run averages, not this one hand.
-              </span>
-            </div>
-          </details>
+          {showEvTable && (
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ink-soft)" }}>
+                Show the numbers
+              </summary>
+              <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6, display: "grid", gap: 2 }}>
+                {/* These are GOING-FORWARD averages from this spot — not the whole-hand result. A river
+                    "check: $9" can sit next to a "you lost $18" hand result and both be right (one is
+                    the EV from here, the other whole-hand P&L), so we say so to kill that confusion
+                    (iter-09 #9). */}
+                <span style={{ marginBottom: 2 }}>
+                  From here on — the average result going forward, not the whole-hand outcome:
+                </span>
+                {evRows(ev, facingBet, preflopOpen).map((r) => (
+                  <span key={r.label}>Average result if you {r.label}: {money(r.value, unit)}</span>
+                ))}
+                <span style={{ marginTop: 4 }}>
+                  Higher is better — these are long-run averages, not this one hand.
+                </span>
+              </div>
+            </details>
+          )}
         </div>
       ) : null}
 

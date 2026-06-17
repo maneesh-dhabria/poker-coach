@@ -160,6 +160,10 @@ const OVERSIZE_OPEN_BB = 10;
 // only catches token underbets ($2 into $360 ≈ 0.6% pot) that charge no draws and build no pot.
 const UNDERSIZE_BET_FRACTION = 0.15;
 
+// Below this equity a no-made-hand bet/raise is a genuine "no equity" bluff; at/above it (up to the
+// 33% aggression cutoff) it's a real light/thin semi-bluff, not "no equity" (iter-09 #6b).
+const NO_EQUITY_PCT = 20;
+
 function route(
   input: AnalyzeInput,
   madeHand: MadeHand | null,
@@ -283,7 +287,12 @@ function aggressionBranch(
     // the bluff_no_equity tag + mistake verdict.
     if (madeHand)
       return { ...base, verdict: "thin", severity: 1, conceptTags: ["made_hand_thin_value"] };
-    return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_no_equity"] };
+    // Reserve "bluff_no_equity" (and its "no equity" wording) for genuinely tiny equity (< ~20%). A
+    // ~20–33% air-shove is a real light/thin semi-bluff, not "no equity" — tag it bluff_thin_equity
+    // (iter-09 #6b). The -EV grade is unchanged (still a ❌ mistake); only the tag/wording differs.
+    if (equityPct < NO_EQUITY_PCT)
+      return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_no_equity"] };
+    return { ...base, verdict: "mistake", severity: 2, conceptTags: ["bluff_thin_equity"] };
   }
   // A grossly UNDER-sized value bet (iter-08 #1): betting may be fine, but a token underbet charges
   // no draws and builds no pot, so we never praise it as standard "get money in while ahead" value.

@@ -298,6 +298,19 @@ describe("oversized preflop open copy flags the SIZE (iter-06 #3)", () => {
     expect(s).not.toMatch(/\d/);
     expect(s.toLowerCase()).toMatch(/bigger|normal-sized/);
   });
+
+  // iter-09 #5: the OOP clause is position-aware. On the BTN (in position) the copy must NOT say
+  // "out of position"; it uses the position-neutral "risks a lot to win a little" phrasing instead.
+  it("equity depth: an in-position (BTN) oversize open's copy does NOT say 'out of position'", () => {
+    const s = buildExplanation({ ...open("equity"), position: "BTN" }).toLowerCase();
+    expect(s).not.toContain("out of position");
+    expect(s).toMatch(/bloats the pot and risks a lot to win a little/);
+  });
+
+  it("equity depth: an out-of-position (UTG) oversize open's copy still says 'out of position'", () => {
+    const s = buildExplanation({ ...open("equity"), position: "UTG" }).toLowerCase();
+    expect(s).toContain("out of position");
+  });
 });
 
 describe("explanation sentence renders in the display unit (iter-04 #3)", () => {
