@@ -3,6 +3,69 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.16.0] — 2026-06-18
+
+### Reviewer-iteration-11 fixes — closing the edges the last round opened
+
+An eleventh independent first-time-user playtest (`docs/playtest/reviews/iter-11.md`)
+found three correctness bugs — each an edge-case the *previous* round's fixes didn't
+cover. All three are now closed without reopening what those fixes fixed.
+Coaching-analysis + UI only; no `HandRecord` schema-version change.
+
+### Fixed
+
+- **A small bet with a weak hand is no longer praised as a value bet.** A min-bet with
+  ~13% equity (A-high) used to be graded "you're AHEAD, size up to get paid while
+  you're in front" — directly contradicting its own EV table (betting −$26 vs checking
+  +$6). The "bet too small for value" critique now only fires for genuine value bets (a
+  made hand, or enough equity to actually be ahead); a low-equity undersized bet is
+  graded the mistake it is, agreeing with the EV table and never claiming a lead. The
+  made-hand thin-value sizing check from the prior round is preserved
+  (`core/analysis/analyze.ts`, `explain.ts`).
+- **The reference chart never tells you to fold Aces — in any position.** Last round's
+  new Facing selector exposed a "vs a raise" view, but the chart only has big-blind
+  defense data, so "vs a raise" at every other position folded every hand ("AA — Fold
+  from BTN"). The explanatory-panel guard is now general: any position/facing the chart
+  doesn't actually model shows a short explanation instead of a fabricated all-fold grid
+  — so a premium hand can never display "Fold" in an unmodeled spot
+  (`components/PreflopChartTab.tsx`).
+- **"Played well, unlucky variance" no longer appears after a flagged play.** The
+  end-of-hand variance reassurance used to show on any non-mistake loss — including a
+  hand whose only flaw was a ⚠️ thin play (e.g. an oversized shove). It now appears only
+  when every hero decision graded clean (no ⚠️ and no ❌); a flagged loss instead gets a
+  consistent "review the flagged play — that's the leak, not variance" note
+  (`components/HandRecap.tsx`).
+
+### Also fixed
+
+- **Mental Math Step 6 no longer contradicts the dollar-EV line on the same card.** On a
+  free street with no made hand, Step 6 used to say "take the free card" even when the
+  EV table showed betting was the higher-EV play; it now recommends whichever action the
+  EV actually favors (`core/mental/estimate.ts`, `components/{FeedbackPanel,MentalMathSection}.tsx`).
+- **Position-accurate fold praise** — "especially out of position" now only appears for
+  genuinely out-of-position seats, not the cutoff/button (`core/analysis/explain.ts`).
+- **Conceptual depth is now digit-free across the whole panel** — the end-of-hand result
+  line and decision tally drop their numbers at Conceptual depth (kept for Equity +
+  Strict), matching the number-free verdict card (`components/HandRecap.tsx`).
+
+### Notes
+
+- Sub-800px seat-text legibility remains an accepted tradeoff of the scale-to-fit table:
+  the no-clip / no-overlap guarantee comes from uniformly scaling to fit, so a text-size
+  floor would reintroduce overflow at the smallest sizes. Nothing is clipped or
+  overlapping — only small.
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or prior
+  fixes); evidence at `docs/playtest/reviews/iter-11.md`. All three MAJORs were
+  regressions/edges introduced by the iter-10 fixes — caught precisely because each
+  review starts fresh. Verified: `tsc --noEmit` clean, ESLint clean, production build
+  clean, **431** tests passing (+23), with guards that a low-equity small bet agrees
+  with its EV table, the chart never renders "Fold AA", no "played well" praise survives
+  a ⚠️/❌, and Step 6 never contradicts the EV table. See
+  `docs/pmos/features/2026-06-18_reviewer-iter11-fixes/`.
+
 ## [0.15.0] — 2026-06-18
 
 ### Reviewer-iteration-10 fixes — honest BB chart, no number leaks, proportional praise
