@@ -3,6 +3,73 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.15.0] — 2026-06-18
+
+### Reviewer-iteration-10 fixes — honest BB chart, no number leaks, proportional praise
+
+A tenth independent first-time-user playtest (`docs/playtest/reviews/iter-10.md`)
+confirmed the iter-9 fixes held (no fold-vs-numbers contradiction, Conceptual's Mental
+Math is number-free) and surfaced one chart-display bug plus polish. Coaching-analysis
++ UI only; no `HandRecord` schema-version change.
+
+### Fixed
+
+- **The preflop reference chart no longer tells you to fold Aces in the big blind.**
+  With Position = BB the whole column rendered as "Fold" (so AA showed "AA — Fold from
+  BB"), because the chart models raise-first-in ranges and the big blind has no opening
+  range. The chart now has a **Facing** selector: with "first-in" + BB it shows a short
+  explanation ("the big blind has no opening range here — with no raise to act against
+  it just checks its option; switch to *vs a raise* to see big-blind defense") instead
+  of a misleading all-fold grid; "vs a raise" shows the real BB-defense chart. No
+  fabricated BB opening range — the honesty invariant is preserved
+  (`components/PreflopChartTab.tsx`).
+- **Mental Math no longer says "take the free card" when you're betting.** On a
+  bet-or-check turn spot (nothing to call) the Step-6 block was headed "The call" and
+  advised taking a free card even while the verdict recommended a bet. It now reads
+  "Step 6 · The decision" and frames a made hand worth betting as a (thin) value bet; a
+  genuine check-back still gets the free-card line (`core/mental/estimate.ts`,
+  `components/MentalMathSection.tsx`).
+- **A grossly undersized bet is now flagged even with a made hand.** A $2 bet into a
+  $36 pot used to be graded only on hand strength; the made-hand branch swallowed the
+  sizing check. A tiny bet now also draws "you have <hand>, but this bet is far too
+  small to get value — size up" (`core/analysis/analyze.ts`, `explain.ts`).
+- **Conceptual depth ("plain words, no numbers") now has truly no digits.** The live
+  feedback and hand-recap context lines used to still print "pot was $6" / "you bet $3"
+  in Conceptual; those amounts are now omitted at that depth (kept for Equity + Strict)
+  (`components/FeedbackPanel.tsx`, `components/HandRecap.tsx`).
+- **Praise is proportional to the hand.** A marginal middle pair is no longer called a
+  "strong hand"; the value-bet copy now reads "you're ahead often enough here — betting
+  for value is right" (`core/analysis/explain.ts`).
+- **The Mental Math no-draw note stopped hedging "you may already have the best hand"
+  when you hold air.** With no draw and no made hand it now says "no clear draw and no
+  made hand yet — you're likely behind"; the "best hand" wording only appears when you
+  actually have a pair or better (`core/mental/estimate.ts`).
+
+### Readability
+
+- Verdict jargon chips now show clean labels ("Thin value", "Light semi-bluff",
+  "Bet too small", "Oversized") instead of raw underscored slugs
+  (`components/FeedbackPanel.tsx`).
+- Slightly larger seat names/stacks and a bolder currency glyph on action badges so a
+  "$2" call doesn't read like "12" at small window sizes — no geometry change, the
+  scale-to-fit + no-scroll guarantees hold (`components/table/Seat.tsx`).
+
+### Notes
+
+- Two reported items were intentionally left as-is: KQo defended from the BB grades by
+  the real chart (its ~45% multiway equity is honest, and the ⚠️ is a thin-not-mistake
+  note), and a `layout.css` 404 in the console is Next.js dev hot-reload stale-chunk
+  noise, not a runtime error (the page is fully styled).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or prior
+  fixes); evidence at `docs/playtest/reviews/iter-10.md`. Verified: `tsc --noEmit`
+  clean, ESLint clean, production build clean, **408** tests passing (+13), including
+  guards that the BB chart never renders "Fold AA/AKs from BB", a Conceptual card's
+  full text matches no digit, and a tiny made-hand bet carries a sizing critique. See
+  `docs/pmos/features/2026-06-18_reviewer-iter10-fixes/`.
+
 ## [0.14.0] — 2026-06-18
 
 ### Reviewer-iteration-9 fixes — no preflop fold/EV contradiction, Conceptual stays number-free
