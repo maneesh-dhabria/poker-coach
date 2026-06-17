@@ -171,6 +171,43 @@ In-browser re-verification at the previously-broken 1024×640 (screenshots 11–
 - ✅ FR-5: won $28 with a flagged preflop call → reconcile line rendered (screenshot 14).
 - ✅ FR-6: `curl /favicon.ico` → 200 image/x-icon; no console 404.
 
+---
+
+## Round 3 — FRESH re-review after /complete-dev (v0.6.0 on main)
+
+Shipped: merged to `main`, bumped to **v0.6.0**, changelog written, tagged `v0.6.0`, pushed to
+origin. Then reloaded the app **as a brand-new user** (cleared mindset, no assumptions) and played
+again. Screenshots 15–18. Console: clean (only the React DevTools info line — **no favicon 404**).
+
+Walking the exact moments that upset me in Rounds 1–2, every one is now fine:
+
+- **Setup jargon (was issue #4).** EMOTION - reassured: the very first thing under "Opponents" is a
+  plain-language legend — "TAG — tight & aggressive · LAG — loose & aggressive · Nit — ultra-tight,
+  folds a lot · Calling Station — calls a lot, rarely folds." As a basics-only player I now know
+  exactly what I'm picking. No confusion. (screenshot 15)
+- **Action bar cut off (was issue #1, the BLOCKER).** EMOTION - relieved: dealt a hand at 1280×720
+  and again at the previously-broken **1024×640** — the Fold/Call/Raise (and Check/Bet) bar is fully
+  on-screen both times; the table scales down to make room instead of hiding the controls. The thing
+  that made me think "is this broken?" is gone. (screenshots 16, 18)
+- **Empty Live Feedback pane (was issue #2).** EMOTION - oriented: before I act the panel says
+  "Make your move — after each of your decisions I'll break down the verdict, your equity, and the
+  plain-English math right here." Now the blank-looking right half reads as "waiting for you," not
+  "failed to load." (screenshot 16)
+- **Feedback out of sync with the board (was issue #3).** EMOTION - clear-headed: after my preflop
+  call the card is captioned "Your preflop decision · pot was $7 when you acted," even though the
+  flop (2♦ A♦ 9♥, pot $12) is already out. The ~11% no longer feels contradictory — I can see it
+  describes the *preflop* moment. The Hand-review row echoes "· pot $7." (screenshot 17)
+- **Won-but-flagged mismatch (was issue #5).** Confirmed in verification (screenshot 14): winning a
+  hand that contains a ❌ now shows "…we grade the decision, not the outcome." EMOTION - it clicks.
+- **Favicon (was issue #6).** EMOTION - tidy: a proper tab icon, no 404 in the console.
+
+### Verdict
+No negative emotions in this fresh pass — every Round 1–2 pain point is resolved. The session's
+goal condition (no remaining negative emotions / confusing-irritating moments) is met. The earlier
+Round 1–2 EMOTION entries are retained **only as the historical record of what was fixed**; they
+describe the pre-v0.6.0 build and are all addressed above.
+
+
 
 
 
