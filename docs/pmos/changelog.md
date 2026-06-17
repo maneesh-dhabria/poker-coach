@@ -3,6 +3,62 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.6.0] — 2026-06-17
+
+### First-time-user fixes + ALL-IN badge
+
+A fresh-user playtest (`docs/playtest/scratchpad.md`) surfaced six confusing or
+blocking moments; all are fixed here. Plus an ALL-IN seat badge so it's obvious
+when a player is committed. UI-only — no `HandRecord` schema, API, or core
+decision-engine change.
+
+### Added
+
+- **ALL-IN seat badge.** A seat shows an `ALL-IN` badge once a player has put
+  their whole stack in, backed by engine all-in introspection
+  (`components/table/Seat.tsx`, `core/engine/gameEngine.ts`, `core/handFlow.ts`).
+- **Plain-language style legend on setup.** The opponents panel now carries an
+  always-visible gloss — `TAG — tight & aggressive · LAG — loose & aggressive ·
+  Nit — ultra-tight, folds a lot · Calling Station — calls a lot, rarely folds` —
+  plus per-preset tooltips, so a basics-only player isn't stuck on the jargon
+  (`components/SetupScreen.tsx`).
+- **Friendly empty state for Live Feedback.** Before your first action (and on
+  every new hand) the panel reads "Make your move — …" instead of rendering a
+  large blank pane that looks like a failed load (`components/RightPanel.tsx`).
+- **Favicon + app icon.** `/favicon.ico` no longer 404s; an SVG app icon ships
+  too (`app/favicon.ico`, `app/icon.svg`).
+
+### Changed
+
+- **The action bar can no longer be clipped off-screen.** The felt is now a
+  flex child (`flex:1 1 auto; min-height:0; max-height:580`) inside a full-height
+  column, with the Fold/Call/Raise bar pinned as `flex:0 0 auto`. On viewports
+  shorter than ~720px (small laptops, split-screen, browser zoom) the table
+  shrinks to fit instead of pushing the controls below the fold
+  (`components/table/PokerTable.tsx`). This was the most damaging issue — a new
+  user could otherwise conclude the game was broken.
+- **Feedback is anchored to the decision it describes.** Each Live Feedback card
+  now carries a caption — `Your <street> decision · pot was $X when you acted` —
+  and every Hand-review row shows `· pot $X`, so the equity/pot numbers can't be
+  confused with the live board, which has since moved on
+  (`components/FeedbackPanel.tsx`, `components/RightPanel.tsx`,
+  `components/HandRecap.tsx`).
+- **Won-hand-but-flagged reconciliation.** When you win a hand that still
+  contains a flagged decision, the recap adds a plain line: "You won this hand,
+  but the ❌ above flags a play that loses money on average — … we grade the
+  decision, not the outcome" (`components/HandRecap.tsx`).
+
+### Engineering notes
+
+- Shipped through the full `/feature-sdlc` pipeline (Tier 2). Verified via the
+  `/verify` gate: ESLint + `tsc` clean, **270** unit/component tests passing, and
+  a live Playwright walk at 1024×640 (the previously-broken size) confirming the
+  action bar stays in view, the empty state and feedback-context captions render,
+  the setup legend is visible, the reconcile line appears on a won-but-flagged
+  hand, and `/favicon.ico` returns 200. See
+  `docs/pmos/features/2026-06-17_first-time-ux-fixes/` and
+  `docs/playtest/scratchpad.md`.
+
 ## [0.5.0] — 2026-06-03
 
 ### UX/UI Cleanup
