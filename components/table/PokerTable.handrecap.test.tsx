@@ -36,11 +36,21 @@ describe("PokerTable — no duplicate Hand review below the table (FR-09)", () =
     expect(src).toMatch(/\$\{winnerName\} \$\{verb\} with \$\{category\}/);
   });
 
-  // iter-03 #6/#3: the felt preserves aspect ratio (scales to fit width AND height so seats never
-  // clip off an edge) and the center pot/round-summary sits in the upper-middle, bounded to a zone
-  // that ENDS above the bottom hero seat so the two never overlap at small/narrow sizes.
-  it("the felt preserves aspect ratio and the center block is bounded clear of the hero seat", () => {
-    expect(src).toMatch(/aspectRatio: "760 \/ 520"/);
+  // iter-04 #1: the WHOLE table interior is a FIXED-size design box (DESIGN_W × DESIGN_H) uniformly
+  // scaled to fit the measured stage. Fixed geometry + uniform scale ⇒ no fixed-size element can
+  // overlap another at any viewport size (the 800×600 hero-over-pot collision is impossible). The
+  // center pot/round-summary still sits in the upper-middle, bounded clear of the bottom hero seat.
+  it("renders the table interior as a fixed design box scaled to fit the stage", () => {
+    expect(src).toMatch(/width: DESIGN_W/);
+    expect(src).toMatch(/height: DESIGN_H/);
+    expect(src).toMatch(/transform: `scale\(\$\{scale\}\)`/);
+    expect(src).toMatch(/const scale = useFitScale\(stageRef\)/);
+    // The old aspect-ratio approach (fixed-px tiles on a squashed felt) is gone — that was the root
+    // cause of the persistent 800×600 overlap.
+    expect(src).not.toMatch(/aspectRatio: "760 \/ 520"/);
+  });
+
+  it("keeps the center pot/round-summary bounded clear of the hero seat", () => {
     expect(src).toMatch(/top: "36%"/); // center block anchored in the upper-middle, above the You seat
     expect(src).toMatch(/maxHeight: "68%"/); // bounded so its bottom (~70%) stays above the hero seat
   });

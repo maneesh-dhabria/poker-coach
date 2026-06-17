@@ -210,6 +210,65 @@ describe("FeedbackPanel — depth-aware presentation (iter-03 #7)", () => {
   });
 });
 
+describe("FeedbackPanel — explanation sentence honors the display unit (iter-04 #3)", () => {
+  it("renders the cost/pot amounts in BB, not dollars, when displayUnit is bb", () => {
+    // $108 to call into a $560 pot ($452 before) at 12% equity → a price-branch fold sentence.
+    const a = analyze({
+      action: "fold",
+      potBefore: 452,
+      toCall: 108,
+      equityPct: 12,
+      unit: "usd", // persisted/canonical record stays USD
+      street: "river",
+    });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        displayUnit="bb"
+        context={{ street: "river", potBefore: 452, toCall: 108, action: "fold" }}
+      />,
+    );
+    const sentence = screen.getByTestId("plain-math").textContent ?? "";
+    expect(sentence).toMatch(/54 BB/); // 108 / 2
+    expect(sentence).toMatch(/280 BB/); // 560 / 2
+    expect(sentence).not.toContain("$108");
+    expect(sentence).not.toContain("$560");
+  });
+
+  it("still renders dollars in the sentence in usd mode", () => {
+    const a = analyze({ action: "fold", potBefore: 452, toCall: 108, equityPct: 12, unit: "usd", street: "river" });
+    render(<FeedbackPanel analysis={a} enabled displayUnit="usd" />);
+    expect(screen.getByTestId("plain-math").textContent ?? "").toContain("$108");
+  });
+});
+
+describe("FeedbackPanel — 'chart-based' badge is Strict-only (iter-04 #7)", () => {
+  const preflop = (depth: "conceptual" | "equity" | "strict") =>
+    analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 57,
+      unit: "usd",
+      coachingDepth: depth,
+      street: "preflop",
+      hand: ["Ah", "Kh"],
+      position: "CO",
+      facing: "unopened",
+    });
+
+  it("shows the 'chart-based' badge in Strict mode", () => {
+    render(<FeedbackPanel analysis={preflop("strict")} enabled />);
+    expect(screen.getByTestId("feedback-panel").textContent ?? "").toMatch(/chart-based/i);
+  });
+
+  it("does NOT show the 'chart-based' badge in Equity mode", () => {
+    render(<FeedbackPanel analysis={preflop("equity")} enabled />);
+    expect(screen.getByTestId("feedback-panel").textContent ?? "").not.toMatch(/chart-based/i);
+  });
+});
+
 describe("FeedbackPanel — assumed-range context is legible near equity (iter-03 #9)", () => {
   it("restates that the win-chance is vs an assumed range, not real cards", () => {
     const a = analyze({

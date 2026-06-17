@@ -3,7 +3,7 @@
 // Reads the render snapshot from the game store's HandFlow; the hero's action drives the store.
 // Bot actions are revealed one at a time (observation #3) so the table tells the story of the hand:
 // each seat shows what it just did, and committed chips animate toward the pot.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
 import { latestActionPerSeat } from "@/core/handFlow";
@@ -39,6 +39,41 @@ export function boardShowCount(revealing: boolean, snapshotBoardCount: number): 
   return revealing ? snapshotBoardCount : undefined;
 }
 
+// The whole table interior is laid out at a FIXED design size (DESIGN_W × DESIGN_H) — the felt oval,
+// the percent-positioned seat tiles, and the center pot/board all live inside that fixed box. We then
+// uniformly `scale()` that box to fit its container (iter-04 #1). Because the geometry is fixed and
+// the scale is UNIFORM, if nothing overlaps at scale 1 it cannot overlap at any smaller scale — so
+// the 800×600 hero-over-pot collision (which came from fixed-pixel tiles on a height-squashed felt)
+// can't happen at any viewport size. The scale is clamped to ≤1 so the table never blows up past its
+// design size on a large viewport (it just centers).
+export const DESIGN_W = 760;
+export const DESIGN_H = 520;
+
+/** Uniform scale to fit a DESIGN_W × DESIGN_H box inside a w × h container, clamped to ≤1. */
+export function fitScale(w: number, h: number): number {
+  if (w <= 0 || h <= 0) return 1;
+  return Math.min(1, w / DESIGN_W, h / DESIGN_H);
+}
+
+// Measure a container element and report a uniform scale-to-fit for the fixed design box. A
+// ResizeObserver keeps it in step with viewport/zoom/splitscreen changes (iter-04 #1). 'use client'
+// (top of file) makes this safe — it's a presentational component, not core.
+function useFitScale(ref: { current: HTMLElement | null }): number {
+  const [scale, setScale] = useState(1);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => setScale(fitScale(el.clientWidth, el.clientHeight));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+    // ref is stable for the component's life; we re-measure via the observer, not deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return scale;
+}
+
 export function PokerTable() {
   const flow = useGameStore((s) => s.flow);
   const busy = useGameStore((s) => s.busy);
@@ -51,6 +86,11 @@ export function PokerTable() {
   const log = flow ? flow.actionLog() : [];
   const total = log.length;
   const [revealed, setRevealed] = useState(0);
+
+  // Measure the stage and uniformly scale the fixed-size design box to fit (iter-04 #1). Hooks must
+  // run unconditionally, so this lives above the `!flow` early return.
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const scale = useFitScale(stageRef);
 
   // Reset the reveal cursor when a new hand is dealt.
   useEffect(() => {
@@ -115,9 +155,9 @@ export function PokerTable() {
   };
 
   return (
-    // Fill the left column as a flex column so the felt SHRINKS to fit short viewports while the
+    // Fill the left column as a flex column so the stage SHRINKS to fit short viewports while the
     // action bar (flex:0 0 auto, below) always stays in view — the action controls must never be
-    // clipped on small/zoomed windows (no-scroll contract preserved; felt absorbs the shrinkage).
+    // clipped on small/zoomed windows (no-scroll contract preserved; the stage absorbs the shrinkage).
     <section
       style={{
         padding: 16,
@@ -128,24 +168,37 @@ export function PokerTable() {
         boxSizing: "border-box",
       }}
     >
+      {/* The STAGE is the measured container (flex:1 1 auto). The fixed-size design box inside it is
+          uniformly scaled to fit (iter-04 #1) and centered, so the whole table — felt + seats + pot +
+          board — scales as ONE unit. Fixed geometry + uniform scale ⇒ if nothing overlaps at scale 1
+          it can't overlap at any smaller scale, so the 800×600 hero-over-pot collision is impossible
+          at any size. overflow:hidden keeps the no-scroll contract (no stray scrollbars). */}
+      <div
+        ref={stageRef}
+        data-testid="table-stage"
+        style={{
+          flex: "1 1 auto",
+          minHeight: 0,
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          overflow: "hidden",
+        }}
+      >
       <div
         data-testid="felt"
         style={{
           position: "relative",
           background: "radial-gradient(ellipse at center, var(--felt), var(--felt-deep))",
           borderRadius: "var(--r-lg)",
-          flex: "1 1 auto",
-          minHeight: 0,
-          maxHeight: 580,
-          width: "100%",
-          maxWidth: 760,
-          // Preserve a fixed felt aspect ratio so the oval scales to fit BOTH the available width and
-          // height — on a short/narrow viewport it shrinks proportionally (seats keep their relative
-          // positions and never clip off an edge) instead of stretching to fill and squashing seats
-          // against the borders (finding #6). Combined with the inset radii above, the whole table
-          // stays inside its container at 800×600 / 600×900.
-          aspectRatio: "760 / 520",
-          margin: "0 auto",
+          // FIXED design size — the seat tiles (fixed-px) and the percent-positioned center/seats all
+          // live inside this box; we scale the whole box, not the individual elements (iter-04 #1).
+          width: DESIGN_W,
+          height: DESIGN_H,
+          flex: "0 0 auto",
+          transform: `scale(${scale})`,
+          transformOrigin: "center center",
         }}
       >
         {/* Center pot/log is painted FIRST so the seats (rendered after) sit on top of it — when the
@@ -212,6 +265,7 @@ export function PokerTable() {
             />
           </div>
         ))}
+      </div>
       </div>
 
       <div style={{ flex: "0 0 auto", marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>

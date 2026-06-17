@@ -78,6 +78,7 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     position: input.position,
     chartAction: branch.chartActionForExplain,
     heroDeviates: branch.heroDeviates,
+    numActiveOpponents: input.numActiveOpponents,
   });
 
   return {
@@ -91,6 +92,20 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     numbers: { equityPct: round1(equityPct), potOddsPct: round1(potOddsPct), ev, unit },
     plainExplanation,
     ...(branch.chart ? { chart: branch.chart } : {}),
+    // Structured inputs so the live UI can re-format the sentence in the display unit (iter-04 #3).
+    explanationInput: {
+      kind: branch.kind,
+      action,
+      potBefore,
+      toCall,
+      equityPct: round1(equityPct),
+      potOddsPct: round1(potOddsPct),
+      chartAction: branch.chartActionForExplain,
+      heroDeviates: branch.heroDeviates,
+      position: input.position,
+      hand: input.hand,
+      numActiveOpponents: input.numActiveOpponents,
+    },
   };
 }
 

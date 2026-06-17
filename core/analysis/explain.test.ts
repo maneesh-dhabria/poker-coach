@@ -114,6 +114,128 @@ describe("preflop explanation reflects coaching depth (iter-03 #7)", () => {
   });
 });
 
+describe("preflop equity copy labels MULTIWAY opponents, not 'a random hand' (iter-04 #2)", () => {
+  const ttRaise = (numActiveOpponents: number): ExplainParams => ({
+    kind: "preflop",
+    verdict: "good",
+    depth: "equity",
+    unit: "usd",
+    action: "raise",
+    potBefore: 7,
+    toCall: 0,
+    equityPct: 31, // multiway TT
+    potOddsPct: 0,
+    hand: ["Th", "Td"],
+    position: "MP",
+    chartAction: "raise",
+    heroDeviates: false,
+    numActiveOpponents,
+  });
+
+  it("does NOT say 'a random hand' (that singular heads-up label is misleading multiway)", () => {
+    const s = buildExplanation(ttRaise(5));
+    expect(s.toLowerCase()).not.toContain("a random hand");
+    expect(s.toLowerCase()).not.toContain("random hand");
+  });
+
+  it("references the opponent count it is measured against", () => {
+    expect(buildExplanation(ttRaise(5))).toMatch(/5 opponents still in/);
+    expect(buildExplanation(ttRaise(1))).toMatch(/1 opponent still in/);
+  });
+
+  it("falls back to 'the players still in' when the count is unknown", () => {
+    const p = ttRaise(5);
+    delete p.numActiveOpponents;
+    expect(buildExplanation(p)).toMatch(/players still in/);
+  });
+});
+
+describe("preflop raise copy reads 'raising', not 'raiseing' (iter-04 #4)", () => {
+  const raise = (depth: CoachingDepth): ExplainParams => ({
+    kind: "preflop",
+    verdict: "good",
+    depth,
+    unit: "usd",
+    action: "raise",
+    potBefore: 7,
+    toCall: 0,
+    equityPct: 55,
+    potOddsPct: 0,
+    hand: ["Ah", "Kh"],
+    position: "MP",
+    chartAction: "raise",
+    heroDeviates: false,
+    numActiveOpponents: 3,
+  });
+
+  it("the equity-depth raise copy contains 'raising' and never 'raiseing'", () => {
+    const s = buildExplanation(raise("equity"));
+    expect(s).toMatch(/raising/);
+    expect(s).not.toMatch(/raiseing/);
+  });
+
+  it("no verb in any preflop branch produces a naive verb+ing artifact", () => {
+    for (const action of ["raise", "call", "fold"] as const) {
+      for (const deviates of [false, true]) {
+        const s = buildExplanation({ ...raise("equity"), chartAction: action, heroDeviates: deviates });
+        expect(s).not.toMatch(/raiseing|callsing|foldsing/);
+      }
+    }
+  });
+});
+
+describe("Conceptual aggression copy varies by action (iter-04 #8)", () => {
+  const agg = (action: "bet" | "raise", verdict: Verdict): ExplainParams => ({
+    kind: "aggression",
+    verdict,
+    depth: "conceptual",
+    unit: "usd",
+    action,
+    potBefore: 12,
+    toCall: 0,
+    equityPct: verdict === "thin" ? 45 : verdict === "good" ? 70 : 20,
+    potOddsPct: 0,
+  });
+
+  it("a thin raise and a thin bet do not yield identical conceptual text", () => {
+    expect(buildExplanation(agg("raise", "thin"))).not.toEqual(buildExplanation(agg("bet", "thin")));
+  });
+
+  it("a good raise and a good bet differ too", () => {
+    expect(buildExplanation(agg("raise", "good"))).not.toEqual(buildExplanation(agg("bet", "good")));
+  });
+});
+
+describe("explanation sentence renders in the display unit (iter-04 #3)", () => {
+  // The price() branch is the money-bearing one ("It costs you $X to win a $Y pot").
+  const priceFold: ExplainParams = {
+    kind: "price",
+    verdict: "good",
+    depth: "equity",
+    unit: "bb",
+    action: "fold",
+    potBefore: 452, // $452 + $108 call = $560 pot
+    toCall: 108,
+    equityPct: 12,
+    potOddsPct: 19,
+    bigBlind: 2,
+  };
+
+  it("renders the cost/pot in BB (÷ bigBlind) when unit is bb, not dollars", () => {
+    const s = buildExplanation(priceFold);
+    expect(s).toMatch(/54 BB/); // $108 / 2
+    expect(s).toMatch(/280 BB/); // $560 / 2
+    expect(s).not.toContain("$108");
+    expect(s).not.toContain("$560");
+  });
+
+  it("still renders dollars in usd mode (default for the persisted record)", () => {
+    const s = buildExplanation({ ...priceFold, unit: "usd" });
+    expect(s).toContain("$108");
+    expect(s).toContain("$560");
+  });
+});
+
 describe("narrateWinner (T19: winner's-perspective fold narration)", () => {
   it("narrates the winner with their made hand when the cards were shown", () => {
     const s = narrateWinner(

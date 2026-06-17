@@ -3,6 +3,7 @@
 // user can see the whole hand's story in one place. Reads the embedded DecisionAnalysis as ground
 // truth (§17) — it never recomputes verdicts. Honesty: "chart-based" only when gtoClaim is true.
 import { HeroDecisionRecord } from "@/core/history/handRecord";
+import { formatExplanation } from "@/core/analysis/explain";
 import { formatMoney, MoneyUnit } from "@/core/money";
 
 const BIG_BLIND = 2; // the table plays $1/$2, so 1 BB = $2
@@ -81,6 +82,18 @@ export function HandRecap({
   const c = counts(decisions);
   const flagged = c.mistake + c.thin > 0;
 
+  // Did the hero actually CONTEST this hand (so a loss can be a "played well, unlucky" beat) rather
+  // than fold cheaply for the blind? Contesting = voluntarily putting chips in (a call/bet/raise) OR
+  // reaching a street past preflop. A pure preflop fold that loses only the blind is NOT a bad
+  // beat, so it must not get the variance/"unlucky" footer (iter-04 #6).
+  const contested = decisions.some(
+    (d) =>
+      d.heroAction.action === "call" ||
+      d.heroAction.action === "bet" ||
+      d.heroAction.action === "raise" ||
+      d.street !== "preflop",
+  );
+
   return (
     <section data-testid="hand-recap" className="card" style={{ marginTop: 16, textAlign: "left", maxWidth: 560 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
@@ -119,14 +132,18 @@ export function HandRecap({
                   <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
                     · pot {formatMoney(Math.round(d.spot.potBefore), displayUnit, BIG_BLIND)}
                   </span>
-                  {d.analysis.gtoClaim ? (
+                  {/* "chart-based" is a Strict-mode badge (iter-04 #7) — only show it on a strict-depth
+                      decision, matching the live feedback panel; honest only when gtoClaim. */}
+                  {d.analysis.gtoClaim && d.analysis.coachingDepth === "strict" ? (
                     <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>
                       chart-based
                     </span>
                   ) : null}
                 </div>
+                {/* Render the explanation sentence in the display unit (iter-04 #3) so a "you called
+                    54 BB" header never sits above a "$108 to win $560" dollar sentence. */}
                 <div style={{ fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.5 }}>
-                  {d.analysis.plainExplanation}
+                  {formatExplanation(d.analysis, displayUnit, BIG_BLIND)}
                 </div>
               </div>
             </li>
@@ -156,7 +173,7 @@ export function HandRecap({
           {/* The mirror case (finding #1): you LOST the hand but every graded decision was sound (no
               ❌ mistake). A trusting newcomer who saw "~92%" then lost their stack needs the variance
               bridge surfaced by DEFAULT, not buried in a "Show the numbers" expander. */}
-          {heroNet !== null && heroNet < 0 && c.mistake === 0 ? (
+          {heroNet !== null && heroNet < 0 && c.mistake === 0 && contested ? (
             <p data-testid="recap-variance" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
               Good decision, unlucky result — that&apos;s variance. We grade the decision, not the
               outcome: these win % are long-run averages, not this one hand. Played well, lost anyway —

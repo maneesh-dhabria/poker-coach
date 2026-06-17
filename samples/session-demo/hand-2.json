@@ -182,11 +182,27 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 4♦Q♥ is about 20% against a random hand; the math favors folding from BB instead, and your line differs from that higher-EV default (the baseline chart agrees).",
+        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 4♦Q♥ is about 20% to win against the 3 opponents still in; the math favors folding from BB instead, and your line differs from that higher-EV default (the baseline chart agrees).",
         "chart": {
           "applies": true,
           "chartAction": "fold",
           "heroDeviates": true
+        },
+        "explanationInput": {
+          "kind": "preflop",
+          "action": "call",
+          "potBefore": 32,
+          "toCall": 16,
+          "equityPct": 19.5,
+          "potOddsPct": 33.3,
+          "chartAction": "fold",
+          "heroDeviates": true,
+          "position": "BB",
+          "hand": [
+            "4d",
+            "Qh"
+          ],
+          "numActiveOpponents": 3
         }
       }
     },
@@ -225,7 +241,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "It costs you $38 to win a $148 pot — you only need to win about 26% of the time. Your hand wins ~49%. Easy call — you're getting a great price."
+        "plainExplanation": "It costs you $38 to win a $148 pot — you only need to win about 26% of the time. Your hand wins ~49%. Easy call — you're getting a great price.",
+        "explanationInput": {
+          "kind": "price",
+          "action": "call",
+          "potBefore": 110,
+          "toCall": 38,
+          "equityPct": 49.5,
+          "potOddsPct": 25.7,
+          "position": "BB",
+          "hand": [
+            "4d",
+            "Qh"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -263,7 +293,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "It costs you $144 to win a $783 pot — you only need to win about 18% of the time. Your hand wins ~52%. Easy call — you're getting a great price."
+        "plainExplanation": "It costs you $144 to win a $783 pot — you only need to win about 18% of the time. Your hand wins ~52%. Easy call — you're getting a great price.",
+        "explanationInput": {
+          "kind": "price",
+          "action": "call",
+          "potBefore": 639,
+          "toCall": 144,
+          "equityPct": 52.2,
+          "potOddsPct": 18.4,
+          "position": "BB",
+          "hand": [
+            "4d",
+            "Qh"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     }
   ],

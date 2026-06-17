@@ -25,4 +25,27 @@ export interface DecisionAnalysis {
   };
   plainExplanation: string;
   chart?: { applies: boolean; chartAction: string; heroDeviates: boolean };
+  // Structured inputs behind `plainExplanation`, so a presentation layer can RE-FORMAT the sentence
+  // in the session's display unit (e.g. render the cost/pot in BB) without recomputing the verdict —
+  // unit reformatting is presentation, not a new judgment (iter-04 #3). Additive/optional: the
+  // persisted `plainExplanation` stays the canonical USD string the coach skill reads; the schema
+  // validator ignores extra keys, so no schemaVersion bump.
+  explanationInput?: ExplanationInput;
+}
+
+// The minimal slice of the explanation builder's inputs needed to re-format the sentence in another
+// unit. Mirrors the money-bearing fields of explain.ts's ExplainParams (kept structural to avoid a
+// circular import). All numeric amounts are in dollars.
+export interface ExplanationInput {
+  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
+  action: HeroAction;
+  potBefore: number;
+  toCall: number;
+  equityPct: number;
+  potOddsPct: number;
+  chartAction?: "raise" | "call" | "fold";
+  heroDeviates?: boolean;
+  position?: string;
+  hand?: [string, string];
+  numActiveOpponents?: number;
 }

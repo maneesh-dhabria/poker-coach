@@ -194,11 +194,27 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with T♠2♦ is about 17% against a random hand; the math favors folding from BTN instead, and your line differs from that higher-EV default (the baseline chart agrees).",
+        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with T♠2♦ is about 17% to win against the 3 opponents still in; the math favors folding from BTN instead, and your line differs from that higher-EV default (the baseline chart agrees).",
         "chart": {
           "applies": true,
           "chartAction": "fold",
           "heroDeviates": true
+        },
+        "explanationInput": {
+          "kind": "preflop",
+          "action": "call",
+          "potBefore": 5,
+          "toCall": 2,
+          "equityPct": 16.6,
+          "potOddsPct": 28.6,
+          "chartAction": "fold",
+          "heroDeviates": true,
+          "position": "BTN",
+          "hand": [
+            "Ts",
+            "2d"
+          ],
+          "numActiveOpponents": 3
         }
       }
     },
@@ -237,7 +253,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~7%. You're calling too wide — fold and save the chips."
+        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~7%. You're calling too wide — fold and save the chips.",
+        "explanationInput": {
+          "kind": "price",
+          "action": "call",
+          "potBefore": 24,
+          "toCall": 8,
+          "equityPct": 7,
+          "potOddsPct": 25,
+          "position": "BTN",
+          "hand": [
+            "Ts",
+            "2d"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -273,7 +303,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "Checking is fine here — you only win about 1%, so there's little to bet for."
+        "plainExplanation": "Checking is fine here — you only win about 1%, so there's little to bet for.",
+        "explanationInput": {
+          "kind": "valuecheck",
+          "action": "check",
+          "potBefore": 32,
+          "toCall": 0,
+          "equityPct": 1.4,
+          "potOddsPct": 0,
+          "position": "BTN",
+          "hand": [
+            "Ts",
+            "2d"
+          ],
+          "numActiveOpponents": 2
+        }
       }
     },
     {
@@ -309,7 +353,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "Checking is fine here — you only win about 3%, so there's little to bet for."
+        "plainExplanation": "Checking is fine here — you only win about 3%, so there's little to bet for.",
+        "explanationInput": {
+          "kind": "valuecheck",
+          "action": "check",
+          "potBefore": 32,
+          "toCall": 0,
+          "equityPct": 2.5,
+          "potOddsPct": 0,
+          "position": "BTN",
+          "hand": [
+            "Ts",
+            "2d"
+          ],
+          "numActiveOpponents": 2
+        }
       }
     }
   ],

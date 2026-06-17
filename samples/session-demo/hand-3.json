@@ -211,11 +211,27 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 2♦2♠ is about 25% against a random hand; the math favors raiseing from SB instead, and your line differs from that higher-EV default (the baseline chart agrees).",
+        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 2♦2♠ is about 25% to win against the 3 opponents still in; the math favors raising from SB instead, and your line differs from that higher-EV default (the baseline chart agrees).",
         "chart": {
           "applies": true,
           "chartAction": "raise",
           "heroDeviates": true
+        },
+        "explanationInput": {
+          "kind": "preflop",
+          "action": "call",
+          "potBefore": 7,
+          "toCall": 1,
+          "equityPct": 24.6,
+          "potOddsPct": 12.5,
+          "chartAction": "raise",
+          "heroDeviates": true,
+          "position": "SB",
+          "hand": [
+            "2d",
+            "2s"
+          ],
+          "numActiveOpponents": 3
         }
       }
     },
@@ -254,7 +270,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "You win ~83% here — checking gives up value. A bet earns more from worse hands."
+        "plainExplanation": "You win ~83% here — checking gives up value. A bet earns more from worse hands.",
+        "explanationInput": {
+          "kind": "valuecheck",
+          "action": "check",
+          "potBefore": 8,
+          "toCall": 0,
+          "equityPct": 83.3,
+          "potOddsPct": 0,
+          "position": "SB",
+          "hand": [
+            "2d",
+            "2s"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -292,7 +322,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "You win ~92% here — checking gives up value. A bet earns more from worse hands."
+        "plainExplanation": "You win ~92% here — checking gives up value. A bet earns more from worse hands.",
+        "explanationInput": {
+          "kind": "valuecheck",
+          "action": "check",
+          "potBefore": 8,
+          "toCall": 0,
+          "equityPct": 92.3,
+          "potOddsPct": 0,
+          "position": "SB",
+          "hand": [
+            "2d",
+            "2s"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -330,7 +374,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "You win ~94% here — checking gives up value. A bet earns more from worse hands."
+        "plainExplanation": "You win ~94% here — checking gives up value. A bet earns more from worse hands.",
+        "explanationInput": {
+          "kind": "valuecheck",
+          "action": "check",
+          "potBefore": 8,
+          "toCall": 0,
+          "equityPct": 94.2,
+          "potOddsPct": 0,
+          "position": "SB",
+          "hand": [
+            "2d",
+            "2s"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -368,7 +426,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~93%. Easy call — you're getting a great price."
+        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~93%. Easy call — you're getting a great price.",
+        "explanationInput": {
+          "kind": "price",
+          "action": "call",
+          "potBefore": 24,
+          "toCall": 8,
+          "equityPct": 92.8,
+          "potOddsPct": 25,
+          "position": "SB",
+          "hand": [
+            "2d",
+            "2s"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     }
   ],

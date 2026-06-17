@@ -194,11 +194,27 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 4♥9♥ is about 23% against a random hand; the math favors folding from UTG instead, and your line differs from that higher-EV default (the baseline chart agrees).",
+        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 4♥9♥ is about 23% to win against the 3 opponents still in; the math favors folding from UTG instead, and your line differs from that higher-EV default (the baseline chart agrees).",
         "chart": {
           "applies": true,
           "chartAction": "fold",
           "heroDeviates": true
+        },
+        "explanationInput": {
+          "kind": "preflop",
+          "action": "call",
+          "potBefore": 3,
+          "toCall": 2,
+          "equityPct": 22.8,
+          "potOddsPct": 40,
+          "chartAction": "fold",
+          "heroDeviates": true,
+          "position": "UTG",
+          "hand": [
+            "4h",
+            "9h"
+          ],
+          "numActiveOpponents": 3
         }
       }
     },
@@ -235,7 +251,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "Checking is fine here — you only win about 11%, so there's little to bet for."
+        "plainExplanation": "Checking is fine here — you only win about 11%, so there's little to bet for.",
+        "explanationInput": {
+          "kind": "valuecheck",
+          "action": "check",
+          "potBefore": 8,
+          "toCall": 0,
+          "equityPct": 10.9,
+          "potOddsPct": 0,
+          "position": "UTG",
+          "hand": [
+            "4h",
+            "9h"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -273,7 +303,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~3%. You're calling too wide — fold and save the chips."
+        "plainExplanation": "It costs you $8 to win a $32 pot — you only need to win about 25% of the time. Your hand wins ~3%. You're calling too wide — fold and save the chips.",
+        "explanationInput": {
+          "kind": "price",
+          "action": "call",
+          "potBefore": 24,
+          "toCall": 8,
+          "equityPct": 3.1,
+          "potOddsPct": 25,
+          "position": "UTG",
+          "hand": [
+            "4h",
+            "9h"
+          ],
+          "numActiveOpponents": 3
+        }
       }
     },
     {
@@ -311,7 +355,21 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "It costs you $28 to win a $116 pot — you only need to win about 24% of the time. Your hand wins ~2%. You're calling too wide — fold and save the chips."
+        "plainExplanation": "It costs you $28 to win a $116 pot — you only need to win about 24% of the time. Your hand wins ~2%. You're calling too wide — fold and save the chips.",
+        "explanationInput": {
+          "kind": "price",
+          "action": "call",
+          "potBefore": 88,
+          "toCall": 28,
+          "equityPct": 2.4,
+          "potOddsPct": 24.1,
+          "position": "UTG",
+          "hand": [
+            "4h",
+            "9h"
+          ],
+          "numActiveOpponents": 2
+        }
       }
     }
   ],

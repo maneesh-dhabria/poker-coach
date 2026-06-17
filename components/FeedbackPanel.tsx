@@ -3,6 +3,7 @@
 // "needed to call" marker, a plain why-this-verdict line, and an optional numbers breakdown.
 // Renders nothing when feedback is disabled. Honesty (§17): "chart-based" shows only when gtoClaim.
 import { DecisionAnalysis } from "@/core/analysis/types";
+import { formatExplanation } from "@/core/analysis/explain";
 import { MentalMathSection } from "@/components/MentalMathSection";
 import { formatMoney, MoneyUnit } from "@/core/money";
 
@@ -180,9 +181,11 @@ export function FeedbackPanel({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <VerdictBadge verdict={analysis.verdict} />
-        {/* "chart-based" is chart jargon — honest only when gtoClaim, and only surfaced at a depth
-            that speaks numbers/charts. Conceptual ("plain words, no numbers") suppresses it. (#7) */}
-        {analysis.gtoClaim && showJargon ? (
+        {/* "chart-based" is a STRICT-mode badge (iter-04 #7): in Strict the chart IS the lens, so the
+            badge belongs; in Equity the win-rate framing leads (the sentence may still note the chart
+            agrees — honesty preserved — but the badge mustn't read as Strict-mode language); in
+            Conceptual ("plain words, no numbers") it's suppressed entirely. Honest only when gtoClaim. */}
+        {analysis.gtoClaim && depth === "strict" ? (
           <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>chart-based</span>
         ) : null}
       </div>
@@ -217,8 +220,12 @@ export function FeedbackPanel({
         </div>
       )}
 
+      {/* Render the explanation sentence in the session's display unit (iter-04 #3): in BB mode the
+          "$108 to win $560" cost/pot amounts come out in BB, so the prose no longer mixes dollars
+          with a BB header/badge. This re-formats via the pure builder (presentation only) — the
+          verdict and the canonical stored sentence are untouched. */}
       <p data-testid="plain-math" style={{ marginTop: 10, lineHeight: 1.5 }}>
-        {analysis.plainExplanation}
+        {formatExplanation(analysis, unit, BIG_BLIND)}
       </p>
 
       {showEquity && eq !== null ? (

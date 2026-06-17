@@ -91,6 +91,26 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.queryByTestId("recap-reconcile")).toBeNull();
   });
 
+  // iter-04 #6 — the variance/"unlucky" footer must only fire when the hero CONTESTED the hand and
+  // lost meaningfully, not on a cheap preflop fold that loses only the blind (no bad beat).
+  it("does NOT show the variance note on a correct preflop fold that loses only the blind (#6)", () => {
+    const decisions = [
+      decision("preflop", "fold", 0, { action: "fold", potBefore: 6, toCall: 2, equityPct: 12 }),
+    ];
+    // Lost the blind, no mistakes — but the hero never contested, so no "played well, lost anyway".
+    render(<HandRecap decisions={decisions} heroNet={-1} />);
+    expect(screen.queryByTestId("recap-variance")).toBeNull();
+  });
+
+  it("DOES show the variance note on a contested showdown loss with no mistakes (#6)", () => {
+    const decisions = [
+      // A ✅ value bet on the river (the hero contested) — then lost to a cooler.
+      decision("river", "bet", 100, { action: "bet", potBefore: 200, toCall: 0, equityPct: 92 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={-200} />);
+    expect(screen.getByTestId("recap-variance")).toBeInTheDocument();
+  });
+
   it("does NOT use the 'unlucky' framing when a lost hand was at least partly the player's mistake (#1)", () => {
     const decisions = [
       // A clear ❌ mistake (calling far too wide) on the way to losing the hand.

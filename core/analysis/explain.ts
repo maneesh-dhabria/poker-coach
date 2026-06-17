@@ -2,7 +2,7 @@
 // line pairs numbers with words at equity/strict depth, and goes fully qualitative at conceptual
 // depth (no raw $ or %). All formatting lives here; analyze.ts owns the verdict logic.
 import { Card, rankOf, suitOf } from "@/core/cards";
-import { Verdict, CoachingDepth, Unit, HeroAction } from "@/core/analysis/types";
+import { Verdict, CoachingDepth, Unit, HeroAction, DecisionAnalysis } from "@/core/analysis/types";
 import { ChartAction } from "@/core/charts/preflop";
 import { handCategoryLabel } from "@/core/eval/handEval";
 
@@ -16,10 +16,20 @@ export function handLabel(cards: [Card, Card]): string {
   return cards.map(cardLabel).join("");
 }
 
-function money(amount: number, unit: Unit): string {
-  const n = Math.round(amount);
-  return unit === "usd" ? `$${n}` : `${n} bb`;
+// Format a dollar amount in the chosen unit. In bb mode the amount is divided by the big blind (the
+// amounts passed in are dollars, e.g. a $108 cost-to-call), matching the rest of the app's
+// formatMoney semantics, so the explanation sentence reads in BB when the session unit is BB
+// (iter-04 #3). Defaults bigBlind to the $1/$2 table's 2 so existing USD callers are unaffected.
+function money(amount: number, unit: Unit, bigBlind = BIG_BLIND): string {
+  if (unit === "bb" && bigBlind > 0) {
+    const bb = Math.round((amount / bigBlind) * 10) / 10;
+    const text = Number.isInteger(bb) ? String(bb) : bb.toFixed(1);
+    return `${text} BB`;
+  }
+  return `$${Math.round(amount)}`;
 }
+
+const BIG_BLIND = 2; // the W2 table plays $1/$2; persistent config arrives later
 
 export interface ExplainParams {
   kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
@@ -35,9 +45,34 @@ export interface ExplainParams {
   position?: string;
   chartAction?: ChartAction;
   heroDeviates?: boolean;
+  // How many opponents are still live when the hero acts. The live equity is computed MULTIWAY (vs
+  // the assumed ranges of all of them), so the copy must describe it as "against N opponents", NOT
+  // "a random hand" — a singular-random-hand label is a heads-up teaching number (References chart)
+  // and disagrees badly with the multiway figure for a premium pair (iter-04 #2).
+  numActiveOpponents?: number;
+  // Big blind in dollars, so the explanation sentence's money renders in BB when unit==="bb"
+  // (iter-04 #3). Optional; defaults to the $1/$2 table's 2.
+  bigBlind?: number;
 }
 
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
+
+// The present-participle of a chart verb, built explicitly so we never get the naive "raise"+"ing"
+// → "raiseing" bug (iter-04 #4). "raise" → "raising", "call" → "calling", "fold" → "folding".
+const CHART_VERB_ING: Record<ChartAction, string> = {
+  raise: "raising",
+  call: "calling",
+  fold: "folding",
+};
+
+// Phrase the opponent count the live multiway equity is measured against (iter-04 #2). Never the
+// misleading singular "a random hand" (that's the heads-up References number). Falls back to a
+// neutral "the players still in" when the count is unknown.
+function opponentPhrase(numActiveOpponents?: number): string {
+  if (numActiveOpponents === undefined || numActiveOpponents <= 0) return "the players still in";
+  if (numActiveOpponents === 1) return "the 1 opponent still in";
+  return `the ${numActiveOpponents} opponents still in`;
+}
 
 export function buildExplanation(p: ExplainParams): string {
   if (p.depth === "conceptual") return conceptual(p);
@@ -55,14 +90,46 @@ export function buildExplanation(p: ExplainParams): string {
   }
 }
 
+// Re-format the plain explanation for a decision in a different display unit (iter-04 #3). This is
+// PRESENTATION only — it re-runs the same pure, deterministic builder with the stored verdict /
+// depth / amounts and a different unit; it never recomputes a verdict (that came from analyze.ts and
+// is read verbatim). The persisted `plainExplanation` (always USD) stays the coach skill's
+// canonical record. If the analysis predates `explanationInput` (older record), the caller falls
+// back to the stored sentence. `bigBlind` is the $ value of one big blind so BB amounts divide out.
+export function formatExplanation(
+  analysis: DecisionAnalysis,
+  unit: Unit,
+  bigBlind: number,
+): string {
+  const ei = analysis.explanationInput;
+  if (!ei) return analysis.plainExplanation; // back-compat: no structured input to re-render
+  return buildExplanation({
+    kind: ei.kind,
+    verdict: analysis.verdict,
+    depth: analysis.coachingDepth,
+    unit,
+    action: ei.action,
+    potBefore: ei.potBefore,
+    toCall: ei.toCall,
+    equityPct: ei.equityPct,
+    potOddsPct: ei.potOddsPct,
+    hand: ei.hand as [Card, Card] | undefined,
+    position: ei.position,
+    chartAction: ei.chartAction,
+    heroDeviates: ei.heroDeviates,
+    numActiveOpponents: ei.numActiveOpponents,
+    bigBlind,
+  });
+}
+
 function freeCheckFold(p: ExplainParams): string {
   const win = Math.round(p.equityPct);
   return `There's no bet to call — checking is free. Folding throws away a hand that still wins ~${win}% for nothing. When you can check, never fold: take the free card.`;
 }
 
 function price(p: ExplainParams): string {
-  const pot = money(p.potBefore + p.toCall, p.unit);
-  const cost = money(p.toCall, p.unit);
+  const pot = money(p.potBefore + p.toCall, p.unit, p.bigBlind);
+  const cost = money(p.toCall, p.unit, p.bigBlind);
   const need = Math.round(p.potOddsPct);
   const win = Math.round(p.equityPct);
   const lead = `It costs you ${cost} to win a ${pot} pot — you only need to win about ${need}% of the time. Your hand wins ~${win}%.`;
@@ -94,13 +161,18 @@ function preflop(p: ExplainParams): string {
 
   // Equity + Heuristics → lead with the odds/equity and a plain reason; the chart is named as the
   // source of the recommendation, not the headline. Equity is "share of the pot — how often you win"
-  // (defined inline to satisfy the no-unexplained-jargon guard).
+  // (defined inline to satisfy the no-unexplained-jargon guard). The win% here is MULTIWAY (vs all
+  // live opponents' assumed ranges), so it's labeled "against the N opponents still in", NOT "a
+  // random hand" — that singular phrase reads as heads-up and contradicts the chart's 1-on-1 teaching
+  // number (iter-04 #2). The verb is built from CHART_VERB_ING so "raise" → "raising" (iter-04 #4).
   const win = Math.round(p.equityPct);
-  const equityNote = `your equity (your share of the pot — how often you win) with ${label} is about ${win}% against a random hand`;
+  const ing = p.chartAction ? CHART_VERB_ING[p.chartAction] : "playing";
+  const opps = opponentPhrase(p.numActiveOpponents);
+  const equityNote = `your equity (your share of the pot — how often you win) with ${label} is about ${win}% to win against ${opps}`;
   if (!p.heroDeviates) {
-    return `By the odds, ${equityNote}, so ${rec}ing${where} is the standard, profitable play here — which is exactly what the baseline chart recommends.`;
+    return `By the odds, ${equityNote}, so ${ing}${where} is the standard, profitable play here — which is what the baseline chart recommends too.`;
   }
-  return `By the odds, ${equityNote}; the math favors ${rec}ing${where} instead, and your line differs from that higher-EV default (the baseline chart agrees).`;
+  return `By the odds, ${equityNote}; the math favors ${ing}${where} instead, and your line differs from that higher-EV default (the baseline chart agrees).`;
 }
 
 function valuecheck(p: ExplainParams): string {
@@ -185,10 +257,21 @@ function conceptual(p: ExplainParams): string {
       return p.verdict === "good"
         ? "Checking is fine — you're not strong enough to bet for value."
         : "You're strong here — checking gives up value; betting earns more.";
-    case "aggression":
-      if (p.verdict === "good") return "Strong hand — betting for value is right.";
-      if (p.verdict === "thin") return "A marginal bet — fine as thin value or a semi-bluff.";
-      return "You're betting with little behind it — there's not enough here.";
+    case "aggression": {
+      // Vary the copy by the action so a raise and a bet don't read identically (iter-04 #8): a
+      // raise puts in MORE on top of a bet, a bet opens the betting. Same judgement, different verb.
+      const raising = p.action === "raise";
+      const act = raising ? "raise" : "bet";
+      if (p.verdict === "good")
+        return raising
+          ? "Strong hand — raising for value is right; build the pot while you're ahead."
+          : "Strong hand — betting for value is right.";
+      if (p.verdict === "thin")
+        return raising
+          ? "A marginal raise — fine to push a thin edge, but it's borderline."
+          : "A marginal bet — fine as thin value or a semi-bluff.";
+      return `You're ${act}ing with little behind it — there's not enough here.`;
+    }
     case "freecheckfold":
       return "There was no bet to fold to — checking is free. Never fold when you can see the next card for nothing.";
   }
