@@ -3,6 +3,79 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.7.0] — 2026-06-17
+
+### Reviewer-iteration-2 fixes — Mental Math integrity + responsive play
+
+A second, fully independent first-time-user playtest
+(`docs/playtest/reviews/iter-01.md`) surfaced 12 reproducible negative moments
+that the v0.6.0 pass didn't reach — most seriously, the Mental Math coach
+contradicting the verdict engine. All are fixed here. UI/coaching-only — no
+`HandRecord` schema, API, or decision-engine verdict change (one pure, sync
+addition to `core/mental`; the panel still reads `DecisionAnalysis` + the Monte
+Carlo equity it already requests, and never recomputes a verdict).
+
+### Fixed
+
+- **Mental Math no longer contradicts the verdict (the headline bug).** The
+  `core/mental` walk-through was outs-only, so a made hand the outs count ignores
+  (e.g. top pair + gutshot on 4A3 with A2) produced a "~13% can't pay the 27%
+  price → fold" headline while the engine graded the same call "Easy call" off
+  ~47% true equity. `core/mental/estimate.ts` now detects the made hand
+  (`detectMadeHand`, plain label), surfaces it in Step 1, and drives the Step-6
+  conclusion (`conclusionFrom`) from the SAME Monte-Carlo equity the engine
+  grades against — so it never steers a fold on the outs alone. The "check your
+  work" gap line (`gapExplanation`) now attributes the hit%-vs-win% gap to the
+  made hand when that's the real cause, instead of always blaming "opponents +
+  board danger" (`core/mental/{types,estimate,index}.ts`,
+  `components/MentalMathSection.tsx`). `core/mental` stays pure/sync — equity is
+  passed in.
+- **The play view is usable at narrow widths.** The previous fix only handled
+  short viewports; below ~1000px the fixed 420px rail squeezed the table column
+  until the Fold/Check/Raise bar and seats clipped off-screen. `.play-grid` now
+  narrows the rail at ≤1100px and stacks to a single column at ≤880px, and the
+  action bar wraps + centers (`app/globals.css`, `components/PlayShell.tsx`,
+  `components/ActionBar.tsx`).
+- **The center "THIS ROUND" log no longer overlaps seats.** It's painted under
+  the seats and size-capped (`components/table/PokerTable.tsx`).
+- **Live Feedback can't show a stale verdict for the wrong street.** While you're
+  deciding a later street than the last graded decision, the panel shows a
+  "Deciding your <street>…" pending card instead of the previous street's verdict
+  + equity, so only one set of numbers ever describes the decision in front of
+  you (`components/RightPanel.tsx`).
+- **Instant-feedback OFF is no longer a silent blank.** During play the panel
+  now says the blank is intentional and notes the hand review still appears
+  afterward (`components/RightPanel.tsx`).
+- **Units are consistent.** With the stack toggled to BB, the feedback text and
+  the action/bet buttons render in BB too, instead of mixing BB and dollars on
+  screen (`components/FeedbackPanel.tsx`, `components/ActionBar.tsx`,
+  `components/table/{CenterStack,Seat,PokerTable}.tsx`).
+- **A fold no longer reads "you won $0."** The recap now says "no money won or
+  lost this hand" for a $0 result (`components/HandRecap.tsx`).
+- **The preflop chart defaults to your seat.** References → Preflop chart opens
+  on the hero's live position (falling back to BTN) instead of always BTN; manual
+  picks stick (`components/PreflopChartTab.tsx`).
+- **The setup screen says what a preset does.** A one-line hint clarifies that
+  picking a table preset fills in / replaces every bot's style + skill
+  (`components/SetupScreen.tsx`).
+- **All-in hands show the full board.** The engine already dealt all five
+  community cards on an all-in; the table was capping the display to the last
+  action's street, so an all-in on the turn showed only four cards. The full
+  board now renders at showdown (`components/table/PokerTable.tsx`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (the fix-loop's source of
+  truth — no memory of the design or prior fixes); evidence archived at
+  `docs/playtest/reviews/iter-01.md`. Verified: `tsc --noEmit` clean, ESLint
+  clean, **295** unit/component tests passing (new tests for made-hand
+  reconciliation, the gap explanation, the responsive grid/action-bar contract,
+  units, fold wording, chart default seat, and the all-in board run-out). The
+  responsive fix is verified by jsdom CSS-contract + flex-wrap assertions (jsdom
+  has no layout engine); true pixel behavior at 600–800px is exercised by the
+  next fresh-reviewer playtest. See
+  `docs/pmos/features/2026-06-17_reviewer-iter2-fixes/`.
+
 ## [0.6.0] — 2026-06-17
 
 ### First-time-user fixes + ALL-IN badge
