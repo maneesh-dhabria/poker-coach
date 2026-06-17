@@ -26,9 +26,15 @@ export function CenterStack({
 }) {
   const chips = chipCount(snapshot.pot);
   const money = (n: number) => formatMoney(n, displayUnit, bigBlind);
-  const actionLabel = (action: string, amt: number) => {
-    const verb = action.charAt(0).toUpperCase() + action.slice(1);
-    return `${verb} ${money(amt)}`;
+  // A bet/raise is labeled by its TOTAL raise-to level (the same number the action button offered),
+  // not the increment — so "Raise to N" here matches the button and the hand review (iter-03 #6).
+  const actionLabel = (c: { action: string; amount: number; toAmount?: number }) => {
+    if ((c.action === "raise" || c.action === "bet") && c.toAmount !== undefined) {
+      const verb = c.action === "raise" ? "Raise to" : "Bet";
+      return `${verb} ${money(c.toAmount)}`;
+    }
+    const verb = c.action.charAt(0).toUpperCase() + c.action.slice(1);
+    return `${verb} ${money(c.amount)}`;
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
@@ -95,7 +101,7 @@ export function CenterStack({
             >
               <span style={{ color: "var(--ink-soft)" }}>{c.name}</span>
               <span style={{ color: "var(--gold)", fontWeight: 700 }}>
-                {actionLabel(c.action, c.amount)}
+                {actionLabel(c)}
               </span>
             </div>
           ))}

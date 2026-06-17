@@ -22,8 +22,12 @@ const STREET_LABEL: Record<string, string> = {
 
 // Format a money figure in the session's display unit ($/BB) so the recap never mixes units with
 // the rest of the screen (finding #2): the live feedback, buttons, and table all honor the toggle.
-function actionLabel(a: { action: string; amount: number }, unit: MoneyUnit): string {
+function actionLabel(a: { action: string; amount: number; toAmount?: number }, unit: MoneyUnit): string {
   const money = (n: number) => formatMoney(n, unit, BIG_BLIND);
+  // A bet/raise is described by its TOTAL raise-to level (the number the action button offered, e.g.
+  // "Raise to 2 BB"), not the chips-added increment — so "raised to N" here matches the button and
+  // the round summary (iter-03 #6). Fall back to the increment for older records without toAmount.
+  const level = a.toAmount ?? a.amount;
   switch (a.action) {
     case "fold":
       return "folded";
@@ -32,9 +36,9 @@ function actionLabel(a: { action: string; amount: number }, unit: MoneyUnit): st
     case "call":
       return `called ${money(a.amount)}`;
     case "bet":
-      return `bet ${money(a.amount)}`;
+      return `bet ${money(level)}`;
     case "raise":
-      return `raised to ${money(a.amount)}`;
+      return `raised to ${money(level)}`;
     default:
       return a.action;
   }

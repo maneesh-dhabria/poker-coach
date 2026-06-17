@@ -27,7 +27,12 @@ export interface ActionRecord {
   street: Street;
   seat: number;
   action: string;
+  // Chips this action put into the pot (the increment) — used for all pot math.
   amount: number;
+  // For a bet/raise only: the TOTAL street commitment the action raised TO (the "raise to N" the
+  // player saw on the button), so display copy is consistent end-to-end (iter-03 #6). Optional and
+  // additive — older records / non-aggressive actions omit it and fall back to `amount`.
+  toAmount?: number;
 }
 
 export interface SpotRecord {
@@ -43,7 +48,7 @@ export interface HeroDecisionRecord {
   decisionId: string;
   street: Street;
   spot: SpotRecord;
-  heroAction: { action: string; amount: number };
+  heroAction: { action: string; amount: number; toAmount?: number };
   analysis: DecisionAnalysis;
 }
 

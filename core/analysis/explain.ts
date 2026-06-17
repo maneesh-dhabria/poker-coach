@@ -168,8 +168,11 @@ function conceptual(p: ExplainParams): string {
     case "price":
       if (p.verdict === "good")
         return p.action === "fold"
-          ? "Calling would cost more than this hand can win back, so folding is right — the pot isn't big enough to make the call worth it."
-          : "You're getting a good price here — the pot is big enough relative to the call, so it's an easy continue.";
+          // The honest reason to fold for a price is that the hand wins too rarely to justify the
+          // call — NOT that "the pot isn't big enough" (it can be huge; iter-03 #5). Frame it as
+          // win-chance vs the price, in plain words.
+          ? "Your hand wins too rarely to call this price — you'd be paying more than it can win back often enough, so folding is right."
+          : "You're getting a good price here — your hand wins often enough relative to the call, so it's an easy continue.";
       if (p.verdict === "thin") return "It's close, but just about worth continuing.";
       return p.action === "fold"
         ? "This was a spot to keep going, not fold."

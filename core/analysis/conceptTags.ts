@@ -5,6 +5,9 @@
 export const CONCEPT_TAGS = [
   "call_correct_price",
   "call_too_wide",
+  // Action-neutral "kept playing a hand too weak for the spot" — used when the hero took the lead
+  // (bet/raise) instead of calling, so the tag never says "call" about a raise (iter-03 #4).
+  "played_too_wide",
   "fold_too_tight",
   "value_bet_missed",
   "thin_value_good",
@@ -13,6 +16,9 @@ export const CONCEPT_TAGS = [
   "wrong_sizing",
   "preflop_chart_deviation",
   "good_preflop_discipline",
+  // Street-neutral "a disciplined fold" — used for a sound fold on any street (e.g. a correct river
+  // fold) so the tag never claims "preflop" about a postflop decision (iter-03 #4).
+  "good_fold_discipline",
   "position_misplay",
   "slowplay_costly",
 ] as const;

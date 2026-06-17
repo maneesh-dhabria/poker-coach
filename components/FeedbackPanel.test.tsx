@@ -94,3 +94,143 @@ describe("FeedbackPanel", () => {
     expect(screen.getByTestId("equity-fill")).toHaveStyle({ width: "46%" });
   });
 });
+
+describe("FeedbackPanel — bet/raise feedback is consistent (iter-03 #2)", () => {
+  it("a ❌ river bet never shows the call pot-odds 'only need ~%/makes money' headline", () => {
+    // River bet with low equity → mistake (aggressionBranch: <33% ⇒ mistake).
+    const a = analyze({
+      action: "bet",
+      potBefore: 300,
+      toCall: 0,
+      equityPct: 32,
+      unit: "bb",
+      street: "river",
+    });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        displayUnit="bb"
+        context={{ street: "river", potBefore: 300, toCall: 0, action: "bet" }}
+      />,
+    );
+    expect(a.verdict).toBe("mistake");
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    // The contradiction the reviewer hit: a ❌ bet claiming it "makes money over time".
+    expect(text).not.toMatch(/only need ~/i);
+    expect(text).not.toMatch(/makes money over time/i);
+  });
+
+  it("keeps the win-vs-need headline on a facing-a-bet CALL spot", () => {
+    const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "flop", potBefore: 12, toCall: 4, action: "call" }}
+      />,
+    );
+    expect(screen.getByText(/that gap is why continuing makes money/i)).toBeInTheDocument();
+  });
+});
+
+describe("FeedbackPanel — EV table lists only legal actions (iter-03 #8)", () => {
+  it("an unopened (no bet to call) spot has no 'call' row", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 58,
+      unit: "bb",
+      street: "river",
+    });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        displayUnit="bb"
+        context={{ street: "river", potBefore: 20, toCall: 0, action: "bet" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).not.toMatch(/average result if you call/i);
+    expect(text).toMatch(/average result if you check/i);
+    expect(text).toMatch(/average result if you bet/i);
+  });
+
+  it("a facing-a-bet spot still lists fold / call / raise", () => {
+    const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "flop", potBefore: 12, toCall: 4, action: "call" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/average result if you fold/i);
+    expect(text).toMatch(/average result if you call/i);
+    expect(text).toMatch(/average result if you raise/i);
+  });
+});
+
+describe("FeedbackPanel — depth-aware presentation (iter-03 #7)", () => {
+  const preflopRaise = (depth: "conceptual" | "equity" | "strict") =>
+    analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 57,
+      unit: "usd",
+      coachingDepth: depth,
+      street: "preflop",
+      hand: ["Ah", "Kh"],
+      position: "CO",
+      facing: "unopened",
+    });
+
+  it("Conceptual: no equity %, no 'chart-based' badge, no concept-tag jargon chips", () => {
+    render(<FeedbackPanel analysis={preflopRaise("conceptual")} enabled />);
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).not.toContain("%");
+    expect(text).not.toMatch(/chart-based/i);
+    expect(text).not.toMatch(/chart deviation/i);
+  });
+
+  it("Equity+Heuristics: shows an equity %", () => {
+    render(<FeedbackPanel analysis={preflopRaise("equity")} enabled />);
+    expect(screen.getByTestId("feedback-panel").textContent ?? "").toMatch(/%/);
+  });
+
+  it("Strict: shows the chart citation, not a bare equity %", () => {
+    render(<FeedbackPanel analysis={preflopRaise("strict")} enabled />);
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text.toLowerCase()).toMatch(/chart/);
+    expect(text).not.toContain("%"); // equity %s belong to the equity tier, not strict
+  });
+});
+
+describe("FeedbackPanel — assumed-range context is legible near equity (iter-03 #9)", () => {
+  it("restates that the win-chance is vs an assumed range, not real cards", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 47,
+      unit: "bb",
+      street: "flop",
+      assumedRange: "a wide calling-station range",
+    });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        displayUnit="bb"
+        context={{ street: "flop", potBefore: 20, toCall: 0, action: "bet" }}
+      />,
+    );
+    const note = screen.getByTestId("assumed-range").textContent ?? "";
+    expect(note).toMatch(/assumed range/i);
+    expect(note).toMatch(/not their actual cards/i);
+  });
+});

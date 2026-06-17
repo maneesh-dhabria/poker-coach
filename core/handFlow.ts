@@ -93,6 +93,9 @@ export interface ReplaySnapshot {
     name: string;
     action: string;
     amount: number;
+    // For a bet/raise: the total raise-to level (so "Raise to N" matches the action button); the
+    // round summary shows this instead of the increment for consistency (iter-03 #6).
+    toAmount?: number;
   }[];
 }
 
@@ -189,7 +192,14 @@ export class HandFlow {
         this.input.rng,
       );
       this.h.apply(action);
-      this.actions.push({ street, seat: seatId, action: action.type, amount: stackBefore - this.h.stackOf(seatId) });
+      this.actions.push({
+        street,
+        seat: seatId,
+        action: action.type,
+        amount: stackBefore - this.h.stackOf(seatId),
+        // The total raise-to level (what "Raise to N" means), kept for consistent display (#6).
+        ...(action.type === "bet" || action.type === "raise" ? { toAmount: action.amount } : {}),
+      });
       if (action.type === "bet" || action.type === "raise") this.raisedThisStreet = true;
     }
   }
@@ -203,7 +213,16 @@ export class HandFlow {
     const stackBefore = this.h.stackOf(this.heroSeatId);
     this.h.apply(action);
     const increment = stackBefore - this.h.stackOf(this.heroSeatId);
-    this.actions.push({ street: spot.street, seat: this.heroSeatId, action: action.type, amount: increment });
+    const isAggressive = action.type === "bet" || action.type === "raise";
+    // The total raise-to level (what "Raise to N" means on the button) for consistent display (#6).
+    const toAmount = isAggressive ? action.amount : undefined;
+    this.actions.push({
+      street: spot.street,
+      seat: this.heroSeatId,
+      action: action.type,
+      amount: increment,
+      ...(toAmount !== undefined ? { toAmount } : {}),
+    });
 
     const analysis = analyze({
       action: action.type,
@@ -231,7 +250,7 @@ export class HandFlow {
         numActiveOpponents: spot.numActiveOpponents,
         facing: spot.facing,
       },
-      heroAction: { action: action.type, amount: increment },
+      heroAction: { action: action.type, amount: increment, ...(toAmount !== undefined ? { toAmount } : {}) },
       analysis,
     };
     this.heroDecisions.push(decision);
@@ -262,7 +281,13 @@ export class HandFlow {
       this.input.seats.find((s) => s.seat === seat)?.name ?? `Seat ${seat}`;
     const roundContributions = slice
       .filter((a) => a.street === street && a.amount > 0)
-      .map((a) => ({ seat: a.seat, name: nameOf(a.seat), action: a.action, amount: a.amount }));
+      .map((a) => ({
+        seat: a.seat,
+        name: nameOf(a.seat),
+        action: a.action,
+        amount: a.amount,
+        ...(a.toAmount !== undefined ? { toAmount: a.toAmount } : {}),
+      }));
     return { pot, street, boardCount: boardCountForStreet(street), roundContributions };
   }
 

@@ -77,6 +77,10 @@ function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: num
 }
 
 // One plain sentence that explains WHY the verdict landed where it did, in win-vs-need terms.
+// This pot-odds "you only need ~Y% / makes money over time" framing is a CALL/draw template: it is
+// only meaningful when the hero is facing a bet and deciding whether to continue (call). It must
+// NEVER be shown for a bet/raise — there "need ~0%" is meaningless and "continuing makes money over
+// time" directly contradicts a ❌ bet verdict (iter-03 #2). The caller gates this with `isCallSpot`.
 function whyLine(eq: number, need: number | null): string {
   if (need === null) return "";
   const win = Math.round(eq);
@@ -85,6 +89,29 @@ function whyLine(eq: number, need: number | null): string {
     return `You win ~${win}% but only need ~${n}% — that gap is why continuing makes money over time.`;
   }
   return `You win ~${win}% but need ~${n}% — you come up short, so this loses money over time.`;
+}
+
+// Which EV rows to list — ONLY the actions actually legal in this spot (iter-03 #8). Facing a bet
+// (toCall > 0) the choices are fold / call / raise; unopened (toCall === 0) they are check / bet —
+// there is no "call" when nobody bet into the hero, so listing a "call" row reads as a phantom
+// option. Returns label + value pairs in the verb the hero would actually use.
+function evRows(
+  ev: { fold: number; call: number; raise: number },
+  facingBet: boolean,
+): { label: string; value: number }[] {
+  if (facingBet) {
+    return [
+      { label: "fold", value: ev.fold },
+      { label: "call", value: ev.call },
+      { label: "raise", value: ev.raise },
+    ];
+  }
+  // Unopened: checking takes a free look (its long-run value is the would-be "call" line — taking
+  // the pot to showdown without paying), and betting is the aggressive line.
+  return [
+    { label: "check", value: ev.call },
+    { label: "bet", value: ev.raise },
+  ];
 }
 
 function money(n: number, unit: MoneyUnit): string {
@@ -114,17 +141,36 @@ export function FeedbackPanel({
 }: {
   analysis: DecisionAnalysis | null;
   enabled: boolean;
-  context?: { street: string; potBefore: number; toCall: number };
+  context?: { street: string; potBefore: number; toCall: number; action?: string };
   // Whether to render money in dollars or big blinds — mirrors the table/banner toggle so the panel
   // never shows a conflicting unit (finding #7). The verdict/equity come from analysis as before.
   displayUnit?: MoneyUnit;
 }) {
   if (!enabled || !analysis) return null;
-  const showNumbers = analysis.coachingDepth !== "conceptual";
+  const depth = analysis.coachingDepth;
+  // Depth-aware presentation (iter-03 #7). The verdict + plain sentence come from analysis (the
+  // single source). What VARIES by depth is how much numeric scaffolding we surface around it:
+  //   • conceptual — plain words only: NO equity %, NO "chart-based" badge, NO concept-tag jargon.
+  //   • equity     — lead with the win-rate: show the equity bar + %, the EV table, the why-line.
+  //   • strict     — the chart/GTO citation (already in the plain sentence); the "chart-based" badge
+  //                  is allowed, but we do NOT surface raw equity %s (they belong to the equity tier).
+  const showEquity = depth === "equity";
+  const showJargon = depth !== "conceptual"; // badge + concept-tag chips are chart/odds jargon
   const eq = analysis.numbers.equityPct;
   const need = analysis.numbers.potOddsPct;
   const ev = analysis.numbers.ev;
   const unit = displayUnit;
+
+  // Is the hero facing a bet and deciding whether to continue (call/fold), vs taking the initiative
+  // (bet/raise) or acting unopened? The pot-odds "you only need ~Y% / makes money" framing and the
+  // "call" EV row apply ONLY to a facing-a-bet continue decision (iter-03 #2, #8).
+  const action = context?.action;
+  const isAggressive = action === "bet" || action === "raise";
+  const facingBet = (context?.toCall ?? (need !== null ? 1 : 0)) > 0 && !isAggressive;
+  // Show the win-vs-need headline only on a genuine facing-a-bet continue decision. On a bet/raise
+  // (or an unopened spot) the "you only need ~Y% / makes money over time" framing is meaningless and
+  // would contradict a ❌ bet verdict (iter-03 #2), so it is never rendered there.
+  const showWhyLine = facingBet && need !== null;
 
   return (
     <aside
@@ -134,7 +180,9 @@ export function FeedbackPanel({
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <VerdictBadge verdict={analysis.verdict} />
-        {analysis.gtoClaim ? (
+        {/* "chart-based" is chart jargon — honest only when gtoClaim, and only surfaced at a depth
+            that speaks numbers/charts. Conceptual ("plain words, no numbers") suppresses it. (#7) */}
+        {analysis.gtoClaim && showJargon ? (
           <span style={{ fontSize: 12, color: "var(--ink-soft)" }}>chart-based</span>
         ) : null}
       </div>
@@ -148,7 +196,9 @@ export function FeedbackPanel({
         </div>
       ) : null}
 
-      {analysis.conceptTags.length > 0 && (
+      {/* Concept-tag chips ("preflop chart deviation", etc.) are chart/odds jargon — hidden at
+          conceptual depth, which promises plain words only (#7). */}
+      {showJargon && analysis.conceptTags.length > 0 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
           {analysis.conceptTags.map((t) => (
             <span
@@ -171,19 +221,26 @@ export function FeedbackPanel({
         {analysis.plainExplanation}
       </p>
 
-      {showNumbers && eq !== null ? (
+      {showEquity && eq !== null ? (
         <div style={{ marginTop: 8 }}>
-          <EquityBar equityPct={eq} neededPct={need} />
+          {/* The "needed %" marker is a CALL/draw concept — only meaningful facing a bet. On a
+              bet/raise (or unopened) spot we drop it so the bar is a pure win-% bar and no stray
+              "needed 0%" tick contradicts the (correctly suppressed) pot-odds headline (#2). */}
+          <EquityBar equityPct={eq} neededPct={showWhyLine ? need : null} />
           <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 4 }}>
             You win ~{Math.round(eq)}%
-            {need !== null ? ` · need ~${Math.round(need)}%` : ""}
+            {showWhyLine ? ` · need ~${Math.round(need!)}%` : ""}
           </div>
-          {need !== null && (
+          {showWhyLine && (
             <p style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{whyLine(eq, need)}</p>
           )}
+          {/* Make the assumed-range context legible right next to the equity figure, so a surprising
+              number (e.g. queen-high ~47% vs a wide calling-station range) reads as "vs a range",
+              not the bots' real cards (iter-03 #9; honesty invariant). */}
           {analysis.assumedRange ? (
-            <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 2 }}>
-              vs {analysis.assumedRange}
+            <div data-testid="assumed-range" style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 2 }}>
+              That win-chance is vs {analysis.assumedRange} — an assumed range of hands, not their
+              actual cards.
             </div>
           ) : null}
 
@@ -192,9 +249,9 @@ export function FeedbackPanel({
               Show the numbers
             </summary>
             <div style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6, display: "grid", gap: 2 }}>
-              <span>Average result if you fold: {money(ev.fold, unit)}</span>
-              <span>Average result if you call: {money(ev.call, unit)}</span>
-              <span>Average result if you raise: {money(ev.raise, unit)}</span>
+              {evRows(ev, facingBet).map((r) => (
+                <span key={r.label}>Average result if you {r.label}: {money(r.value, unit)}</span>
+              ))}
               <span style={{ marginTop: 4 }}>
                 Higher is better — these are long-run averages, not this one hand.
               </span>

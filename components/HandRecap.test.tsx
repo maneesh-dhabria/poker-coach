@@ -11,12 +11,13 @@ function decision(
   action: string,
   amount: number,
   args: Parameters<typeof analyze>[0],
+  toAmount?: number,
 ): HeroDecisionRecord {
   return {
     decisionId: `${street}-${action}`,
     street,
     spot: { potBefore: 10, toCall: 0, position: "BB", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
-    heroAction: { action, amount },
+    heroAction: { action, amount, ...(toAmount !== undefined ? { toAmount } : {}) },
     analysis: analyze(args),
   };
 }
@@ -137,5 +138,41 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.getByText(/Result:/i)).toBeInTheDocument();
     expect(screen.getByText(/poker-coach last/i)).toBeInTheDocument();
     expect(screen.getByTestId("recap-variance")).toBeInTheDocument();
+  });
+
+  // SAFETY (iter-03 resultLine note): the conclusion/result line renders without throwing on the
+  // hand-COMPLETE path for both a win and a loss (the reported ReferenceError was a stale hot-reload
+  // artifact — resultLine is defined and used; this guards the path stays clean).
+  it("renders the result conclusion on the complete path for a WIN without error", () => {
+    const decisions = [
+      decision("river", "bet", 50, { action: "bet", potBefore: 100, toCall: 0, equityPct: 80 }, 50),
+    ];
+    expect(() =>
+      render(<HandRecap decisions={decisions} heroNet={120} handComplete />),
+    ).not.toThrow();
+    expect(screen.getByText(/you won \$120/i)).toBeInTheDocument();
+  });
+
+  it("renders the result conclusion on the complete path for a LOSS without error", () => {
+    const decisions = [
+      decision("river", "call", 40, { action: "call", potBefore: 80, toCall: 40, equityPct: 30 }),
+    ];
+    expect(() =>
+      render(<HandRecap decisions={decisions} heroNet={-40} handComplete />),
+    ).not.toThrow();
+    expect(screen.getByText(/you lost \$40/i)).toBeInTheDocument();
+  });
+
+  // iter-03 #6: a raise/bet row is labeled by its TOTAL raise-to level (toAmount), matching the
+  // "Raise to N" the action button offered — not the chips-added increment.
+  it("labels a raise by its total raise-to level (toAmount), matching the button (#6)", () => {
+    const decisions = [
+      // Hero raised TO 4 ($4 = 2 BB) but only added 2 chips beyond their posted blind.
+      decision("preflop", "raise", 2, { action: "raise", potBefore: 3, toCall: 0, equityPct: 60 }, 4),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={10} displayUnit="bb" />);
+    // "raised to 2 BB" ($4 / 2) — the same number the button "Raise to 2 BB" showed.
+    expect(screen.getByText(/raised to 2 BB/i)).toBeInTheDocument();
+    expect(screen.queryByText(/raised to 1 BB/i)).toBeNull();
   });
 });

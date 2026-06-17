@@ -119,7 +119,7 @@ function route(input: AnalyzeInput): Branch {
     // nonsensically read "$0 to win, need 0%").
     return input.toCall === 0
       ? freeCheckFoldBranch(equityPct)
-      : foldBranch(equityPct, potOdds(input.potBefore, input.toCall));
+      : foldBranch(equityPct, potOdds(input.potBefore, input.toCall), street);
   }
   return callBranch(equityPct, potOdds(input.potBefore, input.toCall));
 }
@@ -152,7 +152,9 @@ function preflopBranch(hand: [Card, Card], position: Position, facing: Facing, a
     return { ...base, verdict: "mistake", severity: 2, conceptTags: tags };
   }
   if (rec === "fold" && hero !== "fold") {
-    tags.push("call_too_wide");
+    // Chart says fold, hero kept playing. Pick a tag that matches what the hero actually DID: a call
+    // is "call too wide", but a bet/raise is not a call — tag it action-neutrally (iter-03 #4).
+    tags.push(action === "call" ? "call_too_wide" : "played_too_wide");
     return { ...base, verdict: "mistake", severity: 2, conceptTags: tags };
   }
   // raise-vs-call mismatch: right to continue, wrong aggression level → thin.
@@ -202,7 +204,7 @@ function freeCheckFoldBranch(equityPct: number): Branch {
   };
 }
 
-function foldBranch(equityPct: number, potOddsPct: number): Branch {
+function foldBranch(equityPct: number, potOddsPct: number, street: Street): Branch {
   const edge = equityPct - potOddsPct;
   const base = { kind: "price" as const, gtoClaim: false };
   if (edge >= 5)
@@ -212,5 +214,8 @@ function foldBranch(equityPct: number, potOddsPct: number): Branch {
       severity: edge >= 15 ? 3 : 2,
       conceptTags: ["fold_too_tight"],
     };
-  return { ...base, verdict: "good", severity: 0, conceptTags: ["good_preflop_discipline"] };
+  // A sound fold. Tag it by street so a river fold is never labeled "preflop" (iter-03 #4): a
+  // preflop fold keeps the discipline tag, any later street gets the street-neutral fold tag.
+  const tag: ConceptTag = street === "preflop" ? "good_preflop_discipline" : "good_fold_discipline";
+  return { ...base, verdict: "good", severity: 0, conceptTags: [tag] };
 }

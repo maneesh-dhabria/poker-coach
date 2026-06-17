@@ -29,6 +29,16 @@ export function selectActingSeat(
   return view.isOver ? null : view.toAct;
 }
 
+// How many community cards the Board should show. While the bot-reveal animation is walking
+// (`revealing`), cap to the snapshot's street count so cards turn over in step with the cursor.
+// Otherwise — a static hero decision or the hand being over — show ALL dealt cards (undefined =
+// uncapped) so the hero always sees the street they're deciding and the full run-out at showdown.
+// `view.board` already holds exactly the cards dealt so far for the live street, so an uncapped
+// board on a hero decision never reveals a card ahead of the action (iter-03 #1 regression fix).
+export function boardShowCount(revealing: boolean, snapshotBoardCount: number): number | undefined {
+  return revealing ? snapshotBoardCount : undefined;
+}
+
 export function PokerTable() {
   const flow = useGameStore((s) => s.flow);
   const busy = useGameStore((s) => s.busy);
@@ -147,26 +157,33 @@ export function PokerTable() {
           style={{
             position: "absolute",
             left: "50%",
-            // Anchor the board + pot/round-summary in the UPPER-center, clear of the bottom hero
-            // ("You") seat, so the pot readout and "THIS ROUND" summary are never hidden behind the
-            // hero seat at short/narrow sizes (finding #6). Seats still paint above (zIndex below) as
-            // a belt-and-braces guard.
-            top: "42%",
+            // Anchor the board + pot/round-summary in the UPPER-MIDDLE and bound it to a zone that
+            // ENDS well above the bottom hero ("You") seat, so the pot readout and "THIS ROUND"
+            // summary are never hidden behind — or colliding with — the hero seat at short/narrow
+            // sizes (iter-03 #3). The hero seat's center sits at ~82% of the felt height (RY below),
+            // so its top edge is ~74%; capping this block's bottom at ~70% guarantees a gap. Seats
+            // also paint above this block (zIndex) as a belt-and-braces guard.
+            top: "36%",
             transform: "translate(-50%, -50%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 6,
-            maxWidth: "46%",
-            maxHeight: "56%",
+            maxWidth: "44%",
+            // 36% center ± 34% half-height ⇒ spans ~2%–70% of the felt, ending clear of the hero seat.
+            maxHeight: "68%",
             overflow: "hidden",
             zIndex: 0,
           }}
         >
-          {/* While the hand plays, the board reveals street-by-street with the action cursor. Once
-              the hand is over (incl. an all-in that ends betting early), run the full board out so
-              the player sees all five community cards at showdown (finding #12). */}
-          <Board cards={view.board} count={showdownDone ? undefined : snapshot.boardCount} />
+          {/* The board count is capped ONLY while the bot-action reveal animation is walking
+              (`revealing`) so cards turn over street-by-street in step with the reveal cursor. The
+              moment the reveal finishes — i.e. it's the hero's turn / a static "your decision" state
+              or the hand is over — show the ACTUAL dealt board in full (`view.board`), so the player
+              always sees the card(s) for the street they're deciding (iter-03 #1 regression fix) and
+              the full run-out at showdown (finding #12). `view.board` already holds exactly the cards
+              dealt so far for the live street, so this never reveals a card ahead of the action. */}
+          <Board cards={view.board} count={boardShowCount(revealing, snapshot.boardCount)} />
           <CenterStack
             snapshot={snapshot}
             categoryBanner={categoryBanner}

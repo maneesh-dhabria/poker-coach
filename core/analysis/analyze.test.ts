@@ -187,6 +187,65 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.plainExplanation).not.toContain("$");
   });
 
+  // iter-03 #4: the concept tag must match the action the hero actually took. A preflop RAISE that
+  // the chart says to fold must NOT be tagged "call too wide" (the hero did not call).
+  it("does not tag a preflop RAISE with 'call_too_wide' (#4)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 30,
+      street: "preflop",
+      hand: hand("9d", "3c"), // a clear fold by the chart from CO
+      position: "CO",
+      facing: "unopened",
+    });
+    expect(a.verdict).toBe("mistake");
+    expect(a.chart?.heroDeviates).toBe(true);
+    expect(a.conceptTags).not.toContain("call_too_wide");
+    expect(a.conceptTags).toContain("played_too_wide");
+  });
+
+  // iter-03 #4: a RIVER fold's tag must not be labeled "preflop". A sound non-preflop fold gets the
+  // street-neutral discipline tag.
+  it("a sound RIVER fold is not tagged 'good_preflop_discipline' (#4)", () => {
+    const a = analyze({
+      action: "fold",
+      potBefore: 240,
+      toCall: 60,
+      equityPct: 5, // Q-high facing a big river bet — almost no equity
+      street: "river",
+    });
+    expect(a.verdict).toBe("good");
+    expect(a.conceptTags).not.toContain("good_preflop_discipline");
+    expect(a.conceptTags).toContain("good_fold_discipline");
+  });
+
+  // iter-03 #5: folding far below the price into a HUGE pot must cite the low win-chance vs the
+  // price, NOT a "pot isn't big enough" rationale (the pot is enormous here).
+  it("explains a low-equity fold into a big pot by win-chance, not 'pot isn't big enough' (#5)", () => {
+    const equityDepth = analyze({
+      action: "fold",
+      potBefore: 240,
+      toCall: 60,
+      equityPct: 5,
+      street: "river",
+    });
+    expect(equityDepth.verdict).toBe("good");
+    expect(equityDepth.plainExplanation.toLowerCase()).not.toContain("pot isn't big enough");
+
+    const conceptualDepth = analyze({
+      action: "fold",
+      potBefore: 240,
+      toCall: 60,
+      equityPct: 5,
+      street: "river",
+      coachingDepth: "conceptual",
+    });
+    expect(conceptualDepth.plainExplanation.toLowerCase()).not.toContain("pot isn't big enough");
+    expect(conceptualDepth.plainExplanation.toLowerCase()).toMatch(/wins too rarely|win back/);
+  });
+
   it("populates the EV block for all three options", () => {
     const a = analyze({
       action: "call",

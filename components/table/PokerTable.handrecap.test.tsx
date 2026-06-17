@@ -19,11 +19,14 @@ describe("PokerTable — no duplicate Hand review below the table (FR-09)", () =
     expect(src).toMatch(/Next hand/);
   });
 
-  // Finding #12: when the hand is over (incl. an all-in that ended betting early), the board must
-  // show the full run-out, not the street-capped count. The engine already deals all 5 cards into
-  // view.board; the table must stop capping the Board by snapshot.boardCount at showdown.
-  it("shows the full board (uncapped) once the hand is over", () => {
-    expect(src).toMatch(/count=\{showdownDone \? undefined : snapshot\.boardCount\}/);
+  // iter-03 #1 (regression): the board count is capped ONLY during the bot-reveal animation
+  // (`revealing`). On a static hero decision (and at showdown) the table shows the ACTUAL dealt
+  // board in full (`view.board`), so the player always sees the street they're deciding and the
+  // full run-out at the end — never one street stale.
+  it("caps the board only while revealing; otherwise shows the full dealt board", () => {
+    expect(src).toMatch(/count=\{boardShowCount\(revealing, snapshot\.boardCount\)\}/);
+    // The previous (buggy) expression capped by boardCount whenever the hand wasn't over — gone.
+    expect(src).not.toMatch(/count=\{showdownDone \? undefined : snapshot\.boardCount\}/);
   });
 
   // iter-03 #9: the showdown category banner must attribute the winning hand to its owner
@@ -33,10 +36,12 @@ describe("PokerTable — no duplicate Hand review below the table (FR-09)", () =
     expect(src).toMatch(/\$\{winnerName\} \$\{verb\} with \$\{category\}/);
   });
 
-  // iter-03 #6: the felt preserves aspect ratio (scales to fit width AND height so seats never clip
-  // off an edge) and the center pot/round-summary sits in the upper-center, clear of the hero seat.
-  it("the felt preserves aspect ratio and the center block sits clear of the hero seat", () => {
+  // iter-03 #6/#3: the felt preserves aspect ratio (scales to fit width AND height so seats never
+  // clip off an edge) and the center pot/round-summary sits in the upper-middle, bounded to a zone
+  // that ENDS above the bottom hero seat so the two never overlap at small/narrow sizes.
+  it("the felt preserves aspect ratio and the center block is bounded clear of the hero seat", () => {
     expect(src).toMatch(/aspectRatio: "760 \/ 520"/);
-    expect(src).toMatch(/top: "42%"/); // center block anchored above dead-center, above the You seat
+    expect(src).toMatch(/top: "36%"/); // center block anchored in the upper-middle, above the You seat
+    expect(src).toMatch(/maxHeight: "68%"/); // bounded so its bottom (~70%) stays above the hero seat
   });
 });

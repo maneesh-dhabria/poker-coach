@@ -87,6 +87,9 @@ export function RightPanel() {
                         street: feedback.street,
                         potBefore: feedback.spot.potBefore,
                         toCall: feedback.spot.toCall,
+                        // The action the verdict judges — lets the panel keep the call/draw pot-odds
+                        // framing and the "call" EV row to facing-a-bet continue decisions (#2, #8).
+                        action: feedback.heroAction.action,
                       }
                     : undefined
                 }
