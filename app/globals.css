@@ -67,6 +67,40 @@ button { font: inherit; cursor: pointer; }
 }
 .select:hover { border-color: var(--gold); }
 
+/* ── Responsive play layout (findings #4/#6) ─────────────────────────────────
+   The two-column play grid (table | feedback) keeps a fixed 420px feedback rail on wide screens.
+   Below ~1000px the rail can't fit beside the felt without squeezing the table into a negative-width
+   column — seats and the action bar then clip off the viewport edges. So we narrow the rail, then
+   collapse to a single column where the right panel rides below the table. The whole shell stays
+   100vh / overflow:hidden (no-scroll contract); on the stacked layout the right column's own
+   #tab-body remains the single scroll region. */
+.play-grid {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 16px;
+  min-height: 0;
+}
+@media (max-width: 1100px) {
+  .play-grid { grid-template-columns: 1fr 340px; }
+}
+@media (max-width: 880px) {
+  /* Stack: table on top, feedback below. The table column gets a min height so it doesn't collapse,
+     and the right column scrolls within its own #tab-body as usual. */
+  .play-grid { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+/* The hero action bar must never clip its controls off-screen on narrow viewports: wrap onto
+   multiple rows and center, instead of overflowing horizontally (finding #4). */
+.action-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 100%;
+}
+.action-bar input[type="range"] { max-width: 160px; min-width: 90px; }
+
 /* A surface card used to group setup sections / the end-of-hand recap. */
 .card {
   background: var(--panel);

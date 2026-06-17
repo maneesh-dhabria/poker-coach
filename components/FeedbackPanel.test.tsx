@@ -62,6 +62,22 @@ describe("FeedbackPanel", () => {
     expect(ctx.textContent).toMatch(/pot was \$24 when you acted/i);
   });
 
+  it("renders the context pot and numbers in BB when displayUnit is bb (finding #7)", () => {
+    const a = analyze({ action: "call", potBefore: 24, toCall: 8, equityPct: 46, unit: "usd" });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        displayUnit="bb"
+        context={{ street: "flop", potBefore: 24, toCall: 8 }}
+      />,
+    );
+    // $24 pot → 12 BB; the context line must not show a conflicting dollar figure.
+    const ctx = screen.getByTestId("feedback-context");
+    expect(ctx.textContent).toMatch(/pot was 12 BB when you acted/i);
+    expect(ctx.textContent).not.toContain("$");
+  });
+
   it("omits the context line when no context is given (back-compat)", () => {
     const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
     render(<FeedbackPanel analysis={a} enabled />);

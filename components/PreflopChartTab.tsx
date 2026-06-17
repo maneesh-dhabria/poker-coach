@@ -7,11 +7,12 @@
 // definitions of the jargon, and the honest caveat that "vs a random hand" overstates real equity.
 // Presentational: actions come from core/charts (chartAction); equity from the committed JSON, with an
 // on-demand fallback only for any key the table somehow lacks (FR-56).
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card } from "@/core/cards";
 import { Position, Facing, ChartAction, chartAction } from "@/core/charts/preflop";
 import { equity } from "@/core/equity/equity";
 import equityTable from "@/core/charts/preflopEquity.json";
+import { useGameStore } from "@/store/gameStore";
 
 // Rows/cols high→low. Cell (i,j): i<j suited, i===j pair, i>j offsuit — the standard chart layout.
 const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"] as const;
@@ -49,8 +50,22 @@ function equityFor(key: string): number {
 
 const ACTION_LABEL: Record<ChartAction, string> = { raise: "Raise", call: "Call", fold: "Fold" };
 
-export function PreflopChartTab() {
-  const [position, setPosition] = useState<Position>("BTN"); // safe default; hero-pos auto-default is optional
+// The chart defaults to the player's actual seat when a hand is in progress (finding #10) — falling
+// back to BTN otherwise. `heroPosition` lets tests inject the seat; left undefined, we read it live
+// from the game store. The select still lets the user browse any position.
+export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = {}) {
+  const liveHeroPosition = useGameStore((s) => {
+    const view = s.flow?.tableView();
+    return (view?.seats.find((seat) => seat.isHero)?.position as Position | undefined) ?? null;
+  });
+  const heroPos = heroPosition ?? liveHeroPosition;
+  const [position, setPosition] = useState<Position>(heroPos ?? "BTN");
+  // Track whether the user has manually picked a position; until then, follow the hero's seat as it
+  // becomes known / changes hand to hand.
+  const [userPicked, setUserPicked] = useState(false);
+  useEffect(() => {
+    if (!userPicked && heroPos) setPosition(heroPos);
+  }, [heroPos, userPicked]);
   const facing: Facing = "unopened";
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -73,7 +88,10 @@ export function PreflopChartTab() {
             aria-label="position"
             className="select"
             value={position}
-            onChange={(e) => setPosition(e.target.value as Position)}
+            onChange={(e) => {
+              setUserPicked(true);
+              setPosition(e.target.value as Position);
+            }}
           >
             {POSITIONS.map((p) => (
               <option key={p} value={p}>

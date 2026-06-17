@@ -2,4 +2,11 @@
 export * from "@/core/mental/types";
 export { countOuts } from "@/core/mental/outs";
 export { ruleOf2And4, exactHitPct, bigDrawCaveat } from "@/core/mental/hit";
-export { detectTaint, buildMentalEstimate } from "@/core/mental/estimate";
+export {
+  detectTaint,
+  detectMadeHand,
+  buildMentalEstimate,
+  trueWinExceedsOuts,
+  conclusionFrom,
+  gapExplanation,
+} from "@/core/mental/estimate";

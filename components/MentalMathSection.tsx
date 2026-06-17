@@ -6,7 +6,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
 import { useSessionStore } from "@/store/sessionStore";
-import { buildMentalEstimate, MentalInput, MentalEstimate } from "@/core/mental";
+import {
+  buildMentalEstimate,
+  conclusionFrom,
+  gapExplanation,
+  MentalInput,
+  MentalEstimate,
+} from "@/core/mental";
 import { requestEquity } from "@/core/equity/equityClient";
 import { HandFlow } from "@/core/handFlow";
 import { Street } from "@/core/analysis/types";
@@ -245,7 +251,7 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
           )}
           {estimate.status === "no-draw" && (
             <>
-              <Note>No clear drawing outs detected — you may already have the best hand, or be drawing thin.</Note>
+              <Note>{estimate.plainSummary}</Note>
               <TrueEquityCheck
                 estimate={estimate}
                 trueWinPct={trueWinPct}
@@ -320,6 +326,12 @@ function Steps({
             I count differently ▸
           </button>
         </div>
+        {estimate.madeHand && (
+          <p data-testid="mm-made-hand" style={{ margin: "2px 0 6px", fontSize: 13, color: "var(--good)" }}>
+            You already have <strong>{estimate.madeHand.label}</strong> — so you&apos;re often ahead
+            already, on top of any outs below.
+          </p>
+        )}
         {outs.groups.map((g, i) => (
           <p key={i} style={{ margin: "2px 0", fontSize: 13 }}>
             {g.label}
@@ -436,19 +448,36 @@ function Steps({
         </div>
       )}
 
-      {/* Step 6 — the call */}
-      {estimate.decision && (
-        <div style={STEP_CARD}>
-          <div style={STEP_HEAD}>
-            <span>Step 6 · The call</span>
-          </div>
-          <p style={{ margin: "2px 0", fontSize: 13 }}>
-            <strong style={{ color: estimate.decision.profitable ? "var(--good)" : "var(--mistake)" }}>
-              {estimate.decision.sentence}
-            </strong>
-          </p>
-        </div>
-      )}
+      {/* Step 6 — the call. Once the true win % has resolved, the conclusion is driven by that
+          equity (the same number the engine grades against) so it can never contradict the
+          post-action verdict — especially when a made hand makes an outs-only "fold" wrong. */}
+      {estimate.decision &&
+        (() => {
+          const conclusion =
+            trueWinPct != null && estimate.potOdds
+              ? conclusionFrom({
+                  trueWinPct,
+                  breakEvenPct: estimate.potOdds.breakEvenPct,
+                  toCall: estimate.potOdds.toCall,
+                  madeHand: estimate.madeHand,
+                })
+              : estimate.decision!;
+          return (
+            <div style={STEP_CARD}>
+              <div style={STEP_HEAD}>
+                <span>Step 6 · The call</span>
+              </div>
+              <p style={{ margin: "2px 0", fontSize: 13 }}>
+                <strong
+                  data-testid="mm-conclusion"
+                  style={{ color: conclusion.profitable ? "var(--good)" : "var(--mistake)" }}
+                >
+                  {conclusion.sentence}
+                </strong>
+              </p>
+            </div>
+          );
+        })()}
 
       <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} loading={loading} input={input} displayUnit={displayUnit} />
     </div>
@@ -504,8 +533,8 @@ function TrueEquityCheck({
             </p>
           )}
           {exact != null && (
-            <p style={{ margin: "2px 0", fontSize: 13 }}>
-              You hit ≈{exact}% but win ≈{trueWinPct}% — that gap is the opponents + board danger (Steps 3 &amp; 4).
+            <p data-testid="mm-gap" style={{ margin: "2px 0", fontSize: 13 }}>
+              {gapExplanation({ exactHitPct: exact, trueWinPct, madeHand: estimate.madeHand })}
             </p>
           )}
         </>

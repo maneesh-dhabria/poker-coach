@@ -5,6 +5,7 @@
 // each seat shows what it just did, and committed chips animate toward the pot.
 import { useEffect, useState } from "react";
 import { useGameStore } from "@/store/gameStore";
+import { useSessionStore } from "@/store/sessionStore";
 import { latestActionPerSeat } from "@/core/handFlow";
 import { winningCards, handCategoryLabel } from "@/core/eval/handEval";
 import { Seat } from "@/components/table/Seat";
@@ -34,6 +35,7 @@ export function PokerTable() {
   const heroAct = useGameStore((s) => s.heroAct);
   const newHand = useGameStore((s) => s.newHand);
   const handNumber = useGameStore((s) => s.handNumber);
+  const displayUnit = useSessionStore((s) => s.displayUnit);
   useGameStore((s) => s.tick); // subscribe so the table re-renders on each change
 
   const log = flow ? flow.actionLog() : [];
@@ -120,6 +122,37 @@ export function PokerTable() {
           margin: "0 auto",
         }}
       >
+        {/* Center pot/log is painted FIRST so the seats (rendered after) sit on top of it — when the
+            felt is short and the central "THIS ROUND" log would otherwise overlap the You/center
+            seats, the seats stay readable rather than being hidden behind the log (finding #6). The
+            log itself is width- and height-capped so it can't sprawl across the center seats. */}
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 6,
+            maxWidth: "44%",
+            maxHeight: "60%",
+            overflow: "hidden",
+            zIndex: 0,
+          }}
+        >
+          {/* While the hand plays, the board reveals street-by-street with the action cursor. Once
+              the hand is over (incl. an all-in that ends betting early), run the full board out so
+              the player sees all five community cards at showdown (finding #12). */}
+          <Board cards={view.board} count={showdownDone ? undefined : snapshot.boardCount} />
+          <CenterStack
+            snapshot={snapshot}
+            categoryBanner={categoryBanner}
+            displayUnit={displayUnit}
+            bigBlind={BIG_BLIND}
+          />
+        </div>
         {view.seats.map((s, i) => (
           <div
             key={s.seat}
@@ -127,6 +160,7 @@ export function PokerTable() {
               position: "absolute",
               ...seatPosition(i),
               transform: "translate(-50%, -50%)",
+              zIndex: 1, // seats paint above the central log so they're never hidden behind it (#6)
             }}
           >
             <Seat
@@ -140,21 +174,6 @@ export function PokerTable() {
             />
           </div>
         ))}
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: "50%",
-            transform: "translate(-50%, -50%)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <Board cards={view.board} count={snapshot.boardCount} />
-          <CenterStack snapshot={snapshot} categoryBanner={categoryBanner} />
-        </div>
       </div>
 
       <div style={{ flex: "0 0 auto", marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
@@ -169,7 +188,14 @@ export function PokerTable() {
             </Button>
           </div>
         ) : view.isHeroTurn ? (
-          <ActionBar legal={view.legal} onAction={heroAct} disabled={busy} pot={view.pot} />
+          <ActionBar
+            legal={view.legal}
+            onAction={heroAct}
+            disabled={busy}
+            pot={view.pot}
+            displayUnit={displayUnit}
+            bigBlind={BIG_BLIND}
+          />
         ) : (
           <p style={{ color: "var(--ink-soft)" }}>Opponents acting…</p>
         )}

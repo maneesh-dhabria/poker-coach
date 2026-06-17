@@ -2,14 +2,9 @@
 // Shows a growing chip pile, the pot total, and a per-round breakdown of who put in what.
 // Presentational only — consumes a ReplaySnapshot computed by HandFlow.replayAt (never recomputes).
 import { ReplaySnapshot } from "@/core/handFlow";
+import { formatMoney, MoneyUnit } from "@/core/money";
 
 const MAX_PILE_CHIPS = 12;
-
-const ACTION_LABEL: Record<string, (amt: number) => string> = {
-  bet: (a) => `Bet $${a}`,
-  call: (a) => `Call $${a}`,
-  raise: (a) => `Raise $${a}`,
-};
 
 function chipCount(pot: number): number {
   if (pot <= 0) return 0;
@@ -20,11 +15,21 @@ function chipCount(pot: number): number {
 export function CenterStack({
   snapshot,
   categoryBanner,
+  displayUnit = "usd",
+  bigBlind = 2,
 }: {
   snapshot: ReplaySnapshot;
   categoryBanner?: string | null;
+  // Keep the central pot + per-action amounts in the same unit as the rest of the table (finding #7).
+  displayUnit?: MoneyUnit;
+  bigBlind?: number;
 }) {
   const chips = chipCount(snapshot.pot);
+  const money = (n: number) => formatMoney(n, displayUnit, bigBlind);
+  const actionLabel = (action: string, amt: number) => {
+    const verb = action.charAt(0).toUpperCase() + action.slice(1);
+    return `${verb} ${money(amt)}`;
+  };
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
       {categoryBanner ? (
@@ -53,7 +58,7 @@ export function CenterStack({
         ))}
       </div>
       <div data-testid="pot" style={{ color: "var(--gold)", fontWeight: 700 }}>
-        Pot: ${snapshot.pot}
+        Pot: {money(snapshot.pot)}
       </div>
       {snapshot.roundContributions.length > 0 && (
         <div
@@ -90,7 +95,7 @@ export function CenterStack({
             >
               <span style={{ color: "var(--ink-soft)" }}>{c.name}</span>
               <span style={{ color: "var(--gold)", fontWeight: 700 }}>
-                {ACTION_LABEL[c.action]?.(c.amount) ?? `$${c.amount}`}
+                {actionLabel(c.action, c.amount)}
               </span>
             </div>
           ))}

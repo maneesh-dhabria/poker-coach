@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { detectTaint, buildMentalEstimate } from "@/core/mental/estimate";
+import {
+  detectTaint,
+  detectMadeHand,
+  buildMentalEstimate,
+  conclusionFrom,
+  gapExplanation,
+  trueWinExceedsOuts,
+} from "@/core/mental/estimate";
 import { MentalInput } from "@/core/mental/types";
 import { Card } from "@/core/cards";
 
@@ -140,6 +147,97 @@ describe("buildMentalEstimate — opponent shade", () => {
   it("4+ way shaves further", () => {
     const e = buildMentalEstimate(okFlop(3));
     expect(e.opponentShade!.lowPct).toBeLessThan(48);
+  });
+});
+
+describe("detectMadeHand", () => {
+  it("detects top pair (A2 on 4A3) — the finding-#1 spot", () => {
+    const m = detectMadeHand(hole("Ah", "2h"), h(["4h", "Ac", "3d"]));
+    expect(m).not.toBeNull();
+    expect(m!.label).toBe("top pair");
+  });
+
+  it("detects two pair (A2 on 4A34 turn)", () => {
+    const m = detectMadeHand(hole("Ah", "2h"), h(["4h", "Ac", "3d", "4d"]));
+    expect(m!.label).toBe("two pair");
+  });
+
+  it("returns null when the hero only has a draw / high card", () => {
+    expect(detectMadeHand(hole("Qh", "Jh"), h(["Th", "9c", "2h"]))).toBeNull();
+  });
+});
+
+describe("made-hand reconciliation (findings #1/#2/#3)", () => {
+  // Top pair + gutshot: A2 on 4A3. The outs count sees only the gutshot (4 outs), but the hero
+  // already has top pair. The walk-through must NOT conclude "fold / price too steep".
+  const topPairGutshot: MentalInput = {
+    ...base,
+    hole: hole("Ah", "2h"),
+    board: h(["4h", "Ac", "3d"]),
+    street: "flop",
+    potBefore: 32,
+    toCall: 12,
+  };
+
+  it("(a) a made-hand spot does NOT produce a fold/price-too-steep conclusion", () => {
+    const e = buildMentalEstimate(topPairGutshot);
+    expect(e.madeHand?.label).toBe("top pair");
+    // The sync decision must not steer a fold on the outs alone.
+    expect(e.decision?.profitable).toBe(true);
+    expect(e.decision?.sentence.toLowerCase()).not.toContain("too steep");
+    expect(e.plainSummary.toLowerCase()).toContain("top pair");
+  });
+
+  it("(a') the true-equity conclusion calls it profitable, never a fold, at ~47% equity", () => {
+    const c = conclusionFrom({
+      trueWinPct: 47,
+      breakEvenPct: 27,
+      toCall: 12,
+      madeHand: { category: 1, label: "top pair" },
+    });
+    expect(c.profitable).toBe(true);
+    expect(c.sentence.toLowerCase()).toContain("profitable");
+    expect(c.sentence.toLowerCase()).not.toContain("too steep");
+  });
+
+  it("(turn) a free check with a made hand does not say 'just take it' as the only message", () => {
+    // Two pair on the turn, checked to (toCall 0). Mental math must mention being ahead, not a
+    // pure outs-driven free card (which the engine then grades as a missed value bet).
+    const e = buildMentalEstimate({
+      ...base,
+      hole: hole("Ah", "2h"),
+      board: h(["4h", "Ac", "3d", "4d"]),
+      street: "turn",
+      toCall: 0,
+    });
+    expect(e.madeHand?.label).toBe("two pair");
+    const c = conclusionFrom({ trueWinPct: 66, breakEvenPct: 0, toCall: 0, madeHand: e.madeHand });
+    expect(c.sentence.toLowerCase()).toContain("value");
+  });
+
+  it("(b) the gap explanation DIFFERS between a pure-draw spot and a made-hand spot", () => {
+    const madeGap = gapExplanation({
+      exactHitPct: 16,
+      trueWinPct: 47,
+      madeHand: { category: 1, label: "top pair" },
+    });
+    const drawGap = gapExplanation({ exactHitPct: 54, trueWinPct: 51, madeHand: null });
+    expect(madeGap).not.toBe(drawGap);
+    expect(madeGap.toLowerCase()).toContain("top pair");
+    expect(madeGap.toLowerCase()).not.toContain("opponents + board danger");
+    expect(drawGap.toLowerCase()).toContain("opponents + board danger");
+  });
+
+  it("trueWinExceedsOuts flags the made-hand gap but not a pure draw", () => {
+    const made = buildMentalEstimate(topPairGutshot);
+    expect(trueWinExceedsOuts(made, 47)).toBe(true);
+    const draw = buildMentalEstimate({
+      ...base,
+      hole: hole("Qh", "Jh"),
+      board: h(["Th", "9c", "2h"]),
+      street: "flop",
+    });
+    expect(trueWinExceedsOuts(draw, 51)).toBe(false);
   });
 });
 

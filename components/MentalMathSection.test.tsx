@@ -201,6 +201,41 @@ describe("MentalMathSection — live-hand tracking (regression)", () => {
   });
 });
 
+describe("MentalMathSection — made-hand reconciliation (findings #1/#2/#3)", () => {
+  // A2 on 4A3: top pair + gutshot, ~47% true equity. The outs model alone would say "fold".
+  const topPairGutshot = () =>
+    fakeFlow({ hole: [c("Ah"), c("2h")], board: [c("4h"), c("Ac"), c("3d")], potBefore: 32, toCall: 12 });
+
+  it("surfaces the made hand in Step 1 instead of an outs-only fold", async () => {
+    mockEquity.mockResolvedValue({ equityPct: 47, iterations: 1500, ms: 0 });
+    setFlow(topPairGutshot());
+    render(<MentalMathSection enabled />);
+    expect(screen.getByTestId("mm-made-hand").textContent).toMatch(/top pair/i);
+    const conclusion = await screen.findByTestId("mm-conclusion");
+    // The reconciled conclusion must be profitable, never "fold / price too steep".
+    expect(conclusion.textContent?.toLowerCase()).not.toContain("too steep");
+    expect(conclusion.textContent?.toLowerCase()).toContain("profitable");
+  });
+
+  it("gap explanation blames the made hand, not opponents + board danger", async () => {
+    mockEquity.mockResolvedValue({ equityPct: 47, iterations: 1500, ms: 0 });
+    setFlow(topPairGutshot());
+    render(<MentalMathSection enabled />);
+    const gap = await screen.findByTestId("mm-gap");
+    expect(gap.textContent?.toLowerCase()).toContain("top pair");
+    expect(gap.textContent?.toLowerCase()).not.toContain("opponents + board danger");
+  });
+
+  it("a pure draw still blames opponents + board danger in the gap line", async () => {
+    mockEquity.mockResolvedValue({ equityPct: 51, iterations: 1500, ms: 0 });
+    setFlow(fakeFlow()); // QhJh draw, no made hand
+    render(<MentalMathSection enabled />);
+    expect(screen.queryByTestId("mm-made-hand")).toBeNull();
+    const gap = await screen.findByTestId("mm-gap");
+    expect(gap.textContent?.toLowerCase()).toContain("opponents + board danger");
+  });
+});
+
 describe("MentalMathSection — override (I count differently)", () => {
   it("recomputes Steps 2–6 from the player's count and resets to auto", () => {
     setFlow(fakeFlow());

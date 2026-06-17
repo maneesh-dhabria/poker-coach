@@ -3,7 +3,7 @@
 // `lastAction`, shows an action badge + (for committed chips) a chip-to-pot animation (obs. #3).
 import { TableSeatView } from "@/core/handFlow";
 import { Card } from "@/components/table/Card";
-import { formatMoney } from "@/core/money";
+import { formatMoney, MoneyUnit } from "@/core/money";
 import { useSessionStore } from "@/store/sessionStore";
 
 export interface SeatAction {
@@ -11,16 +11,16 @@ export interface SeatAction {
   amount: number;
 }
 
-const ACTION_BADGE: Record<string, (amt: number) => { text: string; color: string }> = {
+const ACTION_BADGE: Record<string, (money: string) => { text: string; color: string }> = {
   fold: () => ({ text: "Fold", color: "var(--mistake)" }),
   check: () => ({ text: "Check", color: "var(--ink-soft)" }),
-  call: (a) => ({ text: `Call $${a}`, color: "var(--good)" }),
-  bet: (a) => ({ text: `Bet $${a}`, color: "var(--gold)" }),
-  raise: (a) => ({ text: `Raise $${a}`, color: "var(--gold)" }),
+  call: (m) => ({ text: `Call ${m}`, color: "var(--good)" }),
+  bet: (m) => ({ text: `Bet ${m}`, color: "var(--gold)" }),
+  raise: (m) => ({ text: `Raise ${m}`, color: "var(--gold)" }),
 };
 
-function ActionBadge({ action }: { action: SeatAction }) {
-  const meta = ACTION_BADGE[action.action]?.(action.amount);
+function ActionBadge({ action, unit, bigBlind }: { action: SeatAction; unit: MoneyUnit; bigBlind: number }) {
+  const meta = ACTION_BADGE[action.action]?.(formatMoney(action.amount, unit, bigBlind));
   if (!meta) return null;
   return (
     <span
@@ -153,7 +153,9 @@ export function Seat({
           </>
         )}
       </div>
-      {lastAction && !seat.isHero ? <ActionBadge action={lastAction} /> : null}
+      {lastAction && !seat.isHero ? (
+        <ActionBadge action={lastAction} unit={displayUnit} bigBlind={bigBlind} />
+      ) : null}
       {seatNet != null ? (
         <div
           data-testid="seat-net"

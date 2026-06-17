@@ -34,6 +34,15 @@ function actionLabel(a: { action: string; amount: number }): string {
   }
 }
 
+// Plain result wording. A net of $0 (e.g. after a fold) isn't "winning $0" — say it neutrally so
+// folding doesn't read as a win (finding #9). Won/lost otherwise, with the dollar amount.
+function resultLine(heroNet: number | null): string {
+  const net = heroNet ?? 0;
+  if (net > 0) return `Result: you won $${net}.`;
+  if (net < 0) return `Result: you lost $${Math.abs(net)}.`;
+  return "Result: no money won or lost this hand.";
+}
+
 function counts(decisions: HeroDecisionRecord[]) {
   const c = { good: 0, thin: 0, mistake: 0 };
   for (const d of decisions) c[d.analysis.verdict] += 1;
@@ -104,9 +113,8 @@ export function HandRecap({
       </ol>
 
       <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 12 }}>
-        Result: you {heroNet !== null && heroNet >= 0 ? "won" : "lost"} ${Math.abs(heroNet ?? 0)}. For a
-        deeper plain-language write-up of this hand, run <code>/poker-coach last</code> in your
-        terminal, then open the Coaching panel and hit Refresh.
+        {resultLine(heroNet)} For a deeper plain-language write-up of this hand, run{" "}
+        <code>/poker-coach last</code> in your terminal, then open the Coaching panel and hit Refresh.
       </p>
 
       {/* Reconcile result vs verdict: winning a hand with a flagged decision feels contradictory,

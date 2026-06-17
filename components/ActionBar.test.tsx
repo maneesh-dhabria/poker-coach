@@ -98,6 +98,21 @@ describe("ActionBar", () => {
     expect(screen.getByRole("button", { name: /check/i })).toBeInTheDocument();
   });
 
+  it("renders amounts in BB when displayUnit is bb (finding #7 — no mixed units)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "call", "raise"], toCall: 8, minRaiseTo: 16, maxRaiseTo: 100 }}
+        onAction={() => {}}
+        displayUnit="bb"
+        bigBlind={2}
+      />,
+    );
+    // $8 to call → 4 BB; the call button and bet size show BB, no "$" anywhere.
+    expect(screen.getByRole("button", { name: /call 4 BB/i })).toBeInTheDocument();
+    expect(screen.getByTestId("action-bar").textContent).not.toContain("$");
+    expect(screen.getByRole("button", { name: /raise to 8 BB/i })).toBeInTheDocument(); // 16 → 8 BB
+  });
+
   it("shows Fold when facing a bet (no check available)", () => {
     render(
       <ActionBar

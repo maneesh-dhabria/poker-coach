@@ -2,9 +2,50 @@
 // it never touches the equity engine; the component composes the async "true win %" comparison.
 import { Card, Suit, suitOf, rankValue, SUITS } from "@/core/cards";
 import { Street } from "@/core/analysis/types";
+import { rank7, categoryOf, HandCategory } from "@/core/eval/handEval";
 import { countOuts } from "@/core/mental/outs";
 import { ruleOf2And4, exactHitPct, bigDrawCaveat } from "@/core/mental/hit";
-import { MentalEstimate, MentalInput, OutsBreakdown, TaintFlags } from "@/core/mental/types";
+import { MadeHand, MentalEstimate, MentalInput, OutsBreakdown, TaintFlags } from "@/core/mental/types";
+
+/** Plain-language name for a made hand the hero already holds (pair or better, below a straight —
+ * a straight+ routes to no-draw upstream). Used to surface "you're often ahead already" so the
+ * outs-only conclusion can't tell a beginner to fold a hand that's already winning (finding #1). */
+export function detectMadeHand(hole: [Card, Card], board: Card[]): MadeHand | null {
+  const all = [...hole, ...board];
+  if (all.length < 5) return null;
+  const category = categoryOf(rank7(all));
+  if (category < HandCategory.Pair) return null;
+
+  const boardMax = board.length ? Math.max(...board.map(rankValue)) : 0;
+  const holeVals = hole.map(rankValue);
+  const labelFor = (): string => {
+    switch (category) {
+      case HandCategory.Pair: {
+        // Pin the pair to top/middle/bottom relative to the board so the copy reads like a player.
+        const paired = holeVals.find((v) => board.some((c) => rankValue(c) === v));
+        if (paired === undefined) return "a pair"; // a hole pair (e.g. pocket pair under the board)
+        if (paired >= boardMax) return "top pair";
+        const boardVals = board.map(rankValue).sort((a, b) => b - a);
+        return paired <= (boardVals[boardVals.length - 1] ?? 0) ? "bottom pair" : "middle pair";
+      }
+      case HandCategory.TwoPair:
+        return "two pair";
+      case HandCategory.Trips:
+        return "three of a kind";
+      case HandCategory.Straight:
+        return "a straight";
+      case HandCategory.Flush:
+        return "a flush";
+      case HandCategory.FullHouse:
+        return "a full house";
+      case HandCategory.Quads:
+        return "four of a kind";
+      default:
+        return "a made hand";
+    }
+  };
+  return { category, label: labelFor() };
+}
 
 /** Distinct rank values present, with an Ace also counted low (1) for wheel-aware connectedness. */
 function valuesWithAceLow(cards: Card[]): Set<number> {
@@ -74,6 +115,7 @@ function emptyEstimate(status: MentalEstimate["status"], street: Street | null, 
     street,
     outs: null,
     taint: null,
+    madeHand: null,
     ruleMultiplier: null,
     ruleHitPct: null,
     exactHitPct: null,
@@ -143,15 +185,19 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
   const breakdown: OutsBreakdown = countOuts(hole, board);
   const totalOuts = outsOverride != null ? Math.max(0, outsOverride) : breakdown.totalOuts;
   const potOdds = potOddsOf(potBefore, toCall);
+  const madeHand = detectMadeHand(hole, board);
 
   if (totalOuts === 0) {
     const e = emptyEstimate(
       "no-draw",
       street,
-      "No clear drawing outs — you may already have the best hand, or be drawing thin.",
+      madeHand
+        ? `No extra outs to count — but you already have ${madeHand.label}, so you're often ahead already.`
+        : "No clear drawing outs — you may already have the best hand, or be drawing thin.",
     );
     e.outs = breakdown;
     e.potOdds = potOdds;
+    e.madeHand = madeHand;
     return e;
   }
 
@@ -168,7 +214,21 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
   const midpoint = (opponentShade.lowPct + opponentShade.highPct) / 2;
   const breakEven = potOdds.breakEvenPct;
   let decision: MentalEstimate["decision"];
-  if (toCall <= 0) {
+  if (madeHand) {
+    // The hero already has a made hand the outs count ignores — never let the draw-only math steer
+    // a fold here (finding #1/#2). Defer the precise call/bet verdict to the true-equity check
+    // (conclusionFrom), and say plainly that they're already in the lead.
+    decision =
+      toCall <= 0
+        ? {
+            profitable: true,
+            sentence: `You already have ${madeHand.label} — it's free to see the next card, so take it (and you may want to bet it for value).`,
+          }
+        : {
+            profitable: true,
+            sentence: `Don't fold on the outs alone — you already have ${madeHand.label}, so you're often ahead already. Check the true win % below.`,
+          };
+  } else if (toCall <= 0) {
     decision = { profitable: true, sentence: "It's a free card — just take it." };
   } else if (Math.abs(midpoint - breakEven) <= 3) {
     decision = {
@@ -189,13 +249,16 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
 
   const priceText = toCall <= 0 ? "it's free" : `you need ${Math.round(breakEven)}%`;
   const verdict = decision.profitable ? "a profitable call" : "too steep a price";
-  const plainSummary = `${totalOuts} outs → ~${ruleHitPct}% to hit; ${priceText} — ${verdict}.`;
+  const plainSummary = madeHand
+    ? `You already have ${madeHand.label} — often ahead already; check the true win % below.`
+    : `${totalOuts} outs → ~${ruleHitPct}% to hit; ${priceText} — ${verdict}.`;
 
   return {
     status: "ok",
     street,
     outs: breakdown,
     taint,
+    madeHand,
     ruleMultiplier,
     ruleHitPct,
     exactHitPct: exact,
@@ -205,4 +268,66 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
     decision,
     plainSummary,
   };
+}
+
+/** Whether the true equity is materially higher than the draw-only hit estimate — the tell that the
+ * outs count is missing something (a made hand the hero already holds). 12 points of slack absorbs
+ * Monte-Carlo noise and the opponent shade. */
+export function trueWinExceedsOuts(estimate: MentalEstimate, trueWinPct: number): boolean {
+  const hit = estimate.exactHitPct ?? estimate.ruleHitPct ?? 0;
+  return trueWinPct - hit > 12;
+}
+
+/**
+ * The reconciled Step-6 conclusion (finding #1/#2). The sync `buildMentalEstimate` can only see the
+ * outs; once the component has the true Monte-Carlo win % it calls this so the plain-language verdict
+ * is driven by the SAME equity the engine grades against — never an outs-only fold that contradicts
+ * the post-action "Easy call." Pure: no React/equity imports.
+ */
+export function conclusionFrom(args: {
+  trueWinPct: number;
+  breakEvenPct: number;
+  toCall: number;
+  madeHand: MadeHand | null;
+}): { profitable: boolean; sentence: string } {
+  const { trueWinPct, breakEvenPct, toCall, madeHand } = args;
+  const win = Math.round(trueWinPct);
+  const lead = madeHand ? ` You already have ${madeHand.label}.` : "";
+  if (toCall <= 0) {
+    return {
+      profitable: true,
+      sentence: madeHand
+        ? `It's free to see the next card, and you're ahead ~${win}% of the time — take it, and consider betting ${madeHand.label} for value.`
+        : `It's a free card — just take it. You're winning ~${win}% right now.`,
+    };
+  }
+  const need = Math.round(breakEvenPct);
+  if (trueWinPct >= breakEvenPct) {
+    return {
+      profitable: true,
+      sentence: `You actually win ~${win}% — more than the ~${need}% you need to call.${lead} That's a profitable call, not a fold.`,
+    };
+  }
+  return {
+    profitable: false,
+    sentence: `Even counting everything, you win ~${win}% but need ~${need}% to call — the price is too steep.${lead}`,
+  };
+}
+
+/**
+ * The "Check your work" gap explanation (finding #3). The hit% vs true-win% gap has a REAL cause:
+ * if the hero already holds a made hand the outs count ignored, say so plainly; otherwise it's the
+ * opponents + board danger of Steps 3 & 4. Pure: returns the sentence the component renders.
+ */
+export function gapExplanation(args: {
+  exactHitPct: number;
+  trueWinPct: number;
+  madeHand: MadeHand | null;
+}): string {
+  const hit = Math.round(args.exactHitPct);
+  const win = Math.round(args.trueWinPct);
+  if (args.madeHand && args.trueWinPct - args.exactHitPct > 12) {
+    return `You hit ≈${hit}% more cards, but win ≈${win}% — the extra comes from the ${args.madeHand.label} you already hold, which the outs count alone misses.`;
+  }
+  return `You hit ≈${hit}% but win ≈${win}% — that gap is the opponents + board danger (Steps 3 & 4).`;
 }

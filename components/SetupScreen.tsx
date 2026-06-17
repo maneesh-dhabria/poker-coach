@@ -141,6 +141,10 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
             </Button>
           ))}
         </div>
+        <p data-testid="preset-hint" style={{ color: "var(--ink-soft)", fontSize: 12, margin: "8px 0 0" }}>
+          Picking a preset fills in every bot&apos;s style and skill for you (replacing your per-bot
+          choices below). Want a custom table? Just set each bot yourself and skip the presets.
+        </p>
       </section>
 
       <section className="card">

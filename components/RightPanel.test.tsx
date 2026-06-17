@@ -1,13 +1,50 @@
 // T2 — the right column is a tab host. Only the tab body (#tab-body) scrolls; the strip is pinned.
 // Tabs are real role="tab" buttons with aria-selected; the selected panel renders in #tab-body.
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, act } from "@testing-library/react";
 import { RightPanel } from "@/components/RightPanel";
-import { useSessionStore } from "@/store/sessionStore";
+import { useSessionStore, defaultSettings } from "@/store/sessionStore";
+import { useGameStore } from "@/store/gameStore";
+import { analyze } from "@/core/analysis/analyze";
+import { Card } from "@/core/cards";
+
+const c = (s: string) => s as Card;
+
+// Minimal HandFlow stand-in exposing only what RightPanel reads.
+function fakeFlow(opts: { street?: string; heroTurn?: boolean; over?: boolean } = {}) {
+  const street = opts.street ?? "flop";
+  return {
+    isHeroTurn: () => opts.heroTurn ?? true,
+    isOver: () => opts.over ?? false,
+    heroSpot: () => ({
+      legal: {},
+      hole: [c("Ah"), c("2h")] as [Card, Card],
+      board: [c("4h"), c("Ac"), c("3d")],
+      potBefore: 32,
+      toCall: 12,
+      street,
+      position: "BTN",
+      numActiveOpponents: 1,
+      facing: "unopened",
+      stackBb: 100,
+    }),
+    heroHole: () => [c("Ah"), c("2h")] as [Card, Card],
+    board: [c("4h"), c("Ac"), c("3d")],
+    street,
+    potNow: () => 32,
+    decisions: () => [],
+    tableView: () => ({
+      seats: [{ isHero: true, folded: false }, { isHero: false, folded: false }],
+      heroNet: null,
+    }),
+  };
+}
 
 beforeEach(() => {
   cleanup();
+  useSessionStore.setState({ settings: defaultSettings() });
   useSessionStore.getState().setActiveTab("live-feedback");
+  act(() => useGameStore.setState({ flow: null, feedback: null, tick: 0 }));
 });
 
 describe("RightPanel", () => {
@@ -42,6 +79,36 @@ describe("RightPanel", () => {
     const empty = screen.getByTestId("feedback-empty");
     expect(empty).toBeInTheDocument();
     expect(empty.textContent).toMatch(/make your move/i);
+  });
+
+  it("shows a pending-decision card (not the stale prior verdict) when deciding a later street (#5)", () => {
+    // A preflop verdict exists, but the hero is now deciding the flop. The stale preflop card must
+    // be replaced by a "Deciding your flop…" pending note so only one set of numbers is on screen.
+    const preflopVerdict = {
+      decisionId: "h1-d1",
+      street: "preflop",
+      spot: { potBefore: 6, toCall: 2, position: "BTN", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
+      heroAction: { action: "call", amount: 2 },
+      analysis: analyze({ action: "call", potBefore: 6, toCall: 2, equityPct: 42, unit: "usd" }),
+    };
+    act(() =>
+      useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: true }) as never, feedback: preflopVerdict as never, tick: 1 }),
+    );
+    render(<RightPanel />);
+    expect(screen.getByTestId("feedback-pending").textContent).toMatch(/deciding your flop/i);
+    // The stale preflop verdict card is not rendered.
+    expect(screen.queryByTestId("verdict-badge")).toBeNull();
+  });
+
+  it("shows an intentional 'feedback is off' hint during play (not a blank pane) (#8)", () => {
+    act(() => {
+      useSessionStore.setState({ settings: { ...defaultSettings(), feedbackEnabled: false } });
+      useGameStore.setState({ flow: fakeFlow({ over: false }) as never, feedback: null, tick: 1 });
+    });
+    render(<RightPanel />);
+    const off = screen.getByTestId("feedback-off");
+    expect(off.textContent).toMatch(/instant feedback is off/i);
+    expect(off.textContent).toMatch(/hand review/i);
   });
 
   it("coerces a stale persisted tab key to live-feedback", () => {

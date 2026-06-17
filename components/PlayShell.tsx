@@ -83,12 +83,10 @@ export function PlayShell({ onNewSession }: { onNewSession: () => void }) {
         </Button>
       </div>
       <div
+        className="play-grid"
         style={{
           flex: 1,
           minHeight: 0,
-          display: "grid",
-          gridTemplateColumns: "1fr 420px",
-          gap: 16,
           padding: "0 16px 16px",
         }}
       >

@@ -42,6 +42,15 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.getByText(/poker-coach last/i)).toBeInTheDocument();
   });
 
+  it("does not say 'you won $0' after a fold — uses neutral wording (finding #9)", () => {
+    const decisions = [
+      decision("preflop", "fold", 0, { action: "fold", potBefore: 6, toCall: 2, equityPct: 15 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={0} />);
+    expect(screen.queryByText(/you won \$0/i)).toBeNull();
+    expect(screen.getByText(/no money won or lost/i)).toBeInTheDocument();
+  });
+
   it("renders nothing with no decisions", () => {
     const { container } = render(<HandRecap decisions={[]} heroNet={0} />);
     expect(container.firstChild).toBeNull();

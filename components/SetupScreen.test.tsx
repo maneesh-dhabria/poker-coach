@@ -67,6 +67,13 @@ describe("SetupScreen", () => {
     );
   });
 
+  it("clarifies that a preset replaces the per-bot choices (finding #11)", () => {
+    render(<SetupScreen onDeal={() => {}} />);
+    const hint = screen.getByTestId("preset-hint");
+    expect(hint.textContent).toMatch(/preset fills in every bot/i);
+    expect(hint.textContent).toMatch(/replacing your per-bot choices/i);
+  });
+
   it("Deal triggers the start callback", () => {
     const onDeal = vi.fn();
     render(<SetupScreen onDeal={onDeal} />);

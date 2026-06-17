@@ -25,4 +25,23 @@ describe("PreflopChartTab", () => {
     const opts = Array.from(select.options).map((o) => o.value);
     expect(opts).toEqual(expect.arrayContaining(["UTG", "MP", "CO", "BTN", "SB", "BB"]));
   });
+
+  it("defaults to the player's actual seat when known (finding #10)", () => {
+    const { getByLabelText } = render(<PreflopChartTab heroPosition="CO" />);
+    const select = getByLabelText(/position/i) as HTMLSelectElement;
+    expect(select.value).toBe("CO");
+  });
+
+  it("falls back to BTN when no hand / seat is known", () => {
+    const { getByLabelText } = render(<PreflopChartTab />);
+    const select = getByLabelText(/position/i) as HTMLSelectElement;
+    expect(select.value).toBe("BTN");
+  });
+
+  it("lets the user override the position; the manual pick sticks", () => {
+    const { getByLabelText } = render(<PreflopChartTab heroPosition="CO" />);
+    const select = getByLabelText(/position/i) as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "UTG" } });
+    expect(select.value).toBe("UTG");
+  });
 });

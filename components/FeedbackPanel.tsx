@@ -4,6 +4,9 @@
 // Renders nothing when feedback is disabled. Honesty (§17): "chart-based" shows only when gtoClaim.
 import { DecisionAnalysis } from "@/core/analysis/types";
 import { MentalMathSection } from "@/components/MentalMathSection";
+import { formatMoney, MoneyUnit } from "@/core/money";
+
+const BIG_BLIND = 2; // the table plays $1/$2, so 1 BB = $2
 
 const VERDICT_META = {
   good: { icon: "✅", label: "Good", color: "var(--good)" },
@@ -84,9 +87,8 @@ function whyLine(eq: number, need: number | null): string {
   return `You win ~${win}% but need ~${n}% — you come up short, so this loses money over time.`;
 }
 
-function money(n: number, unit: "usd" | "bb"): string {
-  const r = Math.round(n * 10) / 10;
-  return unit === "usd" ? `$${r}` : `${r} bb`;
+function money(n: number, unit: MoneyUnit): string {
+  return formatMoney(n, unit, BIG_BLIND);
 }
 
 const STREET_WORD: Record<string, string> = {
@@ -99,26 +101,30 @@ const STREET_WORD: Record<string, string> = {
 // Anchors the card to the decision it describes: by the time the user reads this, the bots have
 // acted and the board/pot on the table have moved on, so we say which street + pot the numbers are
 // about ("when you acted") to kill the "these % don't match the screen" confusion.
-function contextLine(ctx: { street: string; potBefore: number }): string {
+function contextLine(ctx: { street: string; potBefore: number }, unit: MoneyUnit): string {
   const word = STREET_WORD[ctx.street] ?? ctx.street;
-  return `Your ${word} decision · pot was $${Math.round(ctx.potBefore)} when you acted`;
+  return `Your ${word} decision · pot was ${money(ctx.potBefore, unit)} when you acted`;
 }
 
 export function FeedbackPanel({
   analysis,
   enabled,
   context,
+  displayUnit = "usd",
 }: {
   analysis: DecisionAnalysis | null;
   enabled: boolean;
   context?: { street: string; potBefore: number; toCall: number };
+  // Whether to render money in dollars or big blinds — mirrors the table/banner toggle so the panel
+  // never shows a conflicting unit (finding #7). The verdict/equity come from analysis as before.
+  displayUnit?: MoneyUnit;
 }) {
   if (!enabled || !analysis) return null;
   const showNumbers = analysis.coachingDepth !== "conceptual";
   const eq = analysis.numbers.equityPct;
   const need = analysis.numbers.potOddsPct;
   const ev = analysis.numbers.ev;
-  const unit = analysis.numbers.unit;
+  const unit = displayUnit;
 
   return (
     <aside
@@ -138,7 +144,7 @@ export function FeedbackPanel({
           data-testid="feedback-context"
           style={{ fontSize: 12, color: "var(--ink-soft)", marginTop: 6 }}
         >
-          {contextLine(context)}
+          {contextLine(context, unit)}
         </div>
       ) : null}
 

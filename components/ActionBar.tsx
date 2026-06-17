@@ -4,6 +4,7 @@
 import { useState } from "react";
 import { Action, LegalActions } from "@/core/engine/gameEngine";
 import { Button } from "@/components/ui/Button";
+import { formatMoney, MoneyUnit } from "@/core/money";
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n));
 
@@ -12,12 +13,19 @@ export function ActionBar({
   onAction,
   disabled,
   pot = 0,
+  displayUnit = "usd",
+  bigBlind = 2,
 }: {
   legal: LegalActions;
   onAction: (a: Action) => void;
   disabled?: boolean;
   pot?: number;
+  // Render amounts in the same unit as the table/banner so the action buttons never show a
+  // conflicting dollar figure while the rest of the table is in BB (finding #7).
+  displayUnit?: MoneyUnit;
+  bigBlind?: number;
 }) {
+  const money = (n: number) => formatMoney(n, displayUnit, bigBlind);
   const canRaise = legal.actions.includes("raise");
   const canBet = legal.actions.includes("bet");
   const sizingKind: "raise" | "bet" | null = canRaise ? "raise" : canBet ? "bet" : null;
@@ -36,7 +44,7 @@ export function ActionBar({
   const showFold = legal.actions.includes("fold") && !legal.actions.includes("check");
 
   return (
-    <div data-testid="action-bar" style={{ display: "flex", gap: 8, alignItems: "center" }}>
+    <div className="action-bar" data-testid="action-bar" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", justifyContent: "center", maxWidth: "100%" }}>
       {showFold && (
         <Button variant="secondary" disabled={disabled} onClick={() => onAction({ type: "fold" })}>
           Fold
@@ -49,7 +57,7 @@ export function ActionBar({
       )}
       {legal.actions.includes("call") && (
         <Button variant="secondary" disabled={disabled} onClick={() => onAction({ type: "call" })}>
-          Call ${legal.toCall}
+          Call {money(legal.toCall)}
         </Button>
       )}
       {sizingKind && (
@@ -78,13 +86,13 @@ export function ActionBar({
               </Button>
             </span>
           )}
-          <span data-testid="bet-size">${sized}</span>
+          <span data-testid="bet-size">{money(sized)}</span>
           <Button
             variant="primary"
             disabled={disabled}
             onClick={() => onAction({ type: sizingKind, amount: sized })}
           >
-            {sizingKind === "raise" ? `Raise to $${sized}` : `Bet $${sized}`}
+            {sizingKind === "raise" ? `Raise to ${money(sized)}` : `Bet ${money(sized)}`}
           </Button>
         </span>
       )}

@@ -180,6 +180,57 @@ describe("result credits the won pot back to the winner's stack", () => {
   });
 });
 
+describe("all-in run-out deals the full board (finding #12)", () => {
+  // An all-in that ends betting before the river must still deal every remaining community card,
+  // so the player sees a full 5-card board at showdown (no more "settles on the turn").
+  const c = (s: string) => s as Card;
+
+  it("an all-in on the turn still runs the river out to a 5-card board", () => {
+    const h = createHand({
+      config: { smallBlind: 1, bigBlind: 2 },
+      seats: [
+        { seat: 0, stack: 100 },
+        { seat: 1, stack: 100 },
+      ],
+      buttonIndex: 0,
+      rng: mulberry32(6),
+      holeOverride: { 0: ["Ah", "Kh"].map(c) as [Card, Card], 1: ["2c", "7d"].map(c) as [Card, Card] },
+      boardOverride: ["Qd", "Js", "3h", "4s", "9c"].map(c),
+    });
+    // Walk both players to the turn checking down the flop, then jam the turn.
+    h.apply({ type: "call" }); // seat 0 (SB) limps
+    h.apply({ type: "check" }); // seat 1 (BB) checks → flop
+    h.apply({ type: "check" });
+    h.apply({ type: "check" }); // → turn (board has 4)
+    expect(h.board).toHaveLength(4);
+    h.apply({ type: "bet", amount: 98 }); // seat 0 shoves the turn
+    h.apply({ type: "call" }); // seat 1 calls all-in → no river betting possible
+    expect(h.isHandOver()).toBe(true);
+    expect(h.board).toHaveLength(5); // the river was dealt for the run-out
+  });
+
+  it("an all-in on the flop runs both turn and river out", () => {
+    const h = createHand({
+      config: { smallBlind: 1, bigBlind: 2 },
+      seats: [
+        { seat: 0, stack: 100 },
+        { seat: 1, stack: 100 },
+      ],
+      buttonIndex: 0,
+      rng: mulberry32(6),
+      holeOverride: { 0: ["Ah", "Kh"].map(c) as [Card, Card], 1: ["2c", "7d"].map(c) as [Card, Card] },
+      boardOverride: ["Qd", "Js", "3h", "4s", "9c"].map(c),
+    });
+    h.apply({ type: "call" });
+    h.apply({ type: "check" }); // → flop (board 3)
+    expect(h.board).toHaveLength(3);
+    h.apply({ type: "bet", amount: 98 }); // jam the flop
+    h.apply({ type: "call" });
+    expect(h.isHandOver()).toBe(true);
+    expect(h.board).toHaveLength(5);
+  });
+});
+
 describe("all-in introspection (isAllIn / committedOf — drives the seat badge)", () => {
   const headsUp = () =>
     createHand({

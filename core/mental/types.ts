@@ -43,11 +43,24 @@ export type EstimateStatus =
   | "no-hand" // no live hand / hero not in it
   | "no-draw"; // ok street but no countable drawing outs
 
+/** A made hand the hero ALREADY holds (pair or better). The outs-only count ignores this, so the
+ * walk-through surfaces it and uses it to reconcile the conclusion with the true equity (it's not a
+ * pure "draw or fold" spot when you're already ahead). `category` is the eval HandCategory value. */
+export interface MadeHand {
+  category: number; // HandCategory (Pair..Quads); kept as number so core/mental needn't re-export the enum
+  label: string; // plain language, e.g. "top pair", "two pair"
+}
+
 export interface MentalEstimate {
   status: EstimateStatus;
   street: Street | null;
   outs: OutsBreakdown | null;
   taint: TaintFlags | null;
+
+  // A made hand (pair or better) the hero already holds, if any. Present on "ok" and "no-draw"
+  // post-flop spots so the walk-through can say "you already have <made hand>, so you're often
+  // ahead already" instead of presenting an outs-only fold conclusion (the outs count misses it).
+  madeHand: MadeHand | null;
 
   ruleMultiplier: 2 | 4 | null; // turn → 2, flop → 4
   ruleHitPct: number | null; // Rule of 2&4 estimate (capped at 100)
