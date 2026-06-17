@@ -77,15 +77,24 @@ export function PokerTable() {
     const hole = shownWinner.cards.slice(0, 2);
     const best = winningCards(hole, view.board);
     highlightSet = new Set(best as string[]);
-    categoryBanner = handCategoryLabel([...shownWinner.cards, ...view.board]);
+    const category = handCategoryLabel([...shownWinner.cards, ...view.board]);
+    // Attribute the winning hand clearly to whoever made it (finding #9): the banner sits near the
+    // board and the hero's cards, so an unattributed "Flush, Queens high" reads as if it labels the
+    // hero's hand. Name the winner ("You win with…" / "<Bot> wins with…").
+    const winnerName = shownWinner.isHero ? "You" : shownWinner.name;
+    const verb = shownWinner.isHero ? "win" : "wins";
+    categoryBanner = `${winnerName} ${verb} with ${category}`;
   }
 
   // Lay the seats out around an oval, hero anchored at the bottom, so the pot/chip stack can sit
-  // in the dead center with everyone arranged around it (like a real table).
+  // above center with everyone arranged around it (like a real table). The radii are kept well
+  // inside the felt so no seat is clipped off an edge once the felt scales down on small/short
+  // viewports (finding #6); the felt itself preserves aspect ratio (see the felt box below) so the
+  // whole oval shrinks proportionally rather than squashing seats against the edges.
   const n = view.seats.length;
   const heroIndex = Math.max(0, view.seats.findIndex((s) => s.isHero));
-  const RX = 40; // horizontal radius (% of felt)
-  const RY = 35; // vertical radius (% of felt) — kept inside so top/bottom seats don't clip
+  const RX = 38; // horizontal radius (% of felt)
+  const RY = 32; // vertical radius (% of felt) — kept inside so top/bottom seats don't clip
   const seatPosition = (i: number) => {
     const k = (i - heroIndex + n) % n; // 0 = hero, then around the ring
     const theta = Math.PI / 2 + (k * 2 * Math.PI) / n; // 90° points to the bottom
@@ -110,6 +119,7 @@ export function PokerTable() {
       }}
     >
       <div
+        data-testid="felt"
         style={{
           position: "relative",
           background: "radial-gradient(ellipse at center, var(--felt), var(--felt-deep))",
@@ -119,6 +129,12 @@ export function PokerTable() {
           maxHeight: 580,
           width: "100%",
           maxWidth: 760,
+          // Preserve a fixed felt aspect ratio so the oval scales to fit BOTH the available width and
+          // height — on a short/narrow viewport it shrinks proportionally (seats keep their relative
+          // positions and never clip off an edge) instead of stretching to fill and squashing seats
+          // against the borders (finding #6). Combined with the inset radii above, the whole table
+          // stays inside its container at 800×600 / 600×900.
+          aspectRatio: "760 / 520",
           margin: "0 auto",
         }}
       >
@@ -127,17 +143,22 @@ export function PokerTable() {
             seats, the seats stay readable rather than being hidden behind the log (finding #6). The
             log itself is width- and height-capped so it can't sprawl across the center seats. */}
         <div
+          data-testid="center-stack-wrap"
           style={{
             position: "absolute",
             left: "50%",
-            top: "50%",
+            // Anchor the board + pot/round-summary in the UPPER-center, clear of the bottom hero
+            // ("You") seat, so the pot readout and "THIS ROUND" summary are never hidden behind the
+            // hero seat at short/narrow sizes (finding #6). Seats still paint above (zIndex below) as
+            // a belt-and-braces guard.
+            top: "42%",
             transform: "translate(-50%, -50%)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
             gap: 6,
-            maxWidth: "44%",
-            maxHeight: "60%",
+            maxWidth: "46%",
+            maxHeight: "56%",
             overflow: "hidden",
             zIndex: 0,
           }}

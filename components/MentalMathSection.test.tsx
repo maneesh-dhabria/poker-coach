@@ -91,6 +91,24 @@ describe("MentalMathSection — visibility", () => {
     expect(steps.textContent).toContain("Step 6");
     expect(screen.getByTestId("mm-rule-hit").textContent).toBe("60%");
   });
+
+  // iter-03 #12 — at showdown / hand-complete the live decision clears (status → no-hand). Don't
+  // revert to the jarring "deal a hand" placeholder right after rich content; show a graceful
+  // "hand complete — see the hand review" note instead.
+  it("shows a 'hand complete' note (not the 'deal a hand' placeholder) when the hand is over (#12)", () => {
+    setFlow({ isOver: () => true, isHeroTurn: () => false });
+    render(<MentalMathSection enabled />);
+    const note = screen.getByTestId("mm-hand-complete");
+    expect(note.textContent).toMatch(/hand complete/i);
+    expect(note.textContent).toMatch(/hand review/i);
+    expect(screen.queryByText(/deal a hand and reach the flop/i)).toBeNull();
+  });
+
+  it("still shows the 'deal a hand' placeholder when there is no hand at all", () => {
+    act(() => useGameStore.setState({ flow: null, tick: 1 }));
+    render(<MentalMathSection enabled />);
+    expect(screen.getByText(/deal a hand and reach the flop/i)).toBeInTheDocument();
+  });
 });
 
 describe("MentalMathSection — Step 1 outs & soft tag", () => {

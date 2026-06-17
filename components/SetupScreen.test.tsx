@@ -74,6 +74,26 @@ describe("SetupScreen", () => {
     expect(hint.textContent).toMatch(/replacing your per-bot choices/i);
   });
 
+  it("states the blind size and what the chosen stack is worth (iter-03 #11)", () => {
+    render(<SetupScreen onDeal={() => {}} />);
+    const note = screen.getByTestId("blind-note");
+    // Real blind constants are $1/$2 (1 BB = $2); default stack is 100 BB → $200.
+    expect(note.textContent).toMatch(/Blinds \$1\/\$2/);
+    expect(note.textContent).toMatch(/1 BB = \$2/);
+    expect(note.textContent).toMatch(/100 BB stack is worth \$200/);
+
+    // Updates with the chosen stack.
+    fireEvent.click(screen.getByRole("button", { name: "200 BB" }));
+    expect(screen.getByTestId("blind-note").textContent).toMatch(/200 BB stack is worth \$400/);
+  });
+
+  it("explains that stacks carry over hand-to-hand like a cash game (iter-03 #10)", () => {
+    render(<SetupScreen onDeal={() => {}} />);
+    const note = screen.getByTestId("carryover-note");
+    expect(note.textContent).toMatch(/carry over hand to hand/i);
+    expect(note.textContent).toMatch(/cash game/i);
+  });
+
   it("Deal triggers the start callback", () => {
     const onDeal = vi.fn();
     render(<SetupScreen onDeal={onDeal} />);

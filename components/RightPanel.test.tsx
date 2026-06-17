@@ -100,15 +100,57 @@ describe("RightPanel", () => {
     expect(screen.queryByTestId("verdict-badge")).toBeNull();
   });
 
-  it("shows an intentional 'feedback is off' hint during play (not a blank pane) (#8)", () => {
+  // iter-03 #4 — the pending caption must not promise "numbers below (Mental Math)" when none are
+  // present (Mental Math collapsed, or preflop). Only claim them when they're actually visible.
+  it("omits the 'numbers below (Mental Math)' promise when Mental Math is collapsed (#4)", () => {
+    const preflopVerdict = {
+      decisionId: "h1-d1",
+      street: "preflop",
+      spot: { potBefore: 6, toCall: 2, position: "BTN", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
+      heroAction: { action: "call", amount: 2 },
+      analysis: analyze({ action: "call", potBefore: 6, toCall: 2, equityPct: 42, unit: "usd" }),
+    };
+    act(() => {
+      // Mental Math collapsed (default mentalMathOpen=false), deciding the flop.
+      useSessionStore.setState({ settings: defaultSettings(), mentalMathOpen: false });
+      useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: true }) as never, feedback: preflopVerdict as never, tick: 1 });
+    });
+    render(<RightPanel />);
+    const pending = screen.getByTestId("feedback-pending");
+    expect(pending.textContent).not.toMatch(/numbers below \(Mental Math\)/i);
+    expect(pending.textContent).toMatch(/earlier street/i);
+  });
+
+  it("does promise the Mental Math numbers when the section is open on a post-flop spot (#4)", () => {
+    const preflopVerdict = {
+      decisionId: "h1-d1",
+      street: "preflop",
+      spot: { potBefore: 6, toCall: 2, position: "BTN", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
+      heroAction: { action: "call", amount: 2 },
+      analysis: analyze({ action: "call", potBefore: 6, toCall: 2, equityPct: 42, unit: "usd" }),
+    };
+    act(() => {
+      useSessionStore.setState({ settings: defaultSettings(), mentalMathOpen: true });
+      useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: true }) as never, feedback: preflopVerdict as never, tick: 1 });
+    });
+    render(<RightPanel />);
+    expect(screen.getByTestId("feedback-pending").textContent).toMatch(/numbers below \(Mental Math\)/i);
+  });
+
+  it("shows an intentional 'feedback is off' hint during play that says the review still populates live (#8/iter3 #5)", () => {
     act(() => {
       useSessionStore.setState({ settings: { ...defaultSettings(), feedbackEnabled: false } });
       useGameStore.setState({ flow: fakeFlow({ over: false }) as never, feedback: null, tick: 1 });
     });
     render(<RightPanel />);
     const off = screen.getByTestId("feedback-off");
-    expect(off.textContent).toMatch(/instant feedback is off/i);
-    expect(off.textContent).toMatch(/hand review/i);
+    // iter-03 #5: the copy must describe what actually happens — only the big verdict/equity block is
+    // hidden; the running hand review still populates live after each move (it does NOT wait for the
+    // hand to end). So the copy must no longer claim the review only comes "when the hand ends".
+    expect(off.textContent).toMatch(/per-decision verdicts are off/i);
+    expect(off.textContent).toMatch(/running hand review/i);
+    expect(off.textContent).toMatch(/after each move/i);
+    expect(off.textContent).not.toMatch(/when the hand ends/i);
   });
 
   it("coerces a stale persisted tab key to live-feedback", () => {

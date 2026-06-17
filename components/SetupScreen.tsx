@@ -50,6 +50,10 @@ const PRESET_INFO: Record<PresetName, string> = {
   "reg-heavy": "Tough table of disciplined regulars — tight and skilled.",
 };
 const STACK_PRESETS = [50, 100, 200] as const; // buy-in depth in BB; default 100 (D15)
+// The table plays these blinds (mirrors gameStore's engine config: smallBlind 1 / bigBlind 2). Stated
+// on setup so the initial dollar amounts aren't a mystery (finding #11). 1 BB = $BIG_BLIND.
+const SMALL_BLIND = 1;
+const BIG_BLIND = 2;
 const DEPTHS: { value: CoachingDepth; label: string; hint: string }[] = [
   { value: "conceptual", label: "Conceptual", hint: "Plain words, no numbers" },
   { value: "equity", label: "Equity + Heuristics", hint: "Odds and reasons" },
@@ -232,6 +236,14 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
             );
           })}
         </div>
+        <p data-testid="blind-note" style={{ color: "var(--ink-soft)", fontSize: 12, margin: "8px 0 0" }}>
+          Blinds ${SMALL_BLIND}/${BIG_BLIND} — 1 BB = ${BIG_BLIND}, so your{" "}
+          {settings.startingStackBb} BB stack is worth ${settings.startingStackBb * BIG_BLIND}.
+        </p>
+        <p data-testid="carryover-note" style={{ color: "var(--ink-soft)", fontSize: 12, margin: "6px 0 0" }}>
+          Stacks carry over hand to hand like a real cash game, so after a few hands opponents may sit
+          on very different amounts.
+        </p>
       </section>
 
       <section className="card">

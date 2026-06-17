@@ -194,7 +194,7 @@
           },
           "unit": "usd"
         },
-        "plainExplanation": "The baseline chart says fold 4♥9♥ from UTG; your line differs. Sticking to the chart is the higher-EV default here.",
+        "plainExplanation": "By the odds, your equity (your share of the pot — how often you win) with 4♥9♥ is about 23% against a random hand; the math favors folding from UTG instead, and your line differs from that higher-EV default (the baseline chart agrees).",
         "chart": {
           "applies": true,
           "chartAction": "fold",

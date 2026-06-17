@@ -76,12 +76,31 @@ function price(p: ExplainParams): string {
     : `${lead} You're calling too wide — fold and save the chips.`;
 }
 
+// Preflop explanation framing follows the chosen coaching depth (finding #7). The chart is ALWAYS
+// the source of the recommendation (honesty invariant: gtoClaim stays true for preflop) — only the
+// way we EXPLAIN it changes. Strict leans on the chart/GTO citation; Equity+Heuristics leads with
+// the win-rate / odds and a plain reason, then names the chart as the source so we never misstate
+// what the recommendation is based on. (Conceptual is handled separately, in conceptual().)
 function preflop(p: ExplainParams): string {
   const label = p.hand ? handLabel(p.hand) : "this hand";
   const rec = p.chartAction ? CHART_VERB[p.chartAction] : "play";
   const where = p.position ? ` from ${p.position}` : "";
-  if (!p.heroDeviates) return `The baseline chart says ${rec} ${label}${where} — that's standard.`;
-  return `The baseline chart says ${rec} ${label}${where}; your line differs. Sticking to the chart is the higher-EV default here.`;
+
+  // Strict charts → the chart/GTO citation it has always given.
+  if (p.depth === "strict") {
+    if (!p.heroDeviates) return `The baseline chart says ${rec} ${label}${where} — that's standard.`;
+    return `The baseline chart says ${rec} ${label}${where}; your line differs. Sticking to the chart is the higher-EV default here.`;
+  }
+
+  // Equity + Heuristics → lead with the odds/equity and a plain reason; the chart is named as the
+  // source of the recommendation, not the headline. Equity is "share of the pot — how often you win"
+  // (defined inline to satisfy the no-unexplained-jargon guard).
+  const win = Math.round(p.equityPct);
+  const equityNote = `your equity (your share of the pot — how often you win) with ${label} is about ${win}% against a random hand`;
+  if (!p.heroDeviates) {
+    return `By the odds, ${equityNote}, so ${rec}ing${where} is the standard, profitable play here — which is exactly what the baseline chart recommends.`;
+  }
+  return `By the odds, ${equityNote}; the math favors ${rec}ing${where} instead, and your line differs from that higher-EV default (the baseline chart agrees).`;
 }
 
 function valuecheck(p: ExplainParams): string {

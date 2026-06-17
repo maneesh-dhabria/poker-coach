@@ -86,10 +86,10 @@ const STEP_HEAD: React.CSSProperties = {
   marginBottom: 6,
 };
 
-function Note({ children }: { children: React.ReactNode }) {
+function Note({ children, "data-testid": testid = "mm-note" }: { children: React.ReactNode; "data-testid"?: string }) {
   return (
     <div
-      data-testid="mm-note"
+      data-testid={testid}
       style={{
         background: "var(--panel-2, #1d2c26)",
         border: "1px dashed #3a4a42",
@@ -121,6 +121,11 @@ function BreakEvenBar({ pct }: { pct: number }) {
 export function MentalMathSection({ enabled }: { enabled: boolean }) {
   const flow = useGameStore((s) => s.flow);
   const seed = useGameStore((s) => s.seed);
+  // Whether the current hand has finished. At showdown the live decision clears, so the estimate
+  // status falls back to "no-hand"; distinguish a finished hand from "no hand dealt yet" so we can
+  // show a graceful "hand complete" note instead of the jarring "deal a hand" placeholder (finding
+  // #12). Re-derived on `tick` because `flow` is mutated in place (see the input memo below).
+  const handComplete = !!flow && flow.isOver();
   // `flow` is a single HandFlow instance that the store MUTATES in place as the hand advances (only
   // `tick` bumps — its identity is stable for the whole hand). So we re-derive the input on `tick`,
   // not on `flow` identity, to actually track the live flop→turn→river progression (spec §3.1, FR-02).
@@ -231,9 +236,15 @@ export function MentalMathSection({ enabled }: { enabled: boolean }) {
 
       {open && (
         <div data-testid="mm-body">
-          {estimate.status === "no-hand" && (
-            <Note>Deal a hand and reach the flop to use Mental Math.</Note>
-          )}
+          {estimate.status === "no-hand" &&
+            (handComplete ? (
+              <Note data-testid="mm-hand-complete">
+                Hand complete — the live math has cleared. See the hand review below for the whole
+                hand, and Mental Math comes back on the next flop.
+              </Note>
+            ) : (
+              <Note>Deal a hand and reach the flop to use Mental Math.</Note>
+            ))}
           {estimate.status === "preflop" && (
             <Note>The Rule of 2 &amp; 4 is for the flop and turn. For preflop, see the Preflop Chart tab.</Note>
           )}

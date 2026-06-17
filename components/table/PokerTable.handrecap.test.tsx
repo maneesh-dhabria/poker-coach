@@ -25,4 +25,18 @@ describe("PokerTable — no duplicate Hand review below the table (FR-09)", () =
   it("shows the full board (uncapped) once the hand is over", () => {
     expect(src).toMatch(/count=\{showdownDone \? undefined : snapshot\.boardCount\}/);
   });
+
+  // iter-03 #9: the showdown category banner must attribute the winning hand to its owner
+  // ("You win with…" / "<Bot> wins with…"), not sit unattributed near the hero's cards.
+  it("builds an attributed winner banner (winner name + win/wins with category)", () => {
+    expect(src).toMatch(/shownWinner\.isHero \? "You" : shownWinner\.name/);
+    expect(src).toMatch(/\$\{winnerName\} \$\{verb\} with \$\{category\}/);
+  });
+
+  // iter-03 #6: the felt preserves aspect ratio (scales to fit width AND height so seats never clip
+  // off an edge) and the center pot/round-summary sits in the upper-center, clear of the hero seat.
+  it("the felt preserves aspect ratio and the center block sits clear of the hero seat", () => {
+    expect(src).toMatch(/aspectRatio: "760 \/ 520"/);
+    expect(src).toMatch(/top: "42%"/); // center block anchored above dead-center, above the You seat
+  });
 });

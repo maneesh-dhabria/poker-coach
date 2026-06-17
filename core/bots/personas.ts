@@ -54,12 +54,19 @@ export function personaFor(style: Style, skill: Skill): BotParams {
 export type PresetName = "balanced" | "aggro" | "passive" | "reg-heavy";
 
 const PRESET_TEMPLATES: Record<PresetName, { style: Style; skill: Skill }[]> = {
+  // "balanced" is the newcomer default, so it's tuned to be a realistic mix that doesn't routinely
+  // stack a new player off in a few hands (iter-02 finding #8). Two subtle, contained softenings vs
+  // the original: the lone LAG drops to Beginner (looser/noisier but LESS relentlessly aggressive —
+  // Beginner shaves aggression and adds noise, so it balloons pots less often than a steady
+  // Intermediate LAG), and the Calling Station drops to Intermediate (a less extreme call-station, so
+  // fewer giant call-down showdown pots). Still a genuine mix of all four styles — not neutered. The
+  // primary reframe for a sound loss remains the variance bridge in HandRecap (finding #1).
   balanced: [
     { style: "TAG", skill: "Advanced" },
     { style: "TAG", skill: "Intermediate" },
     { style: "Nit", skill: "Intermediate" },
-    { style: "LAG", skill: "Intermediate" },
-    { style: "Calling Station", skill: "Beginner" },
+    { style: "LAG", skill: "Beginner" },
+    { style: "Calling Station", skill: "Intermediate" },
   ],
   aggro: [
     { style: "LAG", skill: "Advanced" },
