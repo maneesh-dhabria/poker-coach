@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatMoney } from "@/core/money";
+import { formatMoney, formatSignedMoney } from "@/core/money";
 
 describe("formatMoney", () => {
   it("formats usd as whole dollars", () => {
@@ -20,5 +20,23 @@ describe("formatMoney", () => {
     expect(formatMoney(-0.3, "usd", 2)).toBe("$0");
     expect(formatMoney(-0, "usd", 2)).toBe("$0");
     expect(formatMoney(-0.05, "bb", 2)).toBe("0 BB"); // -0.025 BB → rounds to 0, no "-0"
+  });
+});
+
+// iter-12 #4: a signed P&L chip must never show "+$0" / "+0 BB" for a player who won/lost nothing —
+// the "+" is dropped once the amount displays as zero, mirroring the "-$0" → "$0" normalization.
+describe("formatSignedMoney", () => {
+  it("prepends + only for a non-zero positive amount", () => {
+    expect(formatSignedMoney(20, "usd", 2)).toBe("+$20");
+    expect(formatSignedMoney(3, "bb", 2)).toBe("+1.5 BB");
+  });
+  it("never shows '+$0' for a zero (folded with no blind posted)", () => {
+    expect(formatSignedMoney(0, "usd", 2)).toBe("$0");
+    expect(formatSignedMoney(0.3, "usd", 2)).toBe("$0"); // rounds to $0 → no "+"
+    expect(formatSignedMoney(0.05, "bb", 2)).toBe("0 BB"); // 0.025 BB → rounds to 0, no "+"
+  });
+  it("keeps the explicit minus for negatives", () => {
+    expect(formatSignedMoney(-15, "usd", 2)).toBe("-$15");
+    expect(formatSignedMoney(-0.3, "usd", 2)).toBe("$0"); // near-zero negative → "$0", no sign
   });
 });

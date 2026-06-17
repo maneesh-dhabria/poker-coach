@@ -236,7 +236,15 @@ function preflop(p: ExplainParams): string {
 
 function valuecheck(p: ExplainParams): string {
   const win = Math.round(p.equityPct);
-  if (p.verdict === "good") return `Checking is fine here — you only win about ${win}%, so there's little to bet for.`;
+  if (p.verdict === "good") {
+    // Near a coin-flip (~44–55%), "there's little to bet for" undersells the hand (iter-12 #6): you're
+    // close to half the pot, you just don't have enough of an edge to bet for value. Frame it as
+    // keeping the pot small rather than implying the hand is weak. (The valuecheck-good branch only
+    // fires below the 52% value-bet cutoff, so this covers the ~44–51% near-coin-flip band.)
+    if (p.equityPct >= 44)
+      return `Checking is fine here — at ~${win}% you're roughly a coin-flip, not far enough ahead to bet for value, so keeping the pot small is fine.`;
+    return `Checking is fine here — you only win about ${win}%, so there's little to bet for.`;
+  }
   return `You win ~${win}% here — checking gives up value. A bet earns more from worse hands.`;
 }
 

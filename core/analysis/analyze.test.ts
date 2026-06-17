@@ -135,6 +135,61 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.conceptTags).toContain("good_preflop_discipline");
   });
 
+  // iter-12 #3: a LIMPED pot (callers ahead, no raiser) is off-model for the RFI chart. An iso-raise
+  // over a lone limper must NOT be graded as a chart deviation against the RFI fold range — it's graded
+  // by equity/heuristics (gtoClaim false), so the off-model note can explain it.
+  it("treats an iso-raise over a limper as OFF-MODEL, not a chart deviation (KTo from MP)", () => {
+    // $1/$2 table, blinds = $3. A lone limper completes → potBefore $5 (> $3 + $1). facing unopened.
+    const a = analyze({
+      action: "raise",
+      potBefore: 5,
+      toCall: 2,
+      equityPct: 30,
+      street: "preflop",
+      hand: hand("Kd", "Ts"),
+      position: "MP",
+      facing: "unopened",
+      smallBlind: 1,
+      bigBlind: 2,
+    });
+    expect(a.gtoClaim).toBe(false); // off-model — no chart authority
+    expect(a.chart).toBeUndefined();
+    expect(a.conceptTags).not.toContain("preflop_chart_deviation");
+  });
+
+  it("still grades a true RFI spot (blinds-only pot) against the chart (KTo from MP folds)", () => {
+    // Clean folded-to-hero RFI: potBefore is just the blinds ($3) → chart applies, gtoClaim true.
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 2,
+      equityPct: 30,
+      street: "preflop",
+      hand: hand("Kd", "Ts"),
+      position: "MP",
+      facing: "unopened",
+      smallBlind: 1,
+      bigBlind: 2,
+    });
+    expect(a.gtoClaim).toBe(true);
+    expect(a.chart?.applies).toBe(true);
+  });
+
+  it("without blind info, a preflop unopened spot is unchanged (no false limped-pot detection)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5,
+      toCall: 2,
+      equityPct: 30,
+      street: "preflop",
+      hand: hand("Kd", "Ts"),
+      position: "MP",
+      facing: "unopened",
+      // no smallBlind/bigBlind → detection disabled → chart still applies
+    });
+    expect(a.gtoClaim).toBe(true);
+  });
+
   it("never claims GTO for a multiway postflop spot", () => {
     const a = analyze({
       action: "call",

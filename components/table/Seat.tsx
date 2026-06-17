@@ -3,7 +3,7 @@
 // `lastAction`, shows an action badge + (for committed chips) a chip-to-pot animation (obs. #3).
 import { TableSeatView } from "@/core/handFlow";
 import { Card } from "@/components/table/Card";
-import { formatMoney, MoneyUnit } from "@/core/money";
+import { formatMoney, formatSignedMoney, MoneyUnit } from "@/core/money";
 import { useSessionStore } from "@/store/sessionStore";
 
 export interface SeatAction {
@@ -165,8 +165,9 @@ export function Seat({
           data-testid="seat-net"
           className={`netchip ${seatNet >= 0 ? "net-pos" : "net-neg"}`}
         >
-          {seatNet >= 0 ? "+" : ""}
-          {formatMoney(seatNet, displayUnit, bigBlind)}
+          {/* Signed P&L, but never "+$0" for a zero result (iter-12 #4) — the helper drops the sign
+              when the amount displays as zero, matching the existing "-$0" → "$0" normalization. */}
+          {formatSignedMoney(seatNet, displayUnit, bigBlind)}
         </div>
       ) : null}
     </div>

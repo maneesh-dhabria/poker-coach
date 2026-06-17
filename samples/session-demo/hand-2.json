@@ -202,7 +202,9 @@
             "4d",
             "Qh"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "board": [],
+          "street": "preflop"
         }
       }
     },
@@ -255,6 +257,12 @@
             "Qh"
           ],
           "numActiveOpponents": 3,
+          "board": [
+            "Kd",
+            "Qd",
+            "Ks"
+          ],
+          "street": "flop",
           "madeHand": {
             "category": 2,
             "label": "two pair"
@@ -311,6 +319,12 @@
             "Qh"
           ],
           "numActiveOpponents": 3,
+          "board": [
+            "Kd",
+            "Qd",
+            "Ks"
+          ],
+          "street": "flop",
           "madeHand": {
             "category": 2,
             "label": "two pair"

@@ -439,3 +439,28 @@ describe("narrateWinner (T19: winner's-perspective fold narration)", () => {
     expect(withGto.toLowerCase()).toContain("baseline");
   });
 });
+
+describe("valuecheck good copy doesn't undersell a near-coin-flip (iter-12 #6)", () => {
+  const base = (equityPct: number): ExplainParams => ({
+    kind: "valuecheck",
+    verdict: "good",
+    depth: "equity",
+    unit: "usd",
+    action: "check",
+    potBefore: 24,
+    toCall: 0,
+    equityPct,
+    potOddsPct: 0,
+  });
+
+  it("a ~44% check reads as roughly a coin-flip, not 'little to bet for'", () => {
+    const s = buildExplanation(base(44));
+    expect(s.toLowerCase()).toContain("coin-flip");
+    expect(s.toLowerCase()).not.toContain("little to bet for");
+  });
+
+  it("a genuinely weak (~12%) check still reads 'little to bet for'", () => {
+    const s = buildExplanation(base(12));
+    expect(s.toLowerCase()).toContain("little to bet for");
+  });
+});

@@ -214,7 +214,9 @@
             "Ts",
             "2d"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "board": [],
+          "street": "preflop"
         }
       }
     },
@@ -266,7 +268,13 @@
             "Ts",
             "2d"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "board": [
+            "5d",
+            "7h",
+            "Qd"
+          ],
+          "street": "flop"
         }
       }
     },
@@ -316,7 +324,15 @@
             "Ts",
             "2d"
           ],
-          "numActiveOpponents": 2
+          "numActiveOpponents": 2,
+          "board": [
+            "5d",
+            "7h",
+            "Qd",
+            "9h",
+            "7d"
+          ],
+          "street": "turn"
         }
       }
     },
@@ -366,7 +382,15 @@
             "Ts",
             "2d"
           ],
-          "numActiveOpponents": 2
+          "numActiveOpponents": 2,
+          "board": [
+            "5d",
+            "7h",
+            "Qd",
+            "9h",
+            "7d"
+          ],
+          "street": "river"
         }
       }
     }

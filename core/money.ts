@@ -19,3 +19,22 @@ export function formatMoney(dollars: number, unit: MoneyUnit, bigBlind: number):
   const neg = dollars < 0 && whole !== 0 ? "-" : "";
   return `${neg}$${whole}`;
 }
+
+// True when an amount DISPLAYS as zero in the given unit — i.e. it rounds to "$0" / "0 BB". Used so a
+// signed P&L chip never shows a "+$0" / "+0 BB" for a player who won/lost nothing (iter-12 #4): just
+// like "-$0" is already normalized to "$0", "+$0" must drop the leading "+". (formatMoney itself can't
+// carry a "+", so the explicit-sign callers ask here whether to prepend one.)
+export function displaysAsZero(dollars: number, unit: MoneyUnit, bigBlind: number): boolean {
+  if (unit === "bb" && bigBlind > 0) {
+    return Math.round((dollars / bigBlind) * 10) / 10 === 0;
+  }
+  return Math.round(Math.abs(dollars)) === 0;
+}
+
+// Format an amount with an EXPLICIT leading sign for non-zero values ("+$15", "-$15"), but plain
+// "$0" / "0 BB" for a value that displays as zero — no "+"/"−" on a zero (iter-12 #4, iter-06 #5).
+export function formatSignedMoney(dollars: number, unit: MoneyUnit, bigBlind: number): string {
+  const body = formatMoney(dollars, unit, bigBlind);
+  if (dollars > 0 && !displaysAsZero(dollars, unit, bigBlind)) return `+${body}`;
+  return body;
+}

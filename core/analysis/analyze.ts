@@ -45,6 +45,12 @@ export interface AnalyzeInput {
   // size is absurd (e.g. a ~50 BB open of a 1.5 BB pot). ADDITIVE/optional — absent ⇒ size unchecked.
   raiseToAmount?: number; // total chips the hero is raising TO (not the increment)
   bigBlind?: number;
+  // The small blind, paired with bigBlind so analyze can tell a LIMPED pot (callers ahead, no raiser)
+  // from a true folded-to-hero RFI spot (iter-12 #3): in a limped pot `facing === "unopened"` but
+  // potBefore exceeds the posted blinds (limpers added chips). The RFI chart models a clean
+  // raise-first-in, NOT facing limpers, so a limped pot is graded OFF-MODEL (equity/heuristics) rather
+  // than ❌-flagged against the RFI fold range. ADDITIVE/optional — absent ⇒ no limped-pot detection.
+  smallBlind?: number;
 }
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -144,6 +150,10 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       position: input.position,
       hand: input.hand,
       numActiveOpponents: input.numActiveOpponents,
+      // The decision's frozen board + street, so the live Mental Math pins to THIS snapshot rather
+      // than re-deriving from a later (already-dealt) board (iter-12 #2). Additive/optional.
+      ...(input.board ? { board: input.board } : {}),
+      ...(input.street ? { street: input.street } : {}),
       ...(madeHand ? { madeHand } : {}),
       ...(branch.flagOversize && openSizeBb !== undefined ? { openSizeBb } : {}),
       ...(branch.flagUndersize ? { betTooSmall: true } : {}),
@@ -173,9 +183,27 @@ function route(
   const { action, equityPct } = input;
   const street = input.street ?? "preflop";
 
+  // A LIMPED pot is off-model for the RFI chart (iter-12 #3). The chart's "unopened" range models a
+  // clean raise-first-in; once a limper has added chips the spot is "facing a limper" (a great-priced
+  // iso), NOT a true RFI — so grading an iso-raise against the RFI fold range over-punishes a standard
+  // play. Detect it cleanly: preflop, no raiser ahead (facing === "unopened"), but potBefore exceeds
+  // the posted blinds. Requires both blinds (additive); absent ⇒ no detection, today's behavior.
+  const blindsPosted =
+    input.smallBlind !== undefined && input.bigBlind !== undefined
+      ? input.smallBlind + input.bigBlind
+      : undefined;
+  const isLimpedPot =
+    street === "preflop" &&
+    input.facing === "unopened" &&
+    blindsPosted !== undefined &&
+    // One extra big-blind of chips beyond the blinds means at least one limper completed — guard with a
+    // small epsilon so float/rounding never false-positives a clean blinds-only pot.
+    input.potBefore > blindsPosted + input.bigBlind! / 2;
+
   // 1. Preflop chart branch — the only place we claim GTO-ish correctness (gtoClaim=true).
   if (
     street === "preflop" &&
+    !isLimpedPot &&
     input.hand &&
     input.position &&
     input.facing &&

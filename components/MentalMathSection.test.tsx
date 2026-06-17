@@ -351,6 +351,78 @@ describe("MentalMathSection — Conceptual depth renders nothing numeric (iter-0
   });
 });
 
+describe("MentalMathSection — pinned to the frozen decision snapshot (iter-12 #2/#4/#5)", () => {
+  // The verdict above is FROZEN on the flop (middle pair, 2 opponents) while the live store has
+  // advanced to the turn (two pair, board changed). Mental Math must describe the FROZEN flop
+  // decision — same board, street, made-hand label, and opponent count — not the live turn.
+  // Hero 7c6c on 9h-8c-7s: middle pair (7) + an open-ended straight draw — a made hand WITH outs, so
+  // Step 2/Step 3 (the draw steps) render and we can check the shade labeling too.
+  const frozenFlop = {
+    hole: [c("7c"), c("6c")] as [Card, Card],
+    board: [c("9h"), c("8c"), c("7s")] as Card[],
+    street: "flop" as const,
+    potBefore: 12,
+    toCall: 12,
+    numActiveOpponents: 2,
+    madeHand: { category: 2, label: "middle pair" },
+  };
+
+  it("uses the frozen made-hand label / street / opponent count, ignoring a later live board", () => {
+    // Live store is on the TURN with a board that makes TWO PAIR — the drift the fix kills.
+    setFlow(
+      fakeFlow({
+        hole: [c("7c"), c("6c")],
+        board: [c("9h"), c("8c"), c("7s"), c("9c")], // turn pairs the 9 → board two pair, live turn
+        street: "turn",
+        numActiveOpponents: 4,
+        potBefore: 80,
+      }),
+    );
+    render(<MentalMathSection enabled verdictEquityPct={47} frozen={frozenFlop} />);
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    // The made-hand label matches the FROZEN verdict (middle pair), never the live "two pair".
+    expect(screen.getByTestId("mm-made-hand").textContent?.toLowerCase()).toContain("middle pair");
+    expect(body.toLowerCase()).not.toContain("two pair");
+    // Step 2 reads the frozen FLOP street (×4), not the live turn (×2).
+    expect(body).toContain("Flop → ×4");
+    // The header context line names the frozen flop board + street.
+    expect(screen.getByTestId("mm-header").textContent ?? "").toContain("flop");
+  });
+
+  it("labels the shaded Step-3 figure as draw-HIT (not win) when a made hand is present (iter-12 #1)", () => {
+    setFlow(fakeFlow()); // live state present but irrelevant; frozen drives the math
+    render(<MentalMathSection enabled verdictEquityPct={54} frozen={frozenFlop} />);
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    // Only ONE figure may be labeled "to win" (the true-win / verdict). Step 3's shaded number is a
+    // draw-hit chance, explicitly NOT "to win".
+    const shade = screen.queryByTestId("mm-shade-figure");
+    if (shade) {
+      expect(shade.textContent?.toLowerCase()).toContain("to hit your draw");
+      expect(shade.textContent?.toLowerCase()).not.toContain("to win");
+    }
+    expect(screen.getByTestId("mm-shade-madehand-note").textContent?.toLowerCase()).toMatch(
+      /already have middle pair/,
+    );
+    expect(body).toContain("True win ≈ 54%");
+  });
+});
+
+describe("MentalMathSection — BB EV label is unit-aware (iter-12 #5)", () => {
+  it("reads 'Show the BB EV' in BB mode", () => {
+    act(() => useSessionStore.setState({ displayUnit: "bb" }));
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    expect(screen.getByText(/show the bb ev/i)).toBeInTheDocument();
+    expect(screen.queryByText(/show the dollar ev/i)).toBeNull();
+  });
+
+  it("reads 'Show the dollar EV' in USD mode", () => {
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={51} />);
+    expect(screen.getByText(/show the dollar ev/i)).toBeInTheDocument();
+  });
+});
+
 describe("MentalMathSection — override (I count differently)", () => {
   it("recomputes Steps 2–6 from the player's count and resets to auto", () => {
     setFlow(fakeFlow());

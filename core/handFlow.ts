@@ -243,6 +243,8 @@ export class HandFlow {
       board: spot.board,
       ...(toAmount !== undefined ? { raiseToAmount: toAmount } : {}),
       bigBlind: this.input.config.bigBlind,
+      // The small blind too, so analyze can detect a limped pot (off-model for the RFI chart, iter-12 #3).
+      smallBlind: this.input.config.smallBlind,
     });
 
     const decision: HeroDecisionRecord = {

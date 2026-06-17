@@ -4,7 +4,7 @@
 // Renders nothing when feedback is disabled. Honesty (§17): "chart-based" shows only when gtoClaim.
 import { DecisionAnalysis } from "@/core/analysis/types";
 import { formatExplanation } from "@/core/analysis/explain";
-import { MentalMathSection } from "@/components/MentalMathSection";
+import { MentalMathSection, FrozenDecisionContext } from "@/components/MentalMathSection";
 import { formatMoney, MoneyUnit } from "@/core/money";
 
 const BIG_BLIND = 2; // the table plays $1/$2, so 1 BB = $2
@@ -288,6 +288,27 @@ export function FeedbackPanel({
         ) : null}
       </div>
 
+      {/* Strict depth, off-model spot (iter-12 #3): when no baseline chart covers the decision
+          (gtoClaim false), Strict silently fell back to plain pot-odds with no badge — looking
+          identical to Equity and masquerading as chart-authoritative. Say explicitly that no chart
+          applies, so Strict never over-claims. Only in Strict (Equity/Conceptual lead with other
+          framings and never imply a chart). */}
+      {depth === "strict" && !analysis.gtoClaim ? (
+        <div
+          data-testid="off-model-note"
+          style={{
+            fontSize: 12,
+            color: "var(--ink-soft)",
+            marginTop: 8,
+            padding: "6px 10px",
+            border: "1px dashed #3a4a42",
+            borderRadius: "var(--r-md)",
+          }}
+        >
+          No baseline chart covers this spot — grading by equity and pot odds instead.
+        </div>
+      ) : null}
+
       {context ? (
         <div
           data-testid="feedback-context"
@@ -374,10 +395,34 @@ export function FeedbackPanel({
         </div>
       ) : null}
 
-      {/* Mental Math walk-through — a collapsible coaching section on the live hand (spec §4). The
-          verdict's equity (the SAME figure the bar shows) is passed in as the single "true win" so
-          Mental Math can never show a different win-% for the same decision (iter-07 #1). */}
-      <MentalMathSection enabled={enabled} verdictEquityPct={eq} betBeatsCheck={ev.raise > ev.call} />
+      {/* Mental Math walk-through — a collapsible coaching section pinned to THIS decision (spec §4).
+          The verdict's equity (the SAME figure the bar shows) is the single "true win" (iter-07 #1),
+          and the frozen board/street/opponent-count/made-hand come from the analysis snapshot so
+          Mental Math can never describe a later board than the verdict it sits under (iter-12 #2). */}
+      <MentalMathSection
+        enabled={enabled}
+        verdictEquityPct={eq}
+        betBeatsCheck={ev.raise > ev.call}
+        frozen={frozenMentalContext(analysis)}
+      />
     </aside>
   );
+}
+
+// Build the frozen Mental Math context from the verdict's analysis snapshot (iter-12 #2). Returns
+// null when the record predates the additive board/street fields (older saved hands) or the hole is
+// absent — Mental Math then falls back to the live game store. Cards are stored as raw strings on
+// `explanationInput`; they pass through to core/mental, which treats them as the opaque Card brand.
+function frozenMentalContext(analysis: DecisionAnalysis): FrozenDecisionContext | null {
+  const ei = analysis.explanationInput;
+  if (!ei || !ei.hand || !ei.board || !ei.street) return null;
+  return {
+    hole: ei.hand as unknown as FrozenDecisionContext["hole"],
+    board: ei.board as unknown as FrozenDecisionContext["board"],
+    street: ei.street,
+    potBefore: ei.potBefore,
+    toCall: ei.toCall,
+    numActiveOpponents: ei.numActiveOpponents ?? 0,
+    madeHand: ei.madeHand ?? null,
+  };
 }

@@ -17,6 +17,7 @@ import {
 } from "@/core/mental";
 import { HandFlow } from "@/core/handFlow";
 import { Street } from "@/core/analysis/types";
+import { Card } from "@/core/cards";
 import { formatMoney } from "@/core/money";
 
 const BIG_BLIND = 2;
@@ -29,6 +30,23 @@ const EMPTY_INPUT: MentalInput = {
   toCall: 0,
   numActiveOpponents: 0,
 };
+
+// The frozen decision snapshot the verdict above describes (iter-12 #2). When present, Mental Math
+// builds its outs/equity routine from THIS — the SAME board/street/opponent-count/made-hand the
+// verdict was computed on — instead of re-deriving from the now-live game store. That kills the
+// live-vs-frozen drift that once showed "two pair" under a "middle pair" verdict (finding #2), a
+// stale opponent count (finding #4), and a hand label that changed across streets (finding #5).
+export interface FrozenDecisionContext {
+  hole: [Card, Card];
+  board: Card[];
+  street: Street;
+  potBefore: number;
+  toCall: number;
+  numActiveOpponents: number;
+  // The verdict's made-hand label (e.g. "middle pair"), so Mental Math's hand description is
+  // IDENTICAL to the verdict's — never a different label from a re-detection on a later board.
+  madeHand: { category: number; label: string } | null;
+}
 
 /** Build the MentalInput from the live hand (spec §3.1): richest snapshot on hero's turn, a
  * read-only snapshot off-turn, and an empty (no-hand) input when there's nothing to estimate. */
@@ -57,6 +75,16 @@ function inputFromFlow(flow: HandFlow | null): MentalInput {
     toCall: 0,
     numActiveOpponents,
   };
+}
+
+// Force Mental Math's made-hand to the verdict's FROZEN made-hand label (iter-12 #2), so its hand
+// description is IDENTICAL to the verdict it sits under — never "two pair" under a "middle pair"
+// verdict, and never a label that drifts across streets (finding #5). When the frozen decision had
+// no made hand, the estimate keeps its own (board-derived) made-hand only if there's no frozen
+// context at all; with a frozen decision present, the verdict's made-hand (or its absence) wins.
+function withFrozenMadeHand(estimate: MentalEstimate, frozen?: FrozenDecisionContext | null): MentalEstimate {
+  if (!frozen) return estimate;
+  return { ...estimate, madeHand: frozen.madeHand };
 }
 
 const STEP_CARD: React.CSSProperties = {
@@ -113,6 +141,7 @@ export function MentalMathSection({
   enabled,
   verdictEquityPct,
   betBeatsCheck,
+  frozen,
 }: {
   enabled: boolean;
   // The verdict's win-% (analysis.numbers.equityPct) — the SAME figure the equity bar shows. Used as
@@ -123,6 +152,10 @@ export function MentalMathSection({
   // verdict's EV table shows on the same card (iter-11 #4). True when betting is the higher-EV action
   // (analysis ev.raise > ev.call) — then Step 6 recommends betting, not "take the free card".
   betBeatsCheck?: boolean;
+  // The frozen decision the verdict describes (iter-12 #2). When present, Mental Math builds from
+  // THIS snapshot (board/street/opponent-count/made-hand) so it can never drift to a later board than
+  // the verdict it sits under. Absent (older records, no decision yet) ⇒ fall back to the live store.
+  frozen?: FrozenDecisionContext | null;
 }) {
   const flow = useGameStore((s) => s.flow);
   // Whether the current hand has finished. At showdown the live decision clears, so the estimate
@@ -146,15 +179,37 @@ export function MentalMathSection({
   const [outsOverride, setOutsOverride] = useState<number | null>(null);
   const [showOverride, setShowOverride] = useState(false);
 
-  // `tick` is the intentional trigger (flow is mutated in place — see above); exhaustive-deps can't
-  // see that, so the dependency is correct but the rule flags it.
+  // The displayed math is PINNED to the frozen decision the verdict describes when one is present
+  // (iter-12 #2) — same board/street/opponent-count as the verdict above. Only when no decision has
+  // been graded (older records, or before the first decision) does it fall back to the live store's
+  // re-derivation (which the `tick`-based memo below tracks). This is the "read the single source,
+  // don't recompute" rule: live play uses the snapshot, not a separate live re-derive.
+  // `tick` is the intentional trigger for the live fallback (flow is mutated in place — see above);
+  // exhaustive-deps can't see that, so the dependency is correct but the rule flags it.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const input = useMemo(() => inputFromFlow(flow), [flow, tick]);
-  const estimate: MentalEstimate = useMemo(
-    () => buildMentalEstimate({ ...input, outsOverride }),
-    [input, outsOverride],
+  const liveInput = useMemo(() => inputFromFlow(flow), [flow, tick]);
+  const input: MentalInput = useMemo(
+    () =>
+      frozen
+        ? {
+            hole: frozen.hole,
+            board: frozen.board,
+            street: frozen.street,
+            potBefore: frozen.potBefore,
+            toCall: frozen.toCall,
+            numActiveOpponents: frozen.numActiveOpponents,
+          }
+        : liveInput,
+    [frozen, liveInput],
   );
-  const autoEstimate: MentalEstimate = useMemo(() => buildMentalEstimate(input), [input]);
+  const estimate: MentalEstimate = useMemo(
+    () => withFrozenMadeHand(buildMentalEstimate({ ...input, outsOverride }), frozen),
+    [input, outsOverride, frozen],
+  );
+  const autoEstimate: MentalEstimate = useMemo(
+    () => withFrozenMadeHand(buildMentalEstimate(input), frozen),
+    [input, frozen],
+  );
 
   // The "true win" is the verdict's equity (analysis.numbers.equityPct), passed in — NOT a separate
   // Monte Carlo. This guarantees Mental Math and the verdict/equity bar always show ONE number for a
@@ -388,7 +443,12 @@ function Steps({
         )}
       </div>
 
-      {/* Step 3 — shade for opponents */}
+      {/* Step 3 — shade for opponents. The shaded figure is a DRAW-HIT chance (outs only). With a
+          made hand it is NOT the win %: labeling it "to win" once put a ~14% next to a ~54% win
+          bar, two contradictory "to win" numbers in one panel (iter-12 #1). So when a made hand is
+          present we label it "to hit your draw" and say the real win % (Step 6 / the bar) already
+          includes the made hand. With no made hand, hitting the draw IS basically winning, so the
+          "to win" label stays honest. */}
       {estimate.opponentShade && (
         <div style={STEP_CARD}>
           <div style={STEP_HEAD}>
@@ -399,10 +459,22 @@ function Steps({
             {estimate.opponentShade.lowPct !== estimate.opponentShade.highPct && (
               <>
                 {" "}
-                Roughly <strong>~{estimate.opponentShade.lowPct}–{estimate.opponentShade.highPct}% to win</strong>.
+                Roughly{" "}
+                <strong data-testid="mm-shade-figure">
+                  ~{estimate.opponentShade.lowPct}–{estimate.opponentShade.highPct}%{" "}
+                  {estimate.madeHand ? "to hit your draw" : "to win"}
+                </strong>
+                .
               </>
             )}
           </p>
+          {estimate.madeHand && (
+            <p data-testid="mm-shade-madehand-note" style={{ margin: "4px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>
+              That&apos;s only the chance to improve your draw. You already have {estimate.madeHand.label}, so your
+              real win chance is higher{trueWinPct != null ? ` (~${trueWinPct}%)` : ""} — Step 6 below reconciles to
+              the true win %.
+            </p>
+          )}
         </div>
       )}
 
@@ -539,7 +611,11 @@ function TrueEquityCheck({
         <p style={{ fontSize: 15, fontWeight: 700, margin: "2px 0" }}>True win ≈ {trueWinPct}%</p>
       )}
       <details style={{ marginTop: 6 }}>
-        <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ink-soft)" }}>Show the dollar EV ▸</summary>
+        {/* Unit-aware label (iter-12 #5): in BB mode the value below is in BB, so the summary must
+            not say "dollar". "Show the EV" reads correctly in both units. */}
+        <summary style={{ cursor: "pointer", fontSize: 13, color: "var(--ink-soft)" }}>
+          {displayUnit === "bb" ? "Show the BB EV ▸" : "Show the dollar EV ▸"}
+        </summary>
         <p data-testid="mm-ev" style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>
           {evVerb} is worth about {money(evCall, displayUnit)} on average (based on the true equity).
         </p>

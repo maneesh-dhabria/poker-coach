@@ -48,6 +48,13 @@ export interface ExplanationInput {
   position?: string;
   hand?: [string, string];
   numActiveOpponents?: number;
+  // The decision's frozen board + street (iter-12 #2). Lets the live UI pin the Mental Math
+  // walk-through to the SAME snapshot the verdict describes — so after the hero acts and the engine
+  // deals the next card, Mental Math can't drift to a later board/street than the verdict it sits
+  // under. ADDITIVE/optional — older records (and card-less tests) simply omit them, and the live UI
+  // falls back to the game store. Cards are stored as raw strings to avoid importing core/cards here.
+  board?: string[];
+  street?: Street;
   // A made hand the hero already holds (iter-06 #1), so a re-formatted sentence still says "value
   // bet, not a bluff" rather than "no equity". Structural to avoid importing core/mental here.
   madeHand?: { category: number; label: string } | null;

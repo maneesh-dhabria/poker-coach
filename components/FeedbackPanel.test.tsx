@@ -467,6 +467,49 @@ describe("FeedbackPanel — 'chart-based' badge is Strict-only (iter-04 #7)", ()
   });
 });
 
+describe("FeedbackPanel — Strict off-model note (iter-12 #3)", () => {
+  // A postflop call (no chart models it) at Strict depth must SAY no chart applies, so Strict never
+  // masquerades as chart-authoritative when it's really grading by pot odds.
+  const offModel = (depth: "equity" | "strict") =>
+    analyze({
+      action: "call",
+      potBefore: 24,
+      toCall: 8,
+      equityPct: 40,
+      unit: "usd",
+      coachingDepth: depth,
+      street: "flop",
+    });
+  const chartSpot = analyze({
+    action: "raise",
+    potBefore: 3,
+    toCall: 0,
+    equityPct: 57,
+    unit: "usd",
+    coachingDepth: "strict",
+    street: "preflop",
+    hand: ["Ah", "Kh"],
+    position: "CO",
+    facing: "unopened",
+  });
+
+  it("shows the off-model note for a non-chart spot in Strict", () => {
+    render(<FeedbackPanel analysis={offModel("strict")} enabled />);
+    expect(screen.getByTestId("off-model-note").textContent).toMatch(/no baseline chart covers this spot/i);
+  });
+
+  it("does NOT show the off-model note when the spot IS chart-backed", () => {
+    render(<FeedbackPanel analysis={chartSpot} enabled />);
+    expect(screen.queryByTestId("off-model-note")).toBeNull();
+    expect(screen.getByTestId("feedback-panel").textContent ?? "").toMatch(/chart-based/i);
+  });
+
+  it("does NOT show the off-model note in Equity depth (Strict-only)", () => {
+    render(<FeedbackPanel analysis={offModel("equity")} enabled />);
+    expect(screen.queryByTestId("off-model-note")).toBeNull();
+  });
+});
+
 describe("FeedbackPanel — assumed-range context is legible near equity (iter-03 #9)", () => {
   it("restates that the win-chance is vs an assumed range, not real cards", () => {
     const a = analyze({

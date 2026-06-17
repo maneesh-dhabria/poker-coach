@@ -231,7 +231,9 @@
             "2d",
             "2s"
           ],
-          "numActiveOpponents": 3
+          "numActiveOpponents": 3,
+          "board": [],
+          "street": "preflop"
         }
       }
     },
@@ -284,6 +286,12 @@
             "2s"
           ],
           "numActiveOpponents": 3,
+          "board": [
+            "2h",
+            "Ks",
+            "9s"
+          ],
+          "street": "flop",
           "madeHand": {
             "category": 3,
             "label": "three of a kind"
@@ -340,6 +348,13 @@
             "2s"
           ],
           "numActiveOpponents": 3,
+          "board": [
+            "2h",
+            "Ks",
+            "9s",
+            "Ad"
+          ],
+          "street": "turn",
           "madeHand": {
             "category": 3,
             "label": "three of a kind"
@@ -396,6 +411,14 @@
             "2s"
           ],
           "numActiveOpponents": 3,
+          "board": [
+            "2h",
+            "Ks",
+            "9s",
+            "Ad",
+            "Ac"
+          ],
+          "street": "river",
           "madeHand": {
             "category": 6,
             "label": "a full house"
@@ -452,6 +475,14 @@
             "2s"
           ],
           "numActiveOpponents": 3,
+          "board": [
+            "2h",
+            "Ks",
+            "9s",
+            "Ad",
+            "Ac"
+          ],
+          "street": "river",
           "madeHand": {
             "category": 6,
             "label": "a full house"
