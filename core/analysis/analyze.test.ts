@@ -769,6 +769,96 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(badCall.verdict).toBe("mistake");
   });
 
+  // iter-16 #3: a gross overbet is now EQUITY-AWARE. A LOW-equity / no-made-hand gross overbet is a
+  // spew (clearly behind) — it grades a ❌ mistake so it tallies as a mistake, not "thin". A value/ahead
+  // gross overbet (good equity or a made hand) keeps the ⚠️ "you're ahead, size down" treatment.
+  it("(iter-16 #3) a LOW-equity postflop gross overbet (no made hand) grades a mistake, not thin", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 25, // clearly behind, no made hand — a spew
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["9c", "7d"],
+      board: ["Ah", "Kd", "Qs"], // 9-high, no pair → no made hand
+      raiseToAmount: 140, // 7× the pot — a gross overbet
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.verdict).toBe("mistake"); // escalated from ⚠️ to ❌ — a low-equity spew
+    expect(a.severity).toBeGreaterThanOrEqual(2);
+  });
+
+  it("(iter-16 #3) a VALUE/ahead postflop gross overbet still grades ⚠️ thin (unchanged)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 70, // clearly ahead — a value overbet
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Ad"],
+      board: ["As", "7c", "2d"], // set — a real value bet
+      raiseToAmount: 140, // 7× the pot
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.verdict).toBe("thin"); // ahead but too big — keep the "size down" treatment
+  });
+
+  it("(iter-16 #3) a low-equity MADE-hand gross overbet is NOT escalated to a mistake", () => {
+    // A made hand at low multiway equity is value (showdown value), not a spew — keep ⚠️ thin.
+    const a = analyze({
+      action: "bet",
+      potBefore: 32,
+      toCall: 0,
+      equityPct: 18,
+      street: "flop",
+      numActiveOpponents: 5,
+      hole: ["4s", "2s"],
+      board: ["3s", "4c", "3d"], // two pair — a made hand
+      raiseToAmount: 160, // 5× the pot
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.verdict).toBe("thin"); // a made hand is never a "spew mistake"
+  });
+
+  it("(iter-16 #3) a 100 BB shove of a fold-range hand (97o) grades a ❌ mistake, tallies as a mistake", () => {
+    // The reviewer's repro: 97o shoved 100 BB into a $3 pot. The chart folds 97o from MP, so the
+    // oversized open is a low-equity spew — a mistake, not "thin".
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 30,
+      street: "preflop",
+      hand: ["9c", "7d"], // chart folds 97o from MP
+      position: "MP",
+      facing: "unopened",
+      raiseToAmount: 200, // 100 BB at $1/$2
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).toContain("preflop_oversize");
+    expect(a.verdict).toBe("mistake");
+    expect(a.severity).toBeGreaterThanOrEqual(2);
+  });
+
+  it("(iter-16 #3) an oversized open of a CHART-OPEN hand (AKs) stays ⚠️ thin, not a mistake", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 67,
+      street: "preflop",
+      hand: ["Ah", "Kh"], // chart opens AKs from CO
+      position: "CO",
+      facing: "unopened",
+      raiseToAmount: 40, // 20 BB — oversized
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).toContain("preflop_oversize");
+    expect(a.verdict).toBe("thin"); // ahead, just too big — keep the ⚠️ "size down" treatment
+  });
+
   it("populates the EV block for all three options", () => {
     const a = analyze({
       action: "call",

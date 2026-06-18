@@ -544,3 +544,98 @@ describe("valuecheck good copy doesn't undersell a near-coin-flip (iter-12 #6)",
     expect(s.toLowerCase()).toContain("little to bet for");
   });
 });
+
+describe("EV-aware thin-bet copy (iter-16 #2)", () => {
+  // A ⚠️ thin bet the EV table says is clearly worse than checking must NOT read "fine as value or a
+  // semi-bluff" — say checking rates higher / it's marginal-to-slightly-losing.
+  const thinBet = (ev?: { fold: number; call: number; raise: number }): ExplainParams => ({
+    kind: "aggression",
+    verdict: "thin",
+    depth: "equity",
+    unit: "usd",
+    action: "bet",
+    potBefore: 200,
+    toCall: 0,
+    equityPct: 42,
+    potOddsPct: 0,
+    ev,
+  });
+
+  it("equity depth: bet EV clearly below check says checking rates higher, NOT 'fine'", () => {
+    // check $72 vs bet $43 — the reviewer's flop top-pair bet.
+    const s = buildExplanation(thinBet({ fold: 0, call: 72, raise: 43 }));
+    const lower = s.toLowerCase();
+    expect(lower).toContain("checking rates higher");
+    expect(lower).not.toContain("fine as value or a semi-bluff");
+  });
+
+  it("equity depth: a roughly EV-neutral thin bet keeps the 'fine' tone", () => {
+    // check $44 vs bet $43 — within the noise margin.
+    const s = buildExplanation(thinBet({ fold: 0, call: 44, raise: 43 }));
+    const lower = s.toLowerCase();
+    expect(lower).toContain("fine as value or a semi-bluff");
+    expect(lower).not.toContain("checking rates higher");
+  });
+
+  it("equity depth: with no EV provided, the copy is unchanged (back-compat)", () => {
+    const s = buildExplanation(thinBet(undefined));
+    expect(s.toLowerCase()).toContain("fine as value or a semi-bluff");
+  });
+
+  it("conceptual depth: a clearly-worse thin bet does NOT call the line 'fine' (digit-free)", () => {
+    const s = buildExplanation({ ...thinBet({ fold: 0, call: 72, raise: 43 }), depth: "conceptual" });
+    const lower = s.toLowerCase();
+    expect(lower).toContain("checking rates higher");
+    expect(lower).not.toContain("fine as thin value");
+    expect(s).not.toMatch(/\d/); // conceptual stays digit-free
+  });
+
+  it("conceptual depth: a roughly EV-neutral thin bet keeps the 'fine' tone (digit-free)", () => {
+    const s = buildExplanation({ ...thinBet({ fold: 0, call: 44, raise: 43 }), depth: "conceptual" });
+    expect(s.toLowerCase()).toContain("fine as thin value");
+    expect(s).not.toMatch(/\d/);
+  });
+});
+
+describe("positive-verdict EV reconciliation note (iter-16 #1)", () => {
+  // A ✅ iso-raise whose displayed EV reads tied/slightly-below folding gets a reconciling note
+  // (rough estimate + fold equity) so it doesn't read as an unreconciled contradiction.
+  const isoRaise = (ev?: { fold: number; call: number; raise: number }): ExplainParams => ({
+    kind: "isoraise",
+    verdict: "good",
+    depth: "equity",
+    unit: "usd",
+    action: "raise",
+    potBefore: 7,
+    toCall: 0,
+    equityPct: 22,
+    potOddsPct: 0,
+    hand: ["Kd", "Js"],
+    position: "CO",
+    ev,
+  });
+
+  it("appends the noise + fold-equity note when the raise EV is slightly below folding", () => {
+    // fold $0 / raise -$1 — the reviewer's repro.
+    const s = buildExplanation(isoRaise({ fold: 0, call: 0, raise: -1 }));
+    const lower = s.toLowerCase();
+    expect(lower).toContain("rough equity-only estimate");
+    expect(lower).toContain("fold equity");
+    expect(lower).toContain("within the noise");
+  });
+
+  it("does NOT append the note when the raise EV is clearly the best (numbers already agree)", () => {
+    const s = buildExplanation(isoRaise({ fold: 0, call: 0, raise: 12 }));
+    expect(s.toLowerCase()).not.toContain("rough equity-only estimate");
+  });
+
+  it("does NOT append the note when the raise EV is far worse than folding (not hand-waved)", () => {
+    const s = buildExplanation(isoRaise({ fold: 0, call: 0, raise: -20 }));
+    expect(s.toLowerCase()).not.toContain("rough equity-only estimate");
+  });
+
+  it("does NOT append the note when no EV is provided (back-compat)", () => {
+    const s = buildExplanation(isoRaise(undefined));
+    expect(s.toLowerCase()).not.toContain("rough equity-only estimate");
+  });
+});

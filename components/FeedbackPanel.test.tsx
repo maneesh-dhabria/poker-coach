@@ -292,15 +292,18 @@ describe("FeedbackPanel — preflop chart fold shows no pro-call contradiction (
 
 describe("FeedbackPanel — oversize badge + going-forward EV label (iter-09 #6a/#9)", () => {
   it("an oversized preflop open shows the 'Oversized' badge, not 'Thin' (#6a)", () => {
+    // A value/ahead oversized open (a hand the chart WOULD open — KK from BTN) keeps the ⚠️ "size
+    // down" treatment (iter-16 #3): the size is wrong but you're ahead, so it stays thin, not a
+    // mistake. (A LOW-equity oversized open of a fold-range hand now grades ❌ — covered below.)
     const a = analyze({
       action: "raise",
       potBefore: 3,
       toCall: 0,
-      equityPct: 55,
+      equityPct: 80,
       unit: "usd",
       coachingDepth: "equity",
       street: "preflop",
-      hand: ["Td", "2c"],
+      hand: ["Kd", "Kc"],
       position: "BTN",
       facing: "unopened",
       raiseToAmount: 40, // 20 BB open
@@ -311,7 +314,31 @@ describe("FeedbackPanel — oversize badge + going-forward EV label (iter-09 #6a
     const badge = screen.getByTestId("verdict-badge").textContent ?? "";
     expect(badge).toMatch(/oversized/i);
     expect(badge).not.toMatch(/thin/i);
-    expect(badge).toContain("⚠️"); // keep the same severity icon
+    expect(badge).toContain("⚠️"); // value overbet keeps the same ⚠️ severity icon
+  });
+
+  // iter-16 #3: a LOW-equity gross oversized open (a hand the chart folds — T2o, a 97o-style spew)
+  // grades ❌ MISTAKE so it tallies as a mistake, while still showing the clearer "Oversized" label.
+  it("a low-equity oversized open of a fold-range hand shows ❌ 'Oversized', a mistake (#3)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 30,
+      unit: "usd",
+      coachingDepth: "equity",
+      street: "preflop",
+      hand: ["Td", "2c"], // chart folds T2o from BTN — a spew, not a value overbet
+      position: "BTN",
+      facing: "unopened",
+      raiseToAmount: 40, // 20 BB open
+      bigBlind: 2,
+    });
+    expect(a.verdict).toBe("mistake");
+    render(<FeedbackPanel analysis={a} enabled />);
+    const badge = screen.getByTestId("verdict-badge").textContent ?? "";
+    expect(badge).toMatch(/oversized/i);
+    expect(badge).toContain("❌");
   });
 
   it("the EV 'Show the numbers' table is labeled as going-forward, not the whole-hand result (#9)", () => {

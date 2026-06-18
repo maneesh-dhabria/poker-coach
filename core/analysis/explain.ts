@@ -73,6 +73,47 @@ export interface ExplainParams {
   // equity), but the size risks a huge amount to win a tiny pot, so the copy keeps the direction and
   // adds a "size down" critique. Present only when the overbet flag fired.
   overbetPotMultiple?: number;
+  // The going-forward dollar-EV of each option — the SAME `numbers.ev` the "Show the numbers" table
+  // displays (iter-16 #1, #2). These are rough Monte-Carlo equity-realization averages. The copy uses
+  // them ONLY to reconcile its WORDS with the displayed figure (never to change a verdict): a thin bet
+  // the EV says is clearly worse than checking shouldn't read "fine" (#2), and a ✅ action whose EV is
+  // tied/slightly-below the best alternative gets a one-line "rough estimate / fold-equity" note so it
+  // doesn't read as an unreconciled contradiction (#1). Optional — absent ⇒ today's EV-blind copy.
+  ev?: { fold: number; call: number; raise: number };
+}
+
+// Dollar-EV reconciliation margin (iter-16 #1, #2). The displayed `numbers.ev` are rough Monte-Carlo
+// equity-realization averages, so a gap this small or less is within the estimate's noise (≈ 1 BB on
+// the $1/$2 table). Used two ways: (1) a POSITIVE-verdict action whose EV is ≤ the best alternative
+// by within this margin (or modestly below) gets a "rough estimate / fold-equity" note so it doesn't
+// read as an unreconciled contradiction; (2) a ⚠️ thin bet whose EV is BELOW checking by MORE than
+// this margin is "marginal-to-slightly-losing", not "fine". Plain dollars, not BB — the comparison is
+// margin-vs-margin so the unit cancels.
+const EV_RECONCILE_MARGIN = 2;
+
+// A positive-verdict action's EV reconciliation note (iter-16 #1). Fires when the verdict is "good"
+// but the chosen action's displayed EV is tied-or-modestly-below the best alternative's — a beginner
+// then reads ✅ next to "fold $0 / raise -$1" and sees a contradiction. The note makes it explicit
+// that these are rough equity-only averages (a tiny gap is noise) and — for an aggressive/iso line —
+// that the raise also wins the pot outright often (fold equity), which this showdown-EV doesn't
+// capture. Returns "" when not applicable (clearly-best EV, or no EV available). `aggressive` tunes
+// whether the fold-equity clause is included.
+function evReconcileNote(
+  verdict: Verdict,
+  chosen: number | undefined,
+  best: number | undefined,
+  aggressive: boolean,
+): string {
+  if (verdict !== "good" || chosen === undefined || best === undefined) return "";
+  const gap = best - chosen;
+  // chosen ≥ best ⇒ the chosen line already shows the highest EV — the numbers agree with the ✅, no
+  // reconciliation needed. gap > the noise margin ⇒ genuinely worse, don't paper it over here. Only a
+  // tied-or-slightly-below chosen action (0 < gap ≤ margin) gets the noise/fold-equity note.
+  if (gap <= 0 || gap > EV_RECONCILE_MARGIN) return "";
+  const foldEquity = aggressive
+    ? " It also wins the pot outright often (fold equity) — value this number doesn't capture."
+    : "";
+  return ` (The dollar figures are rough equity-only estimates, so a gap this small is within the noise.${foldEquity})`;
 }
 
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
@@ -129,7 +170,13 @@ function isoRaise(p: ExplainParams): string {
   const label = p.hand ? handLabel(p.hand) : "this hand";
   const where = p.position ? ` from ${p.position}` : "";
   const win = Math.round(p.equityPct);
-  return `Raising ${label}${where} here is a fine, standard play. The Preflop Chart assumes you're first in, but here there are limpers — so this is an isolation raise: you raise to play the pot heads-up against a weak limping range, where your ~${win}% plays well. Going for it is right.`;
+  // The chosen line is the RAISE; the only alternative the EV table shows for a preflop open is FOLD
+  // ($0). When the raise's rough EV reads tied/slightly-below folding (iter-16 #1) — a beginner sees ✅
+  // next to "fold $0 / raise -$1" — append the noise + fold-equity note so the words and the figure
+  // don't disagree. An iso raise is exactly the aggressive line whose value is the fold equity this
+  // showdown-EV number misses, so the fold-equity clause is included.
+  const reconcile = p.ev ? evReconcileNote("good", p.ev.raise, Math.max(p.ev.fold, p.ev.call), true) : "";
+  return `Raising ${label}${where} here is a fine, standard play. The Preflop Chart assumes you're first in, but here there are limpers — so this is an isolation raise: you raise to play the pot heads-up against a weak limping range, where your ~${win}% plays well. Going for it is right.${reconcile}`;
 }
 
 // Re-format the plain explanation for a decision in a different display unit (iter-04 #3). This is
@@ -164,6 +211,10 @@ export function formatExplanation(
     openSizeBb: ei.openSizeBb,
     betTooSmall: ei.betTooSmall,
     overbetPotMultiple: ei.overbetPotMultiple,
+    // The EV reconciliation reads the canonical numbers block (iter-16 #1, #2) — no new persisted
+    // field is needed since `numbers.ev` already rides on every record. EV is unit-invariant for the
+    // comparison (a margin in dollars vs the same dollars), so passing the stored USD figures is fine.
+    ev: analysis.numbers.ev,
     bigBlind,
   });
 }
@@ -343,7 +394,18 @@ function aggression(p: ExplainParams): string {
   if (p.madeHand && p.equityPct < 33)
     return `You have ${p.madeHand.label} — a real made hand with showdown value, so this is a value ${noun}. But multiway on a dangerous board your ~${win}% to win is low, so it's a thin, vulnerable ${noun}.`;
   if (p.verdict === "good") return `${act} for value with ~${win}% is good — get money in while ahead.`;
-  if (p.verdict === "thin") return `A thin ${noun} with ~${win}% — fine as value or a semi-bluff, but it's marginal.`;
+  if (p.verdict === "thin") {
+    // EV-aware thin copy (iter-16 #2). The displayed `numbers.ev` compares the bet (ev.raise) with
+    // CHECKING (ev.call — the going-forward value of taking a free look, per the EV table's check row).
+    // When checking rates MATERIALLY higher (more than the noise margin), "fine as value or a
+    // semi-bluff" disagrees with the figure — say checking rates higher / the bet is
+    // marginal-to-slightly-losing. When the two are roughly tied, the existing "fine" tone holds.
+    const betWorseThanCheck =
+      p.ev !== undefined && p.ev.call - p.ev.raise > EV_RECONCILE_MARGIN;
+    if (betWorseThanCheck)
+      return `A thin ${noun} with ~${win}% — checking rates higher on average here, so this ${noun} is marginal-to-slightly-losing, not a clear gain.`;
+    return `A thin ${noun} with ~${win}% — fine as value or a semi-bluff, but it's marginal.`;
+  }
   // A light/thin bluff: real-but-low equity (~20–33%, no made hand) is a semi-bluff, not "no equity"
   // (iter-09 #6b). Below ~20% it's a genuine air bluff with almost nothing behind it. Both grade -EV.
   if (p.equityPct >= NO_EQUITY_PCT)
@@ -454,10 +516,20 @@ function conceptual(p: ExplainParams): string {
         return raising
           ? "You're ahead often enough here — raising for value is right; build the pot while you're ahead."
           : "You're ahead often enough here — betting for value is right.";
-      if (p.verdict === "thin")
+      if (p.verdict === "thin") {
+        // Conceptual stays digit-free, but it still must not call a clearly-worse line "fine" (iter-16
+        // #2): when the EV table says checking rates higher than betting by more than the noise margin,
+        // say so in plain words. Roughly-tied keeps the existing "fine"/"borderline" tone.
+        const betWorseThanCheck =
+          p.ev !== undefined && p.ev.call - p.ev.raise > EV_RECONCILE_MARGIN;
+        if (betWorseThanCheck)
+          return raising
+            ? "A marginal raise — checking rates higher on average here, so it's borderline-to-slightly-losing."
+            : "A marginal bet — checking rates higher on average here, so it's borderline-to-slightly-losing.";
         return raising
           ? "A marginal raise — fine to push a thin edge, but it's borderline."
           : "A marginal bet — fine as thin value or a semi-bluff.";
+      }
       // A light/thin semi-bluff (some equity, no made hand) vs genuine air, in plain words (iter-09
       // #6b). Both lose money on average here.
       if (p.equityPct >= NO_EQUITY_PCT)

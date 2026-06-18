@@ -141,6 +141,9 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     openSizeBb: branch.flagOversize ? openSizeBb : undefined,
     betTooSmall: branch.flagUndersize ?? false,
     overbetPotMultiple: branch.flagGrossOverbet ? branch.overbetPotMultiple : undefined,
+    // The going-forward EV the "Show the numbers" table shows, so the copy can RECONCILE its words
+    // with the displayed figure (iter-16 #1, #2) — never to change a verdict, only to phrase honestly.
+    ev,
   });
 
   return {
@@ -206,6 +209,13 @@ const POSTFLOP_OVERBET_POT_MULTIPLE = 3;
 // 92 into a 7 pot ≈ 13×) should flag — never a normal 3-bet/4-bet (iter-13 #2, kept conservative #3).
 const PREFLOP_OVERBET_POT_MULTIPLE = 8;
 
+// A gross overbet made while clearly BEHIND with no made hand — at/below this equity it's a spew/bluff,
+// not a value bet, so the SIZE critique escalates from ⚠️ "size down" to a ❌ mistake that tallies as a
+// mistake (iter-16 #3). A gross overbet made AHEAD (good equity or a made hand — a value overbet) keeps
+// the ⚠️ "you're ahead, size down" treatment reviewers liked. Aligned with the aggression branch's
+// value/bluff split (madeHand OR equity ≥ 50 ⇒ value): below 50% AND no made hand ⇒ a low-equity spew.
+const OVERBET_VALUE_EQUITY_PCT = 50;
+
 // Apply the gross-overbet SIZE critique on top of an aggression-branch result (iter-13 #2). The
 // direction/equity grade is kept; the size is flagged with a ⚠️ (a ✅ value bet downgrades to ⚠️
 // "Oversized" so an oversized shove is never praised without comment, while an already-flagged thin/❌
@@ -216,17 +226,37 @@ function withGrossOverbet(
   branch: Branch,
   betPotMultiple: number | undefined,
   threshold: number,
+  equityPct: number,
+  madeHand: MadeHand | null,
 ): Branch {
   if (betPotMultiple === undefined || betPotMultiple < threshold) return branch;
   const tags: ConceptTag[] = branch.conceptTags.includes("oversize_bet")
     ? branch.conceptTags
     : [...branch.conceptTags, "oversize_bet"];
+  // A gross overbet made while clearly BEHIND with no made hand is a spew/bluff, not a value bet — it
+  // risks a huge amount with a hand that's losing, so it belongs in the ❌ "mistake" bucket, not ⚠️
+  // "thin" (iter-16 #3). A value/ahead overbet (good equity OR a made hand) keeps the ⚠️ "you're
+  // ahead, size down" treatment. Only ESCALATE a ✅/⚠️ good-or-thin grade; a branch already graded a
+  // mistake stays a mistake (never softened).
+  const lowEquitySpew = madeHand == null && equityPct < OVERBET_VALUE_EQUITY_PCT;
+  const escalateToMistake = lowEquitySpew && branch.verdict !== "mistake";
+  // Never leave a gross overbet as a clean ✅. A low-equity spew escalates to ❌ mistake; a value/ahead
+  // overbet surfaces the size concern at ⚠️ thin. A bet already graded thin/mistake keeps its
+  // (equal-or-worse) verdict + severity.
+  const verdict: Verdict = escalateToMistake
+    ? "mistake"
+    : branch.verdict === "good"
+      ? "thin"
+      : branch.verdict;
+  const severity: 0 | 1 | 2 | 3 = escalateToMistake
+    ? 2
+    : branch.verdict === "good"
+      ? 1
+      : branch.severity;
   return {
     ...branch,
-    // Never leave a gross overbet as a clean ✅: surface the size concern at ⚠️ thin. A bet already
-    // graded thin/mistake keeps its (equal-or-worse) verdict + severity.
-    verdict: branch.verdict === "good" ? "thin" : branch.verdict,
-    severity: branch.verdict === "good" ? 1 : branch.severity,
+    verdict,
+    severity,
     conceptTags: tags,
     flagGrossOverbet: true,
     overbetPotMultiple: betPotMultiple,
@@ -297,7 +327,13 @@ function route(
     // that's already BB-flagged keeps that flag (don't double-flag the same open).
     return isOpen
       ? chartBranch
-      : withGrossOverbet(chartBranch, betPotMultiple, PREFLOP_OVERBET_POT_MULTIPLE);
+      : withGrossOverbet(
+          chartBranch,
+          betPotMultiple,
+          PREFLOP_OVERBET_POT_MULTIPLE,
+          equityPct,
+          madeHand,
+        );
   }
 
   // 2..5 postflop / no-chart heuristics.
@@ -315,7 +351,7 @@ function route(
       street === "preflop" ? PREFLOP_OVERBET_POT_MULTIPLE : POSTFLOP_OVERBET_POT_MULTIPLE;
     return undersize
       ? aggression
-      : withGrossOverbet(aggression, betPotMultiple, overbetThreshold);
+      : withGrossOverbet(aggression, betPotMultiple, overbetThreshold, equityPct, madeHand);
   }
   if (action === "fold") {
     // No chips to call means checking is free — folding forfeits a free look at the pot and is
@@ -360,10 +396,16 @@ function preflopBranch(
   if (oversize) {
     const tags: ConceptTag[] = ["preflop_oversize"];
     if (deviates) tags.push("preflop_chart_deviation");
+    // An oversized open of a hand the chart wouldn't even play (rec === "fold") is a low-equity spew,
+    // not a value overbet — a 100 BB shove of 97o is a ❌ mistake, so it tallies as a mistake, while an
+    // oversized open of a hand the chart WOULD open (you're ahead, just too big) keeps the ⚠️ "size
+    // down" treatment reviewers liked (iter-16 #3). Keyed on the chart's fold recommendation, the
+    // preflop analogue of the postflop low-equity/no-made-hand spew test.
+    const spew = rec === "fold";
     return {
       ...base,
-      verdict: "thin",
-      severity: 1,
+      verdict: spew ? "mistake" : "thin",
+      severity: spew ? 2 : 1,
       conceptTags: tags,
       flagOversize: true,
     };
