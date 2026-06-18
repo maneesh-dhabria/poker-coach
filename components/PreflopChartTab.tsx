@@ -9,7 +9,7 @@
 // on-demand fallback only for any key the table somehow lacks (FR-56).
 import { useEffect, useState } from "react";
 import { Card } from "@/core/cards";
-import { Position, Facing, ChartAction, chartAction, chartApplies } from "@/core/charts/preflop";
+import { Position, Facing, ChartAction, chartAction, chartApplies, cellRationale } from "@/core/charts/preflop";
 import { equity } from "@/core/equity/equity";
 import equityTable from "@/core/charts/preflopEquity.json";
 import { useGameStore } from "@/store/gameStore";
@@ -88,6 +88,7 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
           hand: selected.slice(0, 2),
           pct: Math.round(equityFor(selected)),
           action: chartAction(repCombo(selected), position, facing),
+          rationale: cellRationale(selected, position, chartAction(repCombo(selected), position, facing)),
         }
       : null;
 
@@ -207,6 +208,14 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
           <p style={{ margin: "4px 0" }}>
             {detail.hand} wins ~{detail.pct} out of 100 vs a random hand.
           </p>
+          {detail.rationale && (
+            <p
+              data-testid="chart-cell-rationale"
+              style={{ margin: "4px 0", lineHeight: 1.5, color: "var(--ink-soft)", fontSize: 13 }}
+            >
+              {detail.rationale}
+            </p>
+          )}
           <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: "var(--ink-soft)", fontSize: 13 }}>
             <li>
               <strong>Baseline</strong>: a solid default to start from — not the only right play, just a

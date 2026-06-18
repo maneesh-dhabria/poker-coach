@@ -55,6 +55,19 @@ export function fitScale(w: number, h: number): number {
   return Math.min(1, w / DESIGN_W, h / DESIGN_H);
 }
 
+// The smallest scale we ever render the table at (iter-21 NIT 3). Below this the seat tiles
+// (~120px wide) and card glyphs shrink past readability — at ~700px the felt had collapsed to a
+// ~0.28 scale (a 213px oval, 34px seats). We FLOOR the fit scale here so the table stays legible;
+// when the floored box is bigger than its container the stage scrolls instead of shrinking seats
+// below readability (the stage's overflow is set to allow that). 0.55 keeps a ~660×286 felt and
+// ~66px seat tiles — tight but readable — while still scaling down from full size on wider screens.
+export const MIN_TABLE_SCALE = 0.55;
+
+/** Fit scale floored to a readable minimum (iter-21 NIT 3) — the value actually rendered. */
+export function readableScale(w: number, h: number): number {
+  return Math.max(MIN_TABLE_SCALE, fitScale(w, h));
+}
+
 // Measure a container element and report a uniform scale-to-fit for the fixed design box. A
 // ResizeObserver keeps it in step with viewport/zoom/splitscreen changes (iter-04 #1). 'use client'
 // (top of file) makes this safe — it's a presentational component, not core.
@@ -63,7 +76,7 @@ function useFitScale(ref: { current: HTMLElement | null }): number {
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const measure = () => setScale(fitScale(el.clientWidth, el.clientHeight));
+    const measure = () => setScale(readableScale(el.clientWidth, el.clientHeight));
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -187,7 +200,23 @@ export function PokerTable() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          overflow: "hidden",
+          // Floor the table scale at a readable minimum (iter-21 NIT 3): once the felt can't shrink
+          // below MIN_TABLE_SCALE, a very small/short viewport scrolls the stage rather than squashing
+          // seats/cards past legibility. On the praised wider layouts the fit scale stays above the
+          // floor, so the box fits and these scrollbars never appear.
+          overflow: "auto",
+        }}
+      >
+      {/* A sizing wrapper whose box equals the SCALED felt dimensions (iter-21 NIT 3). transform:scale
+          doesn't shrink the element's layout box, so without this the stage would always see a 760×520
+          child and show scrollbars even at full size. Sizing the wrapper to scale×DESIGN keeps the
+          stage's overflow accurate: it fits (no scrollbar) when the floored box is ≤ the container, and
+          scrolls only on a genuinely tiny/short viewport where the floor kept the table readable. */}
+      <div
+        style={{
+          flex: "0 0 auto",
+          width: DESIGN_W * scale,
+          height: DESIGN_H * scale,
         }}
       >
       <div
@@ -200,9 +229,8 @@ export function PokerTable() {
           // live inside this box; we scale the whole box, not the individual elements (iter-04 #1).
           width: DESIGN_W,
           height: DESIGN_H,
-          flex: "0 0 auto",
           transform: `scale(${scale})`,
-          transformOrigin: "center center",
+          transformOrigin: "top left",
         }}
       >
         {/* Center pot/log is painted FIRST so the seats (rendered after) sit on top of it — when the
@@ -269,6 +297,7 @@ export function PokerTable() {
             />
           </div>
         ))}
+      </div>
       </div>
       </div>
 

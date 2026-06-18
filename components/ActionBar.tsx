@@ -55,6 +55,11 @@ export function ActionBar({
   const quickTo = (fraction: number) =>
     clamp(Math.round(pot * fraction) + legal.toCall, legal.minRaiseTo, offeredMax);
 
+  // A quick-size button is "active" only while the CURRENT amount equals that quick-size's computed
+  // value — derived state, not a remembered last-click (iter-21 NIT 1). Dragging the slider or typing
+  // to a non-matching value clears the highlight automatically. Sizes are integers, so exact match.
+  const quickActive = (fraction: number) => sized === quickTo(fraction);
+
   // Folding when you can check for free is strictly dominated — no real client offers it. Hide Fold
   // whenever Check is legal so the only choices are the meaningful ones (check or bet).
   const showFold = legal.actions.includes("fold") && !legal.actions.includes("check");
@@ -91,13 +96,13 @@ export function ActionBar({
           />
           {pot > 0 && (
             <span style={{ display: "flex", gap: 4 }}>
-              <Button variant="ghost" size="sm" disabled={disabled} aria-label="Size to half pot" onClick={() => setAmount(quickTo(0.5))}>
+              <Button variant="ghost" size="sm" disabled={disabled} selected={quickActive(0.5)} aria-pressed={quickActive(0.5)} aria-label="Size to half pot" onClick={() => setAmount(quickTo(0.5))}>
                 ½
               </Button>
-              <Button variant="ghost" size="sm" disabled={disabled} aria-label="Size to three-quarter pot" onClick={() => setAmount(quickTo(0.75))}>
+              <Button variant="ghost" size="sm" disabled={disabled} selected={quickActive(0.75)} aria-pressed={quickActive(0.75)} aria-label="Size to three-quarter pot" onClick={() => setAmount(quickTo(0.75))}>
                 ¾
               </Button>
-              <Button variant="ghost" size="sm" disabled={disabled} aria-label="Size to pot" onClick={() => setAmount(quickTo(1))}>
+              <Button variant="ghost" size="sm" disabled={disabled} selected={quickActive(1)} aria-pressed={quickActive(1)} aria-label="Size to pot" onClick={() => setAmount(quickTo(1))}>
                 Pot
               </Button>
             </span>

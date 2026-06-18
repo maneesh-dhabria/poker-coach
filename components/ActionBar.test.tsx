@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { ActionBar } from "@/components/ActionBar";
-import { Seat } from "@/components/table/Seat";
+import { Seat, shouldRevealHoleCards } from "@/components/table/Seat";
+import { Card } from "@/core/cards";
 import { TableSeatView } from "@/core/handFlow";
 
 beforeEach(() => cleanup());
@@ -145,6 +146,31 @@ describe("ActionBar", () => {
     expect(screen.getByRole("slider")).toHaveAttribute("max", "120");
   });
 
+  it("highlights a quick-size button only while the amount matches it, clearing on a non-matching change (iter-21 NIT 1)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 200 }}
+        onAction={() => {}}
+        pot={20}
+      />,
+    );
+    const potBtn = screen.getByLabelText("Size to pot");
+    const slider = screen.getByRole("slider");
+
+    // Click Pot → Pot is active (highlighted).
+    fireEvent.click(potBtn);
+    expect(screen.getByTestId("bet-size")).toHaveTextContent("$20");
+    expect(potBtn).toHaveAttribute("aria-pressed", "true");
+
+    // Drag the slider OFF the pot value → the Pot highlight clears (derived, not sticky).
+    fireEvent.change(slider, { target: { value: "12" } });
+    expect(potBtn).toHaveAttribute("aria-pressed", "false");
+
+    // Set it back to the pot value → Pot re-highlights.
+    fireEvent.change(slider, { target: { value: "20" } });
+    expect(potBtn).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("shows Fold when facing a bet (no check available)", () => {
     render(
       <ActionBar
@@ -186,5 +212,49 @@ describe("Seat", () => {
   it("does not show an action badge on the hero seat", () => {
     render(<Seat seat={{ ...base, isHero: true }} lastAction={{ action: "call", amount: 2 }} />);
     expect(screen.queryByTestId("seat-action")).toBeNull();
+  });
+});
+
+describe("shouldRevealHoleCards (iter-21 NIT 5 — only showdown cards are exposed)", () => {
+  const cards: Card[] = ["Ah", "Kh"];
+  const base: TableSeatView = {
+    seat: 1,
+    name: "Bot 1",
+    isHero: false,
+    position: "BTN",
+    stack: 100,
+    folded: false,
+    isButton: true,
+    cards: null,
+  };
+
+  it("reveals the hero's own cards always", () => {
+    expect(shouldRevealHoleCards({ isHero: true, folded: false, cards })).toBe(true);
+    // Even a folded hero sees their own cards (their pane is always face-up).
+    expect(shouldRevealHoleCards({ isHero: true, folded: true, cards })).toBe(true);
+  });
+
+  it("reveals an opponent who reached showdown (not folded, cards present)", () => {
+    expect(shouldRevealHoleCards({ isHero: false, folded: false, cards })).toBe(true);
+  });
+
+  it("keeps a FOLDED opponent's cards hidden even if cards are attached (mucked)", () => {
+    expect(shouldRevealHoleCards({ isHero: false, folded: true, cards })).toBe(false);
+  });
+
+  it("hides an opponent with no cards available (no reveal upstream)", () => {
+    expect(shouldRevealHoleCards({ isHero: false, folded: false, cards: null })).toBe(false);
+  });
+
+  it("renders face-down cards for a folded opponent even when cards are passed in", () => {
+    const { container } = render(<Seat seat={{ ...base, folded: true, cards }} />);
+    // Folded → only face-down card backs, never a face-up card glyph.
+    expect(container.querySelectorAll('[data-testid="card"]')).toHaveLength(0);
+    expect(container.querySelectorAll('[data-testid="card-back"]')).toHaveLength(2);
+  });
+
+  it("renders face-up cards for an opponent who reached showdown", () => {
+    const { container } = render(<Seat seat={{ ...base, folded: false, cards }} />);
+    expect(container.querySelectorAll('[data-testid="card"]')).toHaveLength(2);
   });
 });

@@ -2,6 +2,7 @@
 // until showdown). Folded seats are visually dimmed (spec FR-51, wireframe 01). When given a
 // `lastAction`, shows an action badge + (for committed chips) a chip-to-pot animation (obs. #3).
 import { TableSeatView } from "@/core/handFlow";
+import { Card as CardType } from "@/core/cards";
 import { Card } from "@/components/table/Card";
 import { formatMoney, formatSignedMoney, MoneyUnit } from "@/core/money";
 import { useSessionStore } from "@/store/sessionStore";
@@ -9,6 +10,16 @@ import { useSessionStore } from "@/store/sessionStore";
 export interface SeatAction {
   action: string;
   amount: number;
+}
+
+// Whether a seat's hole cards should be shown FACE-UP (iter-21 NIT 5). Real poker only exposes the
+// cards that reach showdown: the hero always sees their own, and an opponent's cards are shown only
+// if they did NOT fold (reached showdown). A folded opponent stays face-down/mucked even if upstream
+// happened to attach their hole cards. Pure + display-only — never touches who wins or pot math.
+export function shouldRevealHoleCards(seat: { isHero: boolean; folded: boolean; cards: CardType[] | null }): boolean {
+  if (seat.isHero) return true; // the hero always sees their own cards
+  if (seat.folded) return false; // a folded opponent is mucked — never revealed
+  return !!seat.cards && seat.cards.length >= 2; // reached showdown and cards are available
 }
 
 const ACTION_BADGE: Record<string, (money: string) => { text: string; color: string }> = {
@@ -146,7 +157,7 @@ export function Seat({
         </div>
       ) : null}
       <div style={{ display: "flex" }}>
-        {seat.cards ? (
+        {shouldRevealHoleCards(seat) && seat.cards ? (
           seat.cards.map((c, i) => (
             <Card key={i} card={c} highlighted={highlightCards?.has(c)} />
           ))

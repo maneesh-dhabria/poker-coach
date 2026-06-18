@@ -132,6 +132,62 @@ describe("preflop explanation reflects coaching depth (iter-03 #7)", () => {
   });
 });
 
+describe("Conceptual preflop MISTAKE gives a plain, digit-free reason (iter-21 MINOR)", () => {
+  const base: ExplainParams = {
+    kind: "preflop",
+    verdict: "mistake",
+    depth: "conceptual",
+    unit: "usd",
+    action: "raise",
+    potBefore: 3,
+    toCall: 0,
+    equityPct: 30,
+    potOddsPct: 0,
+    hand: ["Qc", "8d"],
+    position: "UTG",
+    chartAction: "fold", // chart folds Q8o UTG; hero raised → too-loose open
+    heroDeviates: true,
+  };
+
+  it("a too-loose open (chart fold, hero raised) reads as too weak for early position — no digits, no 'baseline line'", () => {
+    const s = buildExplanation(base);
+    expect(s).not.toMatch(/\d/); // strictly digit-free (Conceptual)
+    expect(s.toLowerCase()).not.toContain("differs from the standard baseline line");
+    // Names position + strength (a plain, learnable reason).
+    expect(s.toLowerCase()).toMatch(/early position/);
+    expect(s.toLowerCase()).toMatch(/too weak|plays poorly/);
+  });
+
+  it("a too-tight fold (chart opens, hero folded) says the hand is strong enough to play and folding gives up a profitable raise", () => {
+    const s = buildExplanation({
+      ...base,
+      action: "fold",
+      chartAction: "raise", // chart opens; hero folded → too tight
+    });
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).not.toContain("differs from the standard baseline line");
+    expect(s.toLowerCase()).toMatch(/early position/);
+    expect(s.toLowerCase()).toMatch(/strong enough|gives up a profitable raise/);
+  });
+
+  it("a raise-vs-call aggression mismatch keeps a plain reason (no digits, no 'baseline line')", () => {
+    const s = buildExplanation({
+      ...base,
+      action: "call",
+      chartAction: "raise", // chart raises; hero only called → wrong aggression
+    });
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).not.toContain("differs from the standard baseline line");
+    expect(s.toLowerCase()).toMatch(/raise/);
+  });
+
+  it("the agree (non-deviation) line is unchanged plain copy", () => {
+    const s = buildExplanation({ ...base, verdict: "good", heroDeviates: false });
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).toContain("standard line");
+  });
+});
+
 describe("preflop equity copy labels MULTIWAY opponents, not 'a random hand' (iter-04 #2)", () => {
   const ttRaise = (numActiveOpponents: number): ExplainParams => ({
     kind: "preflop",

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { handKey, chartAction, chartApplies, allHands169 } from "@/core/charts/preflop";
+import { handKey, chartAction, chartApplies, allHands169, cellRationale } from "@/core/charts/preflop";
 import { Card } from "@/core/cards";
 import equityTable from "@/core/charts/preflopEquity.json";
 
@@ -19,6 +19,34 @@ describe("chartAction", () => {
   });
   it("defends BB vs a raise per the chart", () => {
     expect(chartApplies("BB", "raise")).toBe(true);
+  });
+});
+
+describe("cellRationale (iter-21 NIT 2 — small-pair early-fold surprise)", () => {
+  it("explains a small pocket pair the chart FOLDS from early position", () => {
+    // 22/33/44 are folds UTG in this tighter chart.
+    expect(chartAction(["2h", "2s"] as [Card, Card], "UTG", "unopened")).toBe("fold");
+    const r = cellRationale("22", "UTG", "fold");
+    expect(r.toLowerCase()).toContain("small pairs");
+    expect(r.toLowerCase()).toContain("set");
+  });
+
+  it("also explains it from MP (the other early seat)", () => {
+    expect(cellRationale("33", "MP", "fold")).not.toBe("");
+  });
+
+  it("returns empty for a small pair the chart OPENS (e.g. 55-77 UTG)", () => {
+    expect(chartAction(["5h", "5s"] as [Card, Card], "UTG", "unopened")).toBe("raise");
+    expect(cellRationale("55", "UTG", "raise")).toBe("");
+  });
+
+  it("returns empty for a small pair from a LATE position (no early-fold surprise there)", () => {
+    expect(cellRationale("22", "BTN", "fold")).toBe("");
+  });
+
+  it("returns empty for a non-small-pair / opened hand", () => {
+    expect(cellRationale("AKs", "UTG", "raise")).toBe("");
+    expect(cellRationale("72o", "UTG", "fold")).toBe(""); // a fold, but not a small pair
   });
 });
 

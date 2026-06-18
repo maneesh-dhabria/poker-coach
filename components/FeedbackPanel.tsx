@@ -307,7 +307,11 @@ export function FeedbackPanel({
     <aside
       data-testid="feedback-panel"
       className="card"
-      style={{ maxWidth: 420 }}
+      // Fill the panel's width rather than sitting at a fixed 420px — in single-column (narrow)
+      // layouts the panel is wider (~568px) and the old fixed width left right-side whitespace
+      // (iter-21 NIT 4). A max-width cap keeps it from sprawling on very wide screens. In the
+      // two-column layout the rail itself is ≤420px, so width:100% just fills the rail unchanged.
+      style={{ width: "100%", maxWidth: 640 }}
     >
       {/* Prior-decision banner (iter-09 #3): this verdict/equity/Mental-Math describes the hero's LAST
           decision; they're now deciding a later street. Clearly labeled so it can't be read as the

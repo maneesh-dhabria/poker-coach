@@ -154,6 +154,51 @@ function opponentPhrase(numActiveOpponents?: number): string {
   return `the ${numActiveOpponents} opponents still in`;
 }
 
+// Plain-English label for how early/late a seat acts, used by the digit-free Conceptual preflop
+// reason so a beginner learns WHY a spot is loose/tight (iter-21 MINOR). UTG/MP act first with the
+// whole table behind them (early); CO/BTN act last (late); the blinds are out of position. Falls
+// back to a neutral "this position" when the seat is unknown.
+function positionPhrase(position?: string): string {
+  switch (position) {
+    case "UTG":
+    case "MP":
+      return "early position";
+    case "CO":
+    case "BTN":
+      return "late position";
+    case "SB":
+    case "BB":
+      return "the blinds";
+    default:
+      return "this position";
+  }
+}
+
+// The Conceptual (digit-free) reason for a preflop chart DEVIATION — replaces the old vague "This
+// differs from the standard baseline line for this spot" with a plain reason a newcomer can learn
+// from (iter-21 MINOR). Direction is read from what the chart recommends vs what the hero did, both
+// already on the analysis input: a hand the chart folds that the hero opened is "too weak to raise
+// from here"; a hand the chart opens that the hero folded "gives up a profitable raise"; a
+// raise-vs-call aggression mismatch keeps a plain "right to continue, wrong aggression" reason.
+function conceptualPreflopDeviation(p: ExplainParams): string {
+  const where = positionPhrase(p.position);
+  const rec = p.chartAction;
+  const heroPlayedOn = p.action !== "fold";
+  // Chart folds this hand, hero kept playing it (raised/called) → too loose to open from here.
+  if (rec === "fold" && heroPlayedOn)
+    return `This hand is too weak to raise from ${where} — hands like it play poorly after the flop, so folding is the standard line here.`;
+  // Chart opens/continues this hand, hero folded it → gave up a profitable raise/continue.
+  if (rec !== "fold" && !heroPlayedOn)
+    return `This hand is strong enough to play from ${where} — folding it gives up a profitable raise.`;
+  // Right to continue, wrong aggression level (raise-vs-call mismatch).
+  if (rec === "raise" && p.action === "call")
+    return `This hand is strong enough to raise from ${where}, not just call — raising is the standard, more profitable line.`;
+  if (rec === "call" && p.action === "raise")
+    return `This hand is fine to play from ${where}, but it's better to just call than to raise it here.`;
+  // Fallback (no usable direction) — still plain, position-aware, never the old "baseline line" text.
+  return `This isn't the standard line from ${where} for a hand like this.`;
+}
+
 export function buildExplanation(p: ExplainParams): string {
   if (p.depth === "conceptual") return conceptual(p);
   switch (p.kind) {
@@ -533,7 +578,7 @@ function conceptual(p: ExplainParams): string {
       if (p.overbetPotMultiple !== undefined)
         return `Raising can be right here${overbetClause(p.overbetPotMultiple, "raise", true)}.`;
       return p.heroDeviates
-        ? "This differs from the standard baseline line for this spot."
+        ? conceptualPreflopDeviation(p)
         : "This is the standard line for this spot.";
     case "valuecheck":
       return p.verdict === "good"

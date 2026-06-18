@@ -45,6 +45,31 @@ export function chartApplies(position: Position, facing: Facing): boolean {
   return !!vsOpen[position];
 }
 
+// Seats that act early (whole table behind them), where this tighter chart folds the smallest pairs.
+const EARLY_POSITIONS: Position[] = ["UTG", "MP"];
+// Pocket pairs this chart folds from early position (22/33/44) — the surprise the reviewer flagged
+// (iter-21 NIT 2): many 6-max charts open all pairs UTG, so a knowledgeable user wonders why these
+// are folds. The chart RANGE is unchanged; we just explain it.
+const SMALL_PAIRS = ["22", "33", "44", "55", "66"];
+
+/**
+ * A short, plain rationale for a per-cell chart decision that might surprise a user, shown under the
+ * detail card (iter-21 NIT 2). Today it explains only the one documented surprise: a small pocket
+ * pair the chart FOLDS from early position. Returns "" for every other cell (no rationale to add),
+ * so the UI can render it conditionally. Pure — derived from the cell's key/position/action, which
+ * the detail card already computes. Does NOT change any raise/fold classification.
+ */
+export function cellRationale(key: string, position: Position, action: ChartAction): string {
+  if (
+    action === "fold" &&
+    EARLY_POSITIONS.includes(position) &&
+    SMALL_PAIRS.includes(key)
+  ) {
+    return "Small pairs are a close fold from early position in this tighter chart: they mostly want to flop a set, which needs deep stacks and several callers to pay off — and from up front you rarely have either.";
+  }
+  return "";
+}
+
 // Ranks high→low, so the enumerator emits keys with the higher rank first (matching handKey).
 const RANKS_DESC = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"] as const;
 
