@@ -296,6 +296,43 @@ describe("FeedbackPanel — preflop chart fold shows no pro-call contradiction (
     expect(screen.getByTestId("plain-math").textContent ?? "").not.toMatch(/profitable/i);
   });
 
+  // iter-20 MINOR #2: a PRICED preflop CALL facing a real bet — even one graded a ❌ "called too wide"
+  // mistake — must show the need-marker + EV table, exactly the affordances the priced preflop FOLD
+  // shows. Q6o from the BB calling a raise: chart folds it, hero called → call_too_wide mistake.
+  it("a 'called too wide' preflop mistake exposes the need marker + EV table (like the fold)", () => {
+    const a = analyze({
+      action: "call",
+      potBefore: 20,
+      toCall: 5,
+      equityPct: 17,
+      unit: "usd",
+      coachingDepth: "equity",
+      street: "preflop",
+      hand: ["Qd", "6c"],
+      position: "BB",
+      facing: "raise",
+    });
+    expect(a.explanationInput?.kind).toBe("preflop");
+    expect(a.verdict).toBe("mistake");
+    expect(a.conceptTags).toContain("call_too_wide");
+    // potOddsPct is populated so the "need ~%" marker can render.
+    expect(a.numbers.potOddsPct).toBeGreaterThan(0);
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "preflop", potBefore: 20, toCall: 5, action: "call" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    // The need-marker tick AND the "need ~%" text render (the affordance the fold had).
+    expect(screen.queryByTestId("equity-needed")).not.toBeNull();
+    expect(text).toMatch(/need ~/i);
+    // The "Show the numbers" EV table renders.
+    expect(text).toMatch(/show the numbers/i);
+    expect(text).toMatch(/average result if you/i);
+  });
+
   // Regression guard (the Hand-4 river CALL the reviewer confirmed CORRECT): a postflop facing-a-bet
   // call STILL shows both the win-vs-need whyLine and the EV table.
   it("a postflop facing-a-bet CALL still shows the whyLine AND the EV table (regression)", () => {
@@ -763,5 +800,44 @@ describe("FeedbackPanel — borderline thin call shows ONE coherent message (ite
     );
     const text = screen.getByTestId("feedback-panel").textContent ?? "";
     expect(text).toMatch(/loses money over time/i);
+  });
+});
+
+describe("FeedbackPanel — borderline FOLD shows ONE coherent break-even message (iter-20 MAJOR)", () => {
+  it("a 22%-vs-22% fold: headline AND whyLine BOTH say break-even; never 'you don't have the odds' nor 'continuing makes money'", () => {
+    // $2 to win a $9 pot → need ~22%; equity 22% → exactly break-even, edge ≈ 0 → ✅ good fold (kind
+    // price, not a preflop-chart card), within the borderline band. The reviewer's Hand-6 repro.
+    const a = analyze({ action: "fold", potBefore: 7, toCall: 2, equityPct: 22, unit: "usd" });
+    expect(a.verdict).toBe("good");
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "flop", potBefore: 7, toCall: 2, action: "fold" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    // Both the headline copy and the equity-bar whyLine must say the SAME break-even thing.
+    expect(text).toMatch(/break-even/i);
+    expect(text).toMatch(/folding is fine|folding costs you almost nothing/i);
+    // The two contradictory lines the reviewer hit must BOTH be gone.
+    expect(text).not.toMatch(/don't have the odds/i);
+    expect(text).not.toMatch(/continuing makes money/i);
+  });
+
+  it("a CLEAR fold (12% vs ~29% need) keeps the confident 'you don't have the odds' wording", () => {
+    // $5 to win a $12 pot → need ~29%; equity 12% → well outside the band: confident fold copy stays.
+    const a = analyze({ action: "fold", potBefore: 7, toCall: 5, equityPct: 12, unit: "usd" });
+    expect(a.verdict).toBe("good");
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "flop", potBefore: 7, toCall: 5, action: "fold" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/don't have the odds/i);
+    expect(text).not.toMatch(/break-even/i);
   });
 });

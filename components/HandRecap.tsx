@@ -86,20 +86,26 @@ function counts(decisions: HeroDecisionRecord[]) {
   return c;
 }
 
-// The single flagged decision the "where the leak is" line should point at (iter-14 #4): the MOST
-// SEVERE one (❌ over ⚠️ via analysis.severity), breaking ties by the largest chips the hero committed
-// on that decision (the bigger chip swing is the bigger lesson) — so a stack-losing overbet shove is
-// what's highlighted, not a minor earlier min-raise. Returns null when nothing is flagged.
+// The single flagged decision the "where the leak is" line should point at (iter-14 #4, re-ranked
+// iter-20 MINOR #4). Ranks by CHIP MAGNITUDE first — how much the hero actually committed/risked on
+// that action — with SEVERITY as the tiebreaker. The earlier severity-first ranking let a tiny-stakes
+// ❌ (a $2 preflop call) outrank a stack-losing ⚠️ overbet ($584 all-in), naming the trivial play as
+// "the leak" over the one that actually cost the stack. The chip metric is the chips the hero put in on
+// that action: a bet/raise commits its full amount, a call commits its toCall, a fold/check commits
+// nothing — so the stack-losing overbet (large amount) now outranks the $2 mistake (severity only
+// breaks a genuine tie). A lone flagged play is still named; a big clear mistake still outranks a small
+// thin play. Returns null when nothing is flagged.
+function leakChips(d: HeroDecisionRecord): number {
+  return Math.max(d.heroAction.amount ?? 0, d.spot.toCall ?? 0);
+}
 function mostSevereFlagged(decisions: HeroDecisionRecord[]): HeroDecisionRecord | null {
-  const chips = (d: HeroDecisionRecord) =>
-    Math.max(d.heroAction.amount ?? 0, d.spot.toCall ?? 0);
   let best: HeroDecisionRecord | null = null;
   for (const d of decisions) {
     if (d.analysis.verdict === "good") continue;
     if (
       !best ||
-      d.analysis.severity > best.analysis.severity ||
-      (d.analysis.severity === best.analysis.severity && chips(d) > chips(best))
+      leakChips(d) > leakChips(best) ||
+      (leakChips(d) === leakChips(best) && d.analysis.severity > best.analysis.severity)
     ) {
       best = d;
     }
@@ -269,9 +275,13 @@ export function HandRecap({
                     })
                     .join("")}
                   {/* At conceptual depth ("plain words, no numbers") the recap row carries no digits
-                      either — drop the "· pot $X" amount (iter-10 #4). The pot tag uses the FIRST
-                      action's pot (the pot when the street's first decision happened). */}
-                  {!conceptualRow && (
+                      either — drop the "· pot $X" amount (iter-10 #4). For a MERGED multi-action row the
+                      single pot tag is ambiguous: it can only show ONE pot, but the actions happened at
+                      DIFFERENT pots (e.g. "called $2, then called $8" — the $8 call was into a much
+                      bigger pot than the first), so a lone "· pot $3" misrepresents the second action
+                      (iter-20 NIT #5). Omit the pot suffix entirely on merged rows; a single-action row
+                      keeps its (unambiguous) pot. */}
+                  {!conceptualRow && group.length === 1 && (
                     <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
                       · pot {formatMoney(Math.round(first.spot.potBefore), displayUnit, BIG_BLIND)}
                     </span>

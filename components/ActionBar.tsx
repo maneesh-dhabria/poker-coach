@@ -15,6 +15,7 @@ export function ActionBar({
   pot = 0,
   displayUnit = "usd",
   bigBlind = 2,
+  effectiveMaxRaiseTo = 0,
 }: {
   legal: LegalActions;
   onAction: (a: Action) => void;
@@ -24,20 +25,35 @@ export function ActionBar({
   // conflicting dollar figure while the rest of the table is in BB (finding #7).
   displayUnit?: MoneyUnit;
   bigBlind?: number;
+  // The largest raise-to level any single still-in opponent could actually match (iter-20 MINOR #3).
+  // The slider + button OFFER no more than this so a hero who covers the table never sees an
+  // uncallable overbet ("Bet $584" when the most any opponent can match is ~$200). DISPLAY ONLY —
+  // engine legality (legal.maxRaiseTo) is untouched, so min-raise / all-in-for-less still work. 0 ⇒
+  // no cap supplied (older callers / tests), fall back to the engine max.
+  effectiveMaxRaiseTo?: number;
 }) {
   const money = (n: number) => formatMoney(n, displayUnit, bigBlind);
   const canRaise = legal.actions.includes("raise");
   const canBet = legal.actions.includes("bet");
   const sizingKind: "raise" | "bet" | null = canRaise ? "raise" : canBet ? "bet" : null;
+  // The OFFERED max: the engine's legal all-in, capped to the effective opponent stack so we never
+  // offer a size no opponent can call (iter-20 MINOR #3). Never below minRaiseTo (a forced
+  // all-in-for-less / min-raise must still be offered). When no cap is supplied, or the hero is the
+  // short stack (their all-in is already ≤ the cap), the engine max is used unchanged.
+  const offeredMax =
+    effectiveMaxRaiseTo > 0
+      ? Math.max(legal.minRaiseTo, Math.min(legal.maxRaiseTo, effectiveMaxRaiseTo))
+      : legal.maxRaiseTo;
   const [amount, setAmount] = useState(legal.minRaiseTo);
 
-  // Keep the slider value within the current legal band if props changed.
-  const sized = clamp(amount, legal.minRaiseTo, legal.maxRaiseTo);
+  // Keep the slider value within the current OFFERED band if props changed.
+  const sized = clamp(amount, legal.minRaiseTo, offeredMax);
 
   // Pot-relative quick sizes (spec FR-52). A bet targets a pot-fraction; a raise adds that
-  // fraction on top of calling. Always clamped to the legal band, so the result is never illegal.
+  // fraction on top of calling. Always clamped to the OFFERED band, so the result is never illegal
+  // and never an uncallable overbet.
   const quickTo = (fraction: number) =>
-    clamp(Math.round(pot * fraction) + legal.toCall, legal.minRaiseTo, legal.maxRaiseTo);
+    clamp(Math.round(pot * fraction) + legal.toCall, legal.minRaiseTo, offeredMax);
 
   // Folding when you can check for free is strictly dominated — no real client offers it. Hide Fold
   // whenever Check is legal so the only choices are the meaningful ones (check or bet).
@@ -66,11 +82,11 @@ export function ActionBar({
             type="range"
             aria-label="Bet size"
             min={legal.minRaiseTo}
-            max={legal.maxRaiseTo}
+            max={offeredMax}
             value={sized}
             disabled={disabled}
             onChange={(e) =>
-              setAmount(clamp(Number(e.target.value), legal.minRaiseTo, legal.maxRaiseTo))
+              setAmount(clamp(Number(e.target.value), legal.minRaiseTo, offeredMax))
             }
           />
           {pot > 0 && (

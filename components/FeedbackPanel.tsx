@@ -137,15 +137,26 @@ function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: num
 // sync with explain.ts's BORDERLINE_PRICE_MARGIN (iter-18 MINOR #1).
 const BORDERLINE_PRICE_MARGIN = 3;
 
-function whyLine(eq: number, need: number | null, verdict: DecisionAnalysis["verdict"]): string {
+function whyLine(
+  eq: number,
+  need: number | null,
+  verdict: DecisionAnalysis["verdict"],
+  action?: string,
+): string {
   if (need === null) return "";
   const win = Math.round(eq);
   const n = Math.round(need);
-  // A genuinely BORDERLINE ⚠️ thin call (equity a hair under the need, EV ≈ 0) must NOT read "you come
-  // up short, so this loses money over time" — that grim line clashes with the headline's "about
-  // break-even" (iter-18 MINOR #1). Present ONE coherent break-even message that matches the headline.
-  if (verdict === "thin" && Math.abs(eq - need) <= BORDERLINE_PRICE_MARGIN) {
-    return `You win ~${win}% and need ~${n}% — that's about break-even, so calling and folding are roughly equal here.`;
+  const borderline = Math.abs(eq - need) <= BORDERLINE_PRICE_MARGIN;
+  // A genuinely BORDERLINE price decision (equity within a hair of the need, EV ≈ 0) — whether a ⚠️
+  // thin CALL or a ✅ break-even FOLD — must read as ONE coherent "about break-even" message that
+  // matches the headline (iter-18 MINOR #1, extended to folds iter-20 MAJOR). It must NEVER pick the
+  // "continuing makes money over time" call template off raw `eq >= need` and attach it to a FOLD (the
+  // contradiction the reviewer hit: a 22%-vs-22% fold whose equity-bar said continuing is +EV). So the
+  // borderline message keys off the band + the hero's action, not raw equity-vs-need.
+  if (borderline) {
+    return action === "fold"
+      ? `You win ~${win}% and need ~${n}% — it's about break-even, so folding costs you almost nothing.`
+      : `You win ~${win}% and need ~${n}% — that's about break-even, so calling and folding are roughly equal here.`;
   }
   if (eq >= need) {
     return `You win ~${win}% but only need ~${n}% — that gap is why continuing makes money over time.`;
@@ -273,14 +284,24 @@ export function FeedbackPanel({
   // Hand-4 river call) intact.
   const kind = analysis.explanationInput?.kind;
   const isPreflopChart = kind === "preflop";
-  // Show the win-vs-need headline only on a genuine facing-a-bet PRICE decision. On a bet/raise, an
-  // unopened spot, OR a preflop chart spot the "you only need ~Y% / makes money over time" framing is
-  // meaningless or contradicts the verdict (iter-03 #2, iter-09 #1), so it is never rendered there.
-  const showWhyLine = !isPreflopChart && facingBet && need !== null;
-  // The EV "Show the numbers" mini-table is a price/odds frame: never show it on a preflop chart card
-  // so a preflop fold never pairs a "fold $0 · call $1 · raise $1" table with a "folding is standard"
-  // verdict (iter-09 #1). It still shows on every postflop facing-a-bet / bet / check spot.
-  const showEvTable = !isPreflopChart;
+  // A PRICED preflop CALL facing a real bet (iter-20 MINOR #2). The iter-09 #1 suppression below blanks
+  // the pot-odds frames on every preflop-chart card to avoid pairing a "you only need ~Y% / continuing
+  // makes money" frame with a chart-FOLD verdict (a SB folding to the BB). But a hero who CALLED facing
+  // a real bet — e.g. a "called too wide" mistake — IS making a genuine price decision: the fold beside
+  // it shows the need-marker + EV table, so the call must too, exactly where the call-vs-fold dollar EV
+  // is wanted to justify mistake-vs-thin. Gate this carve-out narrowly: a preflop-chart CALL, facing a
+  // real bet (toCall > 0), with a real pot-odds figure. A preflop FOLD / open-raise stays suppressed.
+  const isPricedPreflopCall = isPreflopChart && action === "call" && facingBet && need !== null;
+  // Show the win-vs-need headline only on a genuine facing-a-bet PRICE decision (or the priced preflop
+  // call carve-out above). On a bet/raise, an unopened spot, OR a preflop-chart FOLD the "you only need
+  // ~Y% / makes money over time" framing is meaningless or contradicts the verdict (iter-03 #2, iter-09
+  // #1), so it is never rendered there.
+  const showWhyLine = (!isPreflopChart || isPricedPreflopCall) && facingBet && need !== null;
+  // The EV "Show the numbers" mini-table is a price/odds frame: never show it on a preflop-chart FOLD/
+  // open card so a preflop fold never pairs a "fold $0 · call $1 · raise $1" table with a "folding is
+  // standard" verdict (iter-09 #1). It DOES show on a priced preflop call (the affordance the fold has,
+  // iter-20 MINOR #2) and on every postflop facing-a-bet / bet / check spot.
+  const showEvTable = !isPreflopChart || isPricedPreflopCall;
 
   return (
     <aside
@@ -392,7 +413,7 @@ export function FeedbackPanel({
             {showWhyLine ? ` · need ~${Math.round(need!)}%` : ""}
           </div>
           {showWhyLine && (
-            <p style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{whyLine(eq, need, analysis.verdict)}</p>
+            <p style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{whyLine(eq, need, analysis.verdict, action)}</p>
           )}
           {/* Make the assumed-range context legible right next to the equity figure, so a surprising
               number (e.g. queen-high ~47% vs a wide calling-station range) reads as "vs a range",

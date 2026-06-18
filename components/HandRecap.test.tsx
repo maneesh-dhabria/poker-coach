@@ -69,6 +69,24 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(header).toMatch(/, then called/i);
   });
 
+  // iter-20 NIT #5 — a merged multi-action row must NOT show a single "· pot $X" suffix: it can only
+  // show ONE pot, but the actions happened at DIFFERENT pots (the reviewer's "called $2, then called
+  // $8 · pot $3" tagged the merged row with the FIRST call's pot, misrepresenting the $8 call into a
+  // $26 pot). The ambiguous pot suffix is dropped on merged rows; single-action rows keep theirs.
+  it("(iter-20 NIT #5) a merged multi-action row drops the ambiguous '· pot $X' suffix", () => {
+    const decisions = [
+      { ...decision("preflop", "call", 2, { action: "call", potBefore: 3, toCall: 2, equityPct: 30, street: "preflop" }), decisionId: "pf-call-1" },
+      { ...decision("preflop", "call", 8, { action: "call", potBefore: 26, toCall: 8, equityPct: 35, street: "preflop" }), decisionId: "pf-call-2" },
+    ];
+    render(<HandRecap decisions={decisions} heroNet={-10} />);
+    const rows = screen.getAllByTestId("recap-decision");
+    expect(rows).toHaveLength(1);
+    const header = rows[0].textContent ?? "";
+    expect(header).toMatch(/you called .*then called/i);
+    // No single pot suffix on the merged row (would misrepresent the second action's pot).
+    expect(header).not.toMatch(/· pot/i);
+  });
+
   // iter-19 NIT #4 — the reviewer's exact case: check then fold to a bet on one street reads as one
   // coherent line, "you checked, then folded to a bet", not two separate "Turn —" items.
   it("merges check-then-fold on one street into a single coherent line (iter-19 NIT #4)", () => {
@@ -370,6 +388,45 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
       render(<HandRecap decisions={decisions} heroNet={-200} handComplete />);
       const note = screen.getByTestId("recap-loss-flagged").textContent ?? "";
       expect(note).toMatch(/turn/i);
+      expect(note).not.toMatch(/preflop/i);
+    });
+
+    // iter-20 MINOR #4: chip magnitude is now the PRIMARY rank for the leak pointer (severity only
+    // breaks a tie). A stack-losing ⚠️ overbet must outrank a tiny-stakes ❌ preflop mistake.
+    it("(iter-20 #4) the $584 thin overbet outranks the $2 preflop mistake (overbet named)", () => {
+      const decisions = [
+        // ❌ "called too wide" preflop mistake — but only $2 in (severity 2, tiny chips).
+        decision("preflop", "call", 2, { action: "call", potBefore: 20, toCall: 2, equityPct: 17, street: "preflop", hand: ["Qd", "6c"], position: "BB", facing: "raise", bigBlind: 2, smallBlind: 1 }),
+        // ⚠️ oversized top-pair shove — $584 in (severity 1, huge chips): the real stack-losing leak.
+        decision("flop", "bet", 584, { action: "bet", potBefore: 50, toCall: 0, equityPct: 51, street: "flop", numActiveOpponents: 4, hole: ["Kh", "9d"], board: ["5s", "8c", "Kd"], raiseToAmount: 584 }, 584),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-200} handComplete />);
+      const note = screen.getByTestId("recap-loss-flagged").textContent ?? "";
+      // Names the flop overbet (the stack-losing play), NOT the $2 preflop call.
+      expect(note).toMatch(/flop/i);
+      expect(note).not.toMatch(/preflop/i);
+    });
+
+    it("(iter-20 #4) a lone flagged play is still named", () => {
+      const decisions = [
+        decision("turn", "call", 185, { action: "call", potBefore: 200, toCall: 185, equityPct: 8, street: "turn", numActiveOpponents: 2 }),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-200} handComplete />);
+      const note = screen.getByTestId("recap-loss-flagged").textContent ?? "";
+      expect(note).toMatch(/is the play to review/i);
+      expect(note).toMatch(/turn/i);
+    });
+
+    it("(iter-20 #4) a big clear mistake is still named over a small thin play", () => {
+      const decisions = [
+        // ⚠️ thin tiny preflop min-raise ($2).
+        decision("preflop", "raise", 2, { action: "raise", potBefore: 3, toCall: 0, equityPct: 40, street: "preflop", hand: ["8h", "Jc"], position: "BB", facing: "unopened", bigBlind: 2, smallBlind: 1 }, 4),
+        // ❌ big clear mistake call ($150) — bigger chips → still the named leak.
+        decision("river", "call", 150, { action: "call", potBefore: 200, toCall: 150, equityPct: 8, street: "river", numActiveOpponents: 1 }),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-300} handComplete />);
+      const note = screen.getByTestId("recap-loss-flagged").textContent ?? "";
+      expect(note).toMatch(/river/i);
       expect(note).not.toMatch(/preflop/i);
     });
 

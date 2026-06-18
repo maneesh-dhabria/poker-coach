@@ -196,6 +196,26 @@ export class Hand {
     return this.street === "complete";
   }
 
+  /**
+   * The largest raise-to level any single still-in OPPONENT of `heroSeat` could actually match — the
+   * effective stack the hero's bet/raise should be OFFERED up to in the UI (iter-20 MINOR #3). Engine
+   * legality is unchanged: a hero who covers the table is still legally allowed to bet to their own
+   * all-in, but offering a size no opponent can call is misleading, so the action bar clamps the
+   * DISPLAYED max to this. For each opponent the most they can put in is `committedStreet + stack`
+   * (what's already in this street plus everything remaining); we take the max across them. When the
+   * hero is the SHORT stack their own all-in is smaller, so the caller keeps the engine maxRaiseTo.
+   * Returns 0 when no live opponent remains (caller then leaves the legal max untouched).
+   */
+  effectiveOpponentRaiseTo(heroSeat: number): number {
+    let max = 0;
+    for (const s of this.seatsState) {
+      if (s.seat === heroSeat || s.folded) continue;
+      const cap = s.committedStreet + s.stack;
+      if (cap > max) max = cap;
+    }
+    return max;
+  }
+
   legalActions(): LegalActions {
     const empty: LegalActions = { toAct: -1, actions: [], toCall: 0, minRaiseTo: 0, maxRaiseTo: 0 };
     if (this.street === "complete" || this.toAct < 0) return empty;

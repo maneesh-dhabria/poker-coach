@@ -80,6 +80,10 @@ export interface TableView {
   toAct: number | null;
   // T6 (D1): winners once the hand is over (mirrors outcome.winners); [] otherwise.
   winners: { seat: number; amount: number }[];
+  // The largest raise-to level any single still-in OPPONENT could match — the effective stack the UI
+  // should cap the hero's offered bet/raise to (iter-20 MINOR #3). 0 when no live opponent / not the
+  // hero's turn. Purely a DISPLAY cap; engine legality (legal.maxRaiseTo) is untouched.
+  effectiveOpponentRaiseTo: number;
 }
 
 /** A replay snapshot of the hand as of the first `step` revealed actions — drives the central
@@ -376,6 +380,9 @@ export class HandFlow {
       heroNet: result ? (result.net[this.heroSeatId] ?? 0) : null,
       toAct,
       winners: result ? result.winners : [],
+      // The effective opponent stack for the UI bet/raise cap (iter-20 MINOR #3). Only meaningful on
+      // the hero's turn; 0 otherwise (the action bar isn't shown then anyway).
+      effectiveOpponentRaiseTo: this.h.effectiveOpponentRaiseTo(this.heroSeatId),
     };
   }
 

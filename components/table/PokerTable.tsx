@@ -291,6 +291,7 @@ export function PokerTable() {
             pot={view.pot}
             displayUnit={displayUnit}
             bigBlind={BIG_BLIND}
+            effectiveMaxRaiseTo={view.effectiveOpponentRaiseTo}
           />
         ) : (
           <p style={{ color: "var(--ink-soft)" }}>Opponents acting…</p>

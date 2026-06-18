@@ -139,12 +139,27 @@ export const useGameStore = create<GameState>((set, get) => ({
   // so an in-play switch takes FULL effect, exactly as if the session had started at that depth
   // (no half-switched panel, no stale baked copy). Depth only changes COPY, so this is deterministic.
   setCoachingDepth: (depth) => {
-    const { flow } = get();
+    const { flow, settings } = get();
+    // ONE SOURCE OF TRUTH for the active depth (iter-20 MINOR #1). gameStore keeps its OWN `settings`
+    // copy (seeded once by configure()); `newHand()` reads THAT copy's coachingDepth to grade the
+    // fresh hand's decisions. Previously an in-play depth change updated only the session store +
+    // re-graded the current hand, leaving gameStore.settings.coachingDepth stale — so dealing a new
+    // hand while Conceptual was active built its flow at the old (deal-time) depth and leaked numbers
+    // on the first decision until the user re-toggled. Mirror the depth into gameStore.settings here so
+    // the next deal AND the in-play re-derive share the same source of truth.
+    if (settings && settings.coachingDepth !== depth) {
+      set({ settings: { ...settings, coachingDepth: depth } });
+    }
     // Guard for older flow instances / test doubles that predate reanalyzeAt — a depth change then
-    // still flows through setSettings for future hands, just without the current-hand re-derive.
+    // still flows through settings for future hands, just without the current-hand re-derive.
     if (!flow || typeof flow.reanalyzeAt !== "function") return;
     const changed = flow.reanalyzeAt(depth);
-    if (!changed) return;
+    if (!changed) {
+      // The current hand was already at this depth, but we may still have just refreshed the stored
+      // settings above; bump the tick so any subscriber re-reads. No feedback change needed.
+      set((s) => ({ tick: s.tick + 1 }));
+      return;
+    }
     // Re-read the latest decision from the (now re-derived) flow so the panel's `feedback` is fresh.
     const decisions = flow.decisions();
     const latest = decisions.length > 0 ? decisions[decisions.length - 1] : null;

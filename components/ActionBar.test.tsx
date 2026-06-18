@@ -113,6 +113,38 @@ describe("ActionBar", () => {
     expect(screen.getByRole("button", { name: /raise to 8 BB/i })).toBeInTheDocument(); // 16 → 8 BB
   });
 
+  it("caps the offered bet/raise max to the effective opponent stack when the hero covers the table (iter-20 #3)", () => {
+    const onAction = vi.fn();
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 584 }}
+        onAction={onAction}
+        pot={50}
+        effectiveMaxRaiseTo={200}
+      />,
+    );
+    const slider = screen.getByRole("slider");
+    // The slider/button never offer above the effective stack ($200), not the hero's $584 all-in.
+    expect(slider).toHaveAttribute("max", "200");
+    fireEvent.change(slider, { target: { value: "584" } }); // try to drag past the cap
+    expect(screen.getByTestId("bet-size")).toHaveTextContent("$200");
+    fireEvent.click(screen.getByRole("button", { name: /bet \$200/i }));
+    expect(onAction).toHaveBeenCalledWith({ type: "bet", amount: 200 });
+  });
+
+  it("leaves the offered max at the hero's all-in when the hero is the SHORT stack (iter-20 #3)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 120 }}
+        onAction={() => {}}
+        pot={50}
+        effectiveMaxRaiseTo={400} // opponents cover far more; hero's own all-in ($120) is the binding cap
+      />,
+    );
+    // Hero's all-in (120) < effective opponent stack (400) → max stays the hero's all-in, unchanged.
+    expect(screen.getByRole("slider")).toHaveAttribute("max", "120");
+  });
+
   it("shows Fold when facing a bet (no check available)", () => {
     render(
       <ActionBar

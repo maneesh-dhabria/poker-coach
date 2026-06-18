@@ -488,10 +488,15 @@ describe("borderline price gets an 'it's close' hedge (iter-17 #4)", () => {
     ...over,
   });
 
-  it("within-margin fold (win ~13% / need ~14%) hedges 'it's close'", () => {
+  // iter-20 MAJOR: a borderline fold (equity ≈ need) is at/near break-even, so "folding is right —
+  // you don't have the odds" is FALSE and contradicts the equity-bar whyLine. Inside the band the copy
+  // now says the coherent break-even thing: calling and folding are about equal, so folding is fine —
+  // and NEVER "you don't have the odds".
+  it("within-margin fold (win ~13% / need ~14%) says break-even, never 'you don't have the odds'", () => {
     const s = buildExplanation(priceGood({})).toLowerCase();
-    expect(s).toMatch(/close/);
-    expect(s).toMatch(/folding is right/);
+    expect(s).toMatch(/about equal|break-even/);
+    expect(s).toMatch(/folding is fine/);
+    expect(s).not.toMatch(/don't have the odds/);
   });
 
   it("within-margin call (win ~24% / need ~22%) hedges 'it's close'", () => {
@@ -509,10 +514,11 @@ describe("borderline price gets an 'it's close' hedge (iter-17 #4)", () => {
     expect(s).toMatch(/don't have the odds/);
   });
 
-  it("conceptual depth: borderline fold still says 'it's close', NO digits", () => {
+  it("conceptual depth: borderline fold says break-even (no 'wins too rarely'), NO digits", () => {
     const s = buildExplanation(priceGood({ depth: "conceptual" }));
     expect(s).not.toMatch(/\d/);
-    expect(s.toLowerCase()).toMatch(/close/);
+    expect(s.toLowerCase()).toMatch(/about equal|break-even/);
+    expect(s.toLowerCase()).not.toMatch(/too rarely/);
   });
 
   it("conceptual depth: a CLEAR fold keeps confident wording, NO hedge", () => {

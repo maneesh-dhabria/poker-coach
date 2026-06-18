@@ -96,6 +96,50 @@ describe("gameStore.setCoachingDepth (in-play depth)", () => {
   });
 });
 
+// iter-20 MINOR #1 (REGRESSION): a fresh hand dealt while a depth is active must grade its FIRST
+// decision at THAT depth — no re-toggle. The bug: gameStore kept its own `settings` copy (seeded by
+// configure) and newHand() read THAT copy's coachingDepth; an in-play depth change updated only the
+// session store + re-graded the current hand, leaving gameStore.settings.coachingDepth stale, so the
+// next deal built its flow at the deal-time depth and leaked numbers on the first decision. Fix:
+// setCoachingDepth mirrors the depth into gameStore.settings so the next deal reads the live depth.
+describe("gameStore — fresh deal honors the active depth without a re-toggle (iter-20 #1)", () => {
+  async function actOnce() {
+    const flow = useGameStore.getState().flow!;
+    if (!flow.isHeroTurn()) return;
+    const acts = flow.heroSpot().legal.actions;
+    const action = acts.includes("check")
+      ? { type: "check" as const }
+      : acts.includes("call")
+        ? { type: "call" as const }
+        : { type: "fold" as const };
+    await useGameStore.getState().heroAct(action);
+  }
+
+  it("switch to conceptual mid-session, deal a fresh hand → first decision is conceptual (no re-toggle)", async () => {
+    const settings = {
+      ...defaultSettings(),
+      numOpponents: 1,
+      personas: [personaFor("Calling Station", "Beginner")],
+    };
+    useGameStore.getState().configure("sess-x", settings, 42);
+    useGameStore.getState().newHand(); // dealt at the default "equity" depth
+    await actOnce();
+    expect(useGameStore.getState().feedback!.analysis.coachingDepth).toBe("equity");
+
+    // The user flips the panel depth control to Conceptual mid-session (mirrors RightPanel.changeDepth:
+    // it also calls setSettings on the SESSION store, but the gameStore deal reads its OWN settings).
+    useGameStore.getState().setCoachingDepth("conceptual");
+
+    // Deal a brand-new hand and act — its FIRST decision must be conceptual with NO intervening toggle.
+    useGameStore.getState().newHand();
+    await actOnce();
+    const fresh = useGameStore.getState().feedback!;
+    expect(fresh.analysis.coachingDepth).toBe("conceptual");
+    // Conceptual is digit-free: the freshly-dealt first decision's copy carries no digits.
+    expect(fresh.analysis.plainExplanation).not.toMatch(/\d/);
+  });
+});
+
 describe("sessionStore.mentalMathOpen (FR-18)", () => {
   it("defaults collapsed and the setter toggles it", () => {
     expect(useSessionStore.getState().mentalMathOpen).toBe(false);

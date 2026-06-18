@@ -248,7 +248,14 @@ function price(p: ExplainParams): string {
   const close = isBorderlinePrice(p.equityPct, p.potOddsPct);
   if (p.verdict === "good")
     return p.action === "fold"
-      ? `${lead} Folding is right — you don't have the odds${close ? ", though it's close" : ""}.`
+      ? // Inside the borderline band a fold is at/near break-even, so "you don't have the odds" is
+        // FALSE (the equity meets the need) and contradicts the equity-bar whyLine (iter-20 MAJOR).
+        // Present ONE coherent break-even message instead: calling and folding are about equal, so
+        // folding is fine — and never claim the hero lacks the odds. Outside the band a clear fold
+        // keeps the confident "you don't have the odds" wording.
+        close
+        ? `${lead} Close spot — calling and folding are about equal here, so folding is fine.`
+        : `${lead} Folding is right — you don't have the odds.`
       : `${lead} ${close ? "A call — though it's close, you're just on the right side of the price." : "Easy call — you're getting a great price."}`;
   // A ⚠️ thin price-call. When it's genuinely BORDERLINE (equity within a few points of the need, so
   // EV ≈ 0) present ONE coherent "about break-even" message rather than an upbeat "just about worth it"
@@ -501,9 +508,11 @@ function conceptual(p: ExplainParams): string {
         return p.action === "fold"
           // The honest reason to fold for a price is that the hand wins too rarely to justify the
           // call — NOT that "the pot isn't big enough" (it can be huge; iter-03 #5). Frame it as
-          // win-chance vs the price, in plain words.
+          // win-chance vs the price, in plain words. Inside the borderline band the spot is about
+          // break-even, so we say calling and folding are about equal (never "wins too rarely") to
+          // stay coherent with the equity-bar message (iter-20 MAJOR).
           ? close
-            ? "Your hand wins a touch too rarely to call this price, so folding is right — though it's close."
+            ? "This is about break-even — calling and folding are about equal here, so folding is fine."
             : "Your hand wins too rarely to call this price — you'd be paying more than it can win back often enough, so folding is right."
           : close
             ? "You're just on the right side of the price here, so calling is fine — though it's close."
