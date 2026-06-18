@@ -3,6 +3,49 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.27.0] — 2026-06-18
+
+### Reviewer-iteration-22 fixes — preflop opens and cheap calls are graded like preflop, not like bluffs
+
+A twenty-second independent first-time-user playtest (`docs/playtest/reviews/iter-22.md`) praised the
+postflop coaching, the fold-side preflop reasoning, the showdown reveal, and the responsive layout —
+but caught a systemic preflop-grading defect the earlier, narrower playthroughs never reached. A
+preflop **raise in a limped or off-chart pot** was falling through to the *postflop* aggression logic
+and getting labeled a "semi-bluff with no made hand that loses money" (nonsense before the flop), and
+a cheap **big-blind call** getting a great price was graded a mistake that "favors folding" even when
+its own equity number exceeded what the price required. Root-cause grading fix plus related copy and
+polish; postflop grading is unchanged, and no `HandRecord` schema change.
+
+### Fixed
+
+- **A normal preflop open is no longer called a bluff.** A raise the baseline chart wouldn't open,
+  made into a limped or off-chart pot, used to be graded with postflop bluff language ("raising ~22%
+  with no made hand … not enough to push, so it loses money on average"). Preflop raises now grade on
+  a preflop yardstick: an open of a hand the chart would play is a standard open; a looser open reads
+  as "on the loose side" with a plain position-and-strength reason, the correct "raise" verb, and no
+  "no made hand" / "push" framing (`core/analysis/analyze.ts`, `core/analysis/explain.ts`).
+- **A cheap call at a good price is no longer graded a fold.** A big-blind call getting, say, 8-to-1
+  (need ~11%, hold ~18%) used to be flagged a mistake whose advice contradicted the equity shown right
+  beside it. Preflop calls now grade on pot odds: when the price is met it's a correct call; only a
+  call that's genuinely below the price is a mistake, and its number now agrees with the verdict
+  (`core/analysis/analyze.ts`).
+- **The beginner depth explains the preflop "why."** A Conceptual-depth preflop mistake no longer says
+  the vague "you're raising with little behind it"; it gives the same plain, digit-free position-and-
+  strength reason the fold side already gave (`core/analysis/explain.ts`).
+- **Marginal opens grade "thin," not "mistake."** A barely-losing loose open (about −1 BB) now grades
+  ⚠️ thin; only a clearly-losing junk open grades ❌ mistake, so the severity matches the size of the
+  error (`core/analysis/analyze.ts`).
+- **The preflop chart explains the hands it tells you to play.** The reference chart's small-pair note
+  no longer reads as arguing against the very next pair up; the bottom-of-range fold is framed as such,
+  and the small pairs it opens now carry a brief "why open" line instead of only a win-percentage
+  (`core/charts/preflop.ts`).
+- **The hand-review list is easier to read.** When one street holds two graded actions, the verdict
+  icons no longer sit jammed against the text and the stacked lines have breathing room
+  (`components/HandRecap.tsx`).
+- **The bet slider dials precise sizes.** The slider now steps by a small increment instead of large
+  jumps, so a size can be set exactly by keyboard, with a subtle cue when a size exceeds the pot
+  (`components/ActionBar.tsx`).
+
 ## [0.26.0] — 2026-06-18
 
 ### Reviewer-iteration-21 fixes — zero major issues, polishing the last rough edges
