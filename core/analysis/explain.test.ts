@@ -231,6 +231,25 @@ describe("loose-open copy reads as a raise with a position/strength reason (iter
     expect(lower).not.toContain("little behind it");
     expect(lower).not.toContain("there's not enough here");
   });
+
+  // iter-24 MINOR 2: a loose open over LIMPERS must NOT claim "first-in" (the hero wasn't first in).
+  // A genuine first-in (unopened, no limpers) loose open may still use the "first-in" framing.
+  for (const depth of ["equity", "strict"] as const) {
+    for (const verdict of ["thin", "mistake"] as const) {
+      it(`${depth} depth, ${verdict}: a LIMPED-pot loose open does NOT say "first-in" and acknowledges the limpers`, () => {
+        const s = buildExplanation({ ...looseBase(depth, verdict), limpedPot: true }).toLowerCase();
+        expect(s).not.toContain("first-in");
+        expect(s).not.toContain("first in");
+        expect(s).toContain("limper"); // acknowledges the limpers (like the iso-raise path)
+        expect(s).toContain("raising"); // still the correct preflop verb
+      });
+    }
+  }
+
+  it("a genuine FIRST-IN loose open (no limpers) may still use the 'first-in' framing", () => {
+    const s = buildExplanation({ ...looseBase("strict", "thin"), limpedPot: false }).toLowerCase();
+    expect(s).toContain("first-in");
+  });
 });
 
 describe("preflop equity copy labels MULTIWAY opponents, not 'a random hand' (iter-04 #2)", () => {
@@ -329,6 +348,28 @@ describe("Conceptual aggression copy varies by action (iter-04 #8)", () => {
     const s = buildExplanation(agg("bet", "mistake"));
     expect(s).toContain("betting");
     expect(s).not.toContain("beting");
+  });
+
+  // iter-24 MINOR 3: a Conceptual flop bluff with NO equity and no made hand (e.g. 2h3h on QQ5) used
+  // to read "betting with little behind it — there's not enough here", which didn't teach WHY. The new
+  // copy names the concept: a pure bluff that almost never wins at showdown AND rarely folds out a
+  // better hand, so nothing backs the bet. Still digit-free at Conceptual.
+  it("the conceptual no-equity bluff copy teaches the concept (no equity / nothing to back it / won't fold better hands), digit-free", () => {
+    const sBet = buildExplanation(agg("bet", "mistake"));
+    // Force a genuine NO-equity airball (below NO_EQUITY_PCT, no made hand).
+    const sAir = buildExplanation({ ...agg("bet", "mistake"), equityPct: 8 }).toLowerCase();
+    expect(sAir).not.toMatch(/\d/); // digit-free
+    expect(sAir).toContain("bluff"); // names the concept
+    // Teaches the two missing ingredients: showdown value AND fold equity.
+    expect(sAir).toMatch(/showdown/);
+    expect(sAir).toMatch(/fold/);
+    // The old vague phrasing is gone.
+    expect(sAir).not.toContain("little behind it");
+    expect(sAir).not.toContain("there's not enough here");
+    // The raise variant says "raise", the bet variant says "bet" (verb-correct).
+    const sRaiseAir = buildExplanation({ ...agg("raise", "mistake"), equityPct: 8 }).toLowerCase();
+    expect(sRaiseAir).toContain("raise");
+    void sBet;
   });
 
   // iter-10 #5: a ✅ value bet can be a marginal made hand (e.g. middle pair), so the conceptual

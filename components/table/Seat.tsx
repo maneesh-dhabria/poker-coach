@@ -140,6 +140,15 @@ export function Seat({
         <div
           data-testid="seat-allin"
           aria-label="all-in"
+          // The seat badge's amount is the TOTAL chips this seat has committed (blinds + every prior
+          // bet this hand), which DIFFERS from the all-in BUTTON's number (the chips put in on THAT
+          // action). The two read as the same quantity otherwise (iter-24 NIT 2), so label the badge's
+          // number as the running total ("total in") — display only; no engine/pot amounts change.
+          title={
+            seat.allInAmount != null
+              ? `All-in — ${formatMoney(seat.allInAmount, displayUnit, bigBlind)} committed in total this hand`
+              : "All-in"
+          }
           style={{
             display: "inline-block",
             marginTop: 4,
@@ -153,7 +162,9 @@ export function Seat({
           }}
         >
           ALL-IN
-          {seat.allInAmount != null ? ` ${formatMoney(seat.allInAmount, displayUnit, bigBlind)}` : ""}
+          {seat.allInAmount != null
+            ? ` · ${formatMoney(seat.allInAmount, displayUnit, bigBlind)} in`
+            : ""}
         </div>
       ) : null}
       <div style={{ display: "flex" }}>

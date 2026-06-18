@@ -74,6 +74,26 @@ interface Branch {
   overbetPotMultiple?: number;
 }
 
+// A LIMPED pot is off-model for the RFI chart (iter-12 #3): preflop, no raiser ahead, but the pot
+// already exceeds the posted blinds because a limper completed. Shared by route() (chart-vs-iso/loose
+// routing) and analyze() (so the loose-open copy can acknowledge limpers rather than claim "first-in"
+// — iter-24 MINOR 2). Requires both blinds (additive); absent ⇒ no detection (today's behavior).
+export function detectLimpedPot(input: AnalyzeInput): boolean {
+  const street = input.street ?? "preflop";
+  const blindsPosted =
+    input.smallBlind !== undefined && input.bigBlind !== undefined
+      ? input.smallBlind + input.bigBlind
+      : undefined;
+  return (
+    street === "preflop" &&
+    input.facing === "unopened" &&
+    blindsPosted !== undefined &&
+    // One extra big-blind of chips beyond the blinds means at least one limper completed — guard with a
+    // small epsilon so float/rounding never false-positives a clean blinds-only pot.
+    input.potBefore > blindsPosted + input.bigBlind! / 2
+  );
+}
+
 export function analyze(input: AnalyzeInput): DecisionAnalysis {
   const unit = input.unit ?? "usd";
   const depth = input.coachingDepth ?? "equity";
@@ -164,6 +184,9 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     // copy: a position + strength reason with the correct "raise" verb, never the postflop
     // semi-bluff/"no made hand"/"push" framing (iter-22 MAJOR-1a).
     looseOpen: branch.conceptTags.includes("loose_open"),
+    // True when the loose open is over LIMPERS — the copy then acknowledges the limpers instead of
+    // claiming "first-in" (iter-24 MINOR 2). Same limped-pot signal the iso-raise routing uses.
+    limpedPot: detectLimpedPot(input),
     // with the displayed figure (iter-16 #1, #2) — never to change a verdict, only to phrase honestly.
     ev,
   });
@@ -202,7 +225,9 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       ...(branch.flagGrossOverbet && branch.overbetPotMultiple !== undefined
         ? { overbetPotMultiple: branch.overbetPotMultiple }
         : {}),
-      ...(branch.conceptTags.includes("loose_open") ? { looseOpen: true } : {}),
+      ...(branch.conceptTags.includes("loose_open")
+        ? { looseOpen: true, ...(detectLimpedPot(input) ? { limpedPot: true } : {}) }
+        : {}),
     },
   };
 }
@@ -370,19 +395,8 @@ function route(
   // A LIMPED pot is off-model for the RFI chart (iter-12 #3). The chart's "unopened" range models a
   // clean raise-first-in; once a limper has added chips the spot is "facing a limper" (a great-priced
   // iso), NOT a true RFI — so grading an iso-raise against the RFI fold range over-punishes a standard
-  // play. Detect it cleanly: preflop, no raiser ahead (facing === "unopened"), but potBefore exceeds
-  // the posted blinds. Requires both blinds (additive); absent ⇒ no detection, today's behavior.
-  const blindsPosted =
-    input.smallBlind !== undefined && input.bigBlind !== undefined
-      ? input.smallBlind + input.bigBlind
-      : undefined;
-  const isLimpedPot =
-    street === "preflop" &&
-    input.facing === "unopened" &&
-    blindsPosted !== undefined &&
-    // One extra big-blind of chips beyond the blinds means at least one limper completed — guard with a
-    // small epsilon so float/rounding never false-positives a clean blinds-only pot.
-    input.potBefore > blindsPosted + input.bigBlind! / 2;
+  // play. Shared with analyze() so the loose-open copy can drop "first-in" over limpers (iter-24 MINOR 2).
+  const isLimpedPot = detectLimpedPot(input);
 
   // A preflop OPEN/iso-raise in a LIMPED pot is graded by PREFLOP yardsticks, never by the postflop
   // aggression heuristic (iter-22 MAJOR-1a). The RFI chart is off-model in a limped pot (it assumes

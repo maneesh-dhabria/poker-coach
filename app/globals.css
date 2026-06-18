@@ -86,14 +86,26 @@ button { font: inherit; cursor: pointer; }
   grid-template-columns: 1fr 420px;
   gap: 16px;
   min-height: 0;
+  /* Clip any row/column content to the grid's own (flex-bounded) box so a track's content can never
+     paint over a neighbouring track — the iter-24 MINOR 1 stacked overlap, where the table section
+     bled DOWN over the coaching panel at short heights. Each track is minmax(0, 1fr) (can shrink to
+     0) and each column sets min-height:0 + overflow:hidden, so the table scrolls WITHIN its own track
+     rather than overflowing into the panel below. */
+  overflow: hidden;
 }
 @media (max-width: 1100px) {
   .play-grid { grid-template-columns: 1fr 340px; }
 }
 @media (max-width: 880px) {
-  /* Stack: table on top, feedback below. The table column gets a min height so it doesn't collapse,
-     and the right column scrolls within its own #tab-body as usual. */
-  .play-grid { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  /* Stack: table on top, feedback below. BOTH tracks are minmax(0, 1fr) so the table row can shrink to
+     its readable floor and SCROLL within its own bounded track (iter-23 MINOR #1) instead of growing
+     past its share and overlapping the coaching panel beneath it (iter-24 MINOR 1). grid-auto-rows:
+     minmax(0, 1fr) pins any extra track to the same shrink-to-fit rule so a row can't auto-expand. */
+  .play-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+    grid-auto-rows: minmax(0, 1fr);
+  }
 }
 
 /* The hero action bar must never clip its controls off-screen on narrow viewports: wrap onto

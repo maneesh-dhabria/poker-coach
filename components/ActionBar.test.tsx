@@ -204,6 +204,63 @@ describe("ActionBar", () => {
     expect(potBtn).toHaveAttribute("aria-pressed", "true");
   });
 
+  // iter-24 NIT 1: at MOST one quick-size button may light up. When several fractions collapse to the
+  // same CLAMPED value (a tiny pot clamps ½/¾ to the min-raise floor; all-in clamps ½/¾/Pot to the
+  // max), a button is "active" only when the current amount equals its OWN natural (unclamped) value —
+  // a clamp-only match never lights it up.
+  it("at the min-raise floor, no more than one quick-size button is active (½/¾ collapse to the floor)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 10, maxRaiseTo: 200 }}
+        onAction={() => {}}
+        pot={4} // ½=2, ¾=3 both below the $10 floor → both clamp to 10, but neither natural is in band
+      />,
+    );
+    // Sitting at the min-raise floor ($10, the slider's initial value). ½ (natural 2) and ¾ (natural 3)
+    // both CLAMP to 10 but neither natural is in [10,200], so NEITHER lights up — zero active, not two.
+    const half = screen.getByLabelText("Size to half pot");
+    const threeQ = screen.getByLabelText("Size to three-quarter pot");
+    expect(screen.getByTestId("bet-size")).toHaveTextContent("$10");
+    expect(half).toHaveAttribute("aria-pressed", "false");
+    expect(threeQ).toHaveAttribute("aria-pressed", "false");
+    const active = [half, threeQ, screen.getByLabelText("Size to pot")].filter(
+      (b) => b.getAttribute("aria-pressed") === "true",
+    );
+    expect(active.length).toBeLessThanOrEqual(1);
+  });
+
+  it("at all-in, none of ½/¾/Pot are falsely active (all clamp to the max)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 50 }}
+        onAction={() => {}}
+        pot={400} // ½=200, ¾=300, Pot=400 all far ABOVE the $50 all-in → all clamp to 50
+      />,
+    );
+    const slider = screen.getByRole("slider");
+    fireEvent.change(slider, { target: { value: "50" } }); // all-in
+    expect(screen.getByTestId("bet-size")).toHaveTextContent("$50");
+    // None of the three naturals (200/300/400) is ≤ the $50 ceiling, so none lights up at all-in.
+    expect(screen.getByLabelText("Size to half pot")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("Size to three-quarter pot")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("Size to pot")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("a genuine ½-pot value still highlights ½ alone (iter-24 NIT 1 — real matches still work)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 200 }}
+        onAction={() => {}}
+        pot={20}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("Size to half pot")); // → $10, a real in-band ½
+    expect(screen.getByTestId("bet-size")).toHaveTextContent("$10");
+    expect(screen.getByLabelText("Size to half pot")).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Size to three-quarter pot")).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByLabelText("Size to pot")).toHaveAttribute("aria-pressed", "false");
+  });
+
   // iter-23 MINOR #2: when the chosen size commits the hero's ENTIRE remaining stack (sized ===
   // legal.maxRaiseTo, the engine's all-in raise-to) the button must say "All-in" so a newcomer knows
   // the bet busts them. A partial size keeps the plain "Bet $X" / "Raise to $X" label.

@@ -70,4 +70,7 @@ export interface ExplanationInput {
   // so a re-formatted sentence keeps the preflop position+strength "raise" framing rather than the
   // postflop semi-bluff/"no made hand" copy. Present only on a loose-open decision.
   looseOpen?: boolean;
+  // True when the loose open was over LIMPERS, so a re-formatted sentence acknowledges the limpers
+  // rather than claiming "first-in" (iter-24 MINOR 2). Present only on a limped-pot loose open.
+  limpedPot?: boolean;
 }

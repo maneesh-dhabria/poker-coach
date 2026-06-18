@@ -85,6 +85,11 @@ export interface ExplainParams {
   // postflop semi-bluff / "no made hand" / "push" framing. Off-model, so it reconciles with the chart
   // ("the chart opens first-in; here there are limpers and this hand is too weak to raise from here").
   looseOpen?: boolean;
+  // True when the loose open is over LIMPERS, not a genuine first-in (RFI) spot (iter-24 MINOR 2). The
+  // RFI chart is off-model in a limped pot; the loose-open copy must NOT claim the hero was "first in"
+  // when there were limpers — it acknowledges the limpers like the iso-raise path does. Same limped-pot
+  // signal the iso-raise routing uses. Absent ⇒ treat as a genuine first-in spot (today's wording).
+  limpedPot?: boolean;
 }
 
 // Dollar-EV reconciliation margin (iter-16 #1, #2). The displayed `numbers.ev` are rough Monte-Carlo
@@ -285,6 +290,7 @@ export function formatExplanation(
     // comparison (a margin in dollars vs the same dollars), so passing the stored USD figures is fine.
     ev: analysis.numbers.ev,
     looseOpen: ei.looseOpen,
+    limpedPot: ei.limpedPot,
     bigBlind,
   });
 }
@@ -369,10 +375,24 @@ function preflop(p: ExplainParams): string {
         : `Raising ${label}${where} with only ~${win}% is far too big — it risks a huge amount to win a tiny pot, and this is a weak, easily-dominated hand to open from ${place} in the first place. Size it down to a normal open, and from this seat a tighter hand.`;
     }
     // A non-oversized loose open: lead with the position + strength reason and the correct "raise" verb.
+    // The "first-in" framing is reserved for a GENUINE RFI spot. When there are limpers (limpedPot), the
+    // hero is NOT first-in, so the copy acknowledges the limpers instead of claiming first-in (iter-24
+    // MINOR 2) — matching the iso-raise path, which already names the limpers.
+    const limped = p.limpedPot === true;
     if (p.depth === "strict") {
+      if (limped) {
+        return p.verdict === "mistake"
+          ? `Even over the limpers, ${label} is too weak to raise${where} — low, easily-dominated cards that play poorly after the flop. Raising it here is a loose open that loses money on average; folding is the standard line.`
+          : `Raising ${label}${where} over the limpers is on the loose side — it's a marginal, easily-dominated open; a tighter raise from ${place} is the standard line.`;
+      }
       return p.verdict === "mistake"
-        ? `The chart opens first-in, but here there are limpers and ${label} is too weak to raise${where} — low, easily-dominated cards that play poorly after the flop. Raising it is a loose open that loses money on average; folding is the standard line.`
-        : `The chart opens first-in, but here there are limpers, so this is off the chart. Raising ${label}${where} is on the loose side — it's a marginal, easily-dominated open; a tighter open from ${place} is the standard line.`;
+        ? `The chart opens first-in, and ${label} is too weak to raise${where} — low, easily-dominated cards that play poorly after the flop. Raising it is a loose open that loses money on average; folding is the standard line.`
+        : `The chart opens first-in and tighter than this. Raising ${label}${where} is on the loose side — it's a marginal, easily-dominated open; a tighter open from ${place} is the standard line.`;
+    }
+    if (limped) {
+      return p.verdict === "mistake"
+        ? `Raising ${label}${where} is too loose — even over the limpers, its ~${win}% comes from low, easily-dominated cards that play poorly after the flop, so opening it here loses money on average. Folding is the standard line.`
+        : `Raising ${label}${where} over the limpers is on the loose side — at ~${win}% it's a marginal, easily-dominated open. Even over limpers a tighter hand is the standard raise from ${place}, so it's a thin raise, not a clear-cut one.`;
     }
     return p.verdict === "mistake"
       ? `Raising ${label}${where} is too loose — its ~${win}% comes from low, easily-dominated cards that play poorly after the flop, so opening from ${place} loses money on average. Folding is the standard line here.`
@@ -704,7 +724,11 @@ function conceptual(p: ExplainParams): string {
       // #6b). Both lose money on average here.
       if (p.equityPct >= NO_EQUITY_PCT)
         return `You're ${acting} as a light semi-bluff — you've got some chances, but not enough here, so it loses money on average.`;
-      return `You're ${acting} with little behind it — there's not enough here.`;
+      // A pure bluff with NO equity, in plain words, no numbers (iter-24 MINOR 3). The old copy
+      // ("little behind it — there's not enough here") didn't teach WHY. Name the concept: this hand
+      // almost never wins at showdown AND a bet here rarely folds out a better hand, so there's nothing
+      // backing the bet — it just gives chips away. Digit-free for Conceptual depth.
+      return `This is a pure bluff with nothing to back it: your hand has almost no chance to win at showdown, and a ${raising ? "raise" : "bet"} here won't make better hands fold often enough to win the pot, so you're just giving chips away.`;
     }
     case "freecheckfold":
       return "There was no bet to fold to — checking is free. Never fold when you can see the next card for nothing.";

@@ -64,6 +64,58 @@ describe("cellRationale (iter-21 NIT 2 / iter-22 MINOR #6 — small-pair boundar
   });
 });
 
+describe("cellRationale (iter-24 MAJOR — suited-ace raise/fold boundary, A5s opens vs A7s folds)", () => {
+  // The chart DATA is intentional (the recognized low-suited-ace construction) and UNCHANGED — the
+  // defect was that the win% (A7s ~61 > A5s ~60) read as contradicting the advice with no explanation.
+  // These assertions check the EXPLANATION, not the data: key substrings, never exact prose.
+  it("explains a MIDDLING suited ace the chart FOLDS as DOMINATED / overstated raw equity (A7s MP)", () => {
+    expect(chartAction(["Ah", "7h"] as [Card, Card], "MP", "unopened")).toBe("fold");
+    const r = cellRationale("A7s", "MP", "fold").toLowerCase();
+    expect(r).not.toBe("");
+    expect(r).toContain("dominated");
+    expect(r).toContain("overstates");
+  });
+
+  it("also explains A6s MP as a dominated fold (the other middling suited ace)", () => {
+    expect(chartAction(["Ah", "6h"] as [Card, Card], "MP", "unopened")).toBe("fold");
+    const r = cellRationale("A6s", "MP", "fold").toLowerCase();
+    expect(r).toContain("dominated");
+    expect(r).toContain("overstates");
+  });
+
+  it("explains a WHEEL suited ace the chart OPENS via playability/blocker/straight, noting A7s's higher raw number (A5s MP)", () => {
+    expect(chartAction(["Ah", "5h"] as [Card, Card], "MP", "unopened")).toBe("raise");
+    const r = cellRationale("A5s", "MP", "raise").toLowerCase();
+    expect(r).not.toBe("");
+    expect(r).toContain("a7s"); // explicitly references the higher-raw-number hand
+    expect(r).toContain("nut flush");
+    expect(r).toContain("straight");
+    expect(r).toContain("block"); // the ace-blocker effect
+  });
+
+  it("explains A5s the same way from UTG (the lone wheel-ace blocker the chart opens UTG)", () => {
+    expect(chartAction(["Ah", "5h"] as [Card, Card], "UTG", "unopened")).toBe("raise");
+    const r = cellRationale("A5s", "UTG", "raise").toLowerCase();
+    expect(r).toContain("nut flush");
+    expect(r).toContain("block");
+  });
+
+  it("explains A4s MP as a wheel-ace open too (the other wheel ace the chart opens from MP)", () => {
+    expect(chartAction(["Ah", "4h"] as [Card, Card], "MP", "unopened")).toBe("raise");
+    const r = cellRationale("A4s", "MP", "raise").toLowerCase();
+    expect(r).not.toBe("");
+    expect(r).toContain("straight");
+  });
+
+  it("returns empty for hands OUTSIDE the suited-ace special cases", () => {
+    expect(cellRationale("KQs", "MP", "raise")).toBe(""); // not an ace
+    expect(cellRationale("AQs", "MP", "raise")).toBe(""); // a strong ace, not a wheel/middling boundary
+    expect(cellRationale("72o", "UTG", "fold")).toBe(""); // a random offsuit fold
+    expect(cellRationale("A5s", "BTN", "raise")).toBe(""); // late position — no early-seat boundary
+    expect(cellRationale("A5o", "MP", "raise")).toBe(""); // offsuit ace — not the suited-wheel case
+  });
+});
+
 describe("allHands169", () => {
   it("enumerates exactly 169 canonical hands (13 pairs, 78 suited, 78 offsuit)", () => {
     const all = allHands169();

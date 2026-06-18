@@ -47,12 +47,17 @@ describe("Seat — showdown winner glow + net chip (T8)", () => {
 });
 
 describe("Seat — all-in badge", () => {
-  it("shows ALL-IN with the committed amount when the seat is all-in", () => {
-    const { getByTestId, getByText } = render(
+  it("shows ALL-IN and labels the amount as the TOTAL committed this hand (iter-24 NIT 2)", () => {
+    // The badge's number is the running TOTAL committed (blinds + prior bets), a DIFFERENT quantity
+    // from the all-in BUTTON's chips-this-action. Label it "· $46 in" so the two aren't read as equal.
+    const { getByTestId } = render(
       <Seat seat={{ ...baseSeat, allIn: true, allInAmount: 46 } as any} bigBlind={2} />,
     );
-    expect(getByTestId("seat-allin")).toBeTruthy();
-    expect(getByText(/ALL-IN \$46/)).toBeTruthy();
+    const badge = getByTestId("seat-allin");
+    expect(badge).toBeTruthy();
+    expect(badge.textContent).toMatch(/ALL-IN/);
+    expect(badge.textContent).toMatch(/\$46 in/); // labeled as a total, not a bare "$46"
+    expect(badge.getAttribute("title")).toMatch(/committed in total/i);
   });
 
   it("renders no all-in badge for a seat with chips behind", () => {

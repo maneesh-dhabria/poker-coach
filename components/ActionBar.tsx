@@ -55,10 +55,33 @@ export function ActionBar({
   const quickTo = (fraction: number) =>
     clamp(Math.round(pot * fraction) + legal.toCall, legal.minRaiseTo, offeredMax);
 
-  // A quick-size button is "active" only while the CURRENT amount equals that quick-size's computed
-  // value — derived state, not a remembered last-click (iter-21 NIT 1). Dragging the slider or typing
-  // to a non-matching value clears the highlight automatically. Sizes are integers, so exact match.
-  const quickActive = (fraction: number) => sized === quickTo(fraction);
+  // The UNCLAMPED natural value of a quick size — what the fraction computes BEFORE clamping to the
+  // legal band. Used to decide highlighting (iter-24 NIT 1): a button lights up only when the current
+  // amount equals its OWN natural value, so a size that merely got clamped to the min-raise floor or
+  // the all-in/effective-max ceiling — where several fractions collapse to the same clamped number —
+  // does NOT light up every button.
+  const quickNatural = (fraction: number) => Math.round(pot * fraction) + legal.toCall;
+
+  // A quick-size button is "active" only while the CURRENT amount equals that fraction's NATURAL
+  // (unclamped) computed value AND that natural value is itself in the legal band (so a clamped-only
+  // match never lights it up). Derived state, not a remembered last-click (iter-21 NIT 1) — dragging
+  // the slider or typing a non-matching value clears the highlight automatically. To guarantee AT MOST
+  // ONE button is ever highlighted (iter-24 NIT 1), when several fractions share the same natural value
+  // only the SMALLEST fraction (½ before ¾ before Pot) is treated as active; ties otherwise highlight
+  // none. Sizes are integers, so the equality is exact.
+  const QUICK_FRACTIONS = [0.5, 0.75, 1] as const;
+  const isNaturalInBand = (fraction: number) => {
+    const nat = quickNatural(fraction);
+    return nat >= legal.minRaiseTo && nat <= offeredMax;
+  };
+  const quickActive = (fraction: number) => {
+    if (!isNaturalInBand(fraction) || sized !== quickNatural(fraction)) return false;
+    // De-duplicate ties: if a SMALLER fraction also has this exact natural value and is in band, defer
+    // to it — only one button (the smallest matching) ever lights up.
+    return !QUICK_FRACTIONS.some(
+      (f) => f < fraction && isNaturalInBand(f) && quickNatural(f) === quickNatural(fraction),
+    );
+  };
 
   // A FINE slider step so a precise size can be dialed by keyboard (iter-22 NIT #8). The default
   // range step is (max−min)/100 — on a deep stack one ArrowRight jumped ~$48, far too coarse. One

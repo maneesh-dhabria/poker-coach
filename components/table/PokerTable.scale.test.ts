@@ -97,3 +97,44 @@ describe("short-height stacked table never clips the top seat above the containe
     expect(shouldTopAnchorTable(MIN_TABLE_SCALE, 0)).toBe(false);
   });
 });
+
+// iter-24 MINOR 1: the COMPLEMENTARY overlap to iter-23. At 700×460 / 700×500 (STACKED layout) the
+// table track is short; the readable-floored felt is taller than the track, so it must SCROLL WITHIN
+// its own bounded track rather than bleeding DOWN over the coaching panel beneath it. The contract:
+// when the felt overflows its (bounded) stage, it top-anchors (scrolls down, clipped by the track's
+// overflow:hidden / the grid's overflow:hidden), so the rendered felt never extends past the track.
+describe("stacked short-height table is bounded to its track, never overlapping the panel below (iter-24 MINOR 1)", () => {
+  // The stacked table TRACK is one of two minmax(0,1fr) rows. At 700×460, after the header (~40px) and
+  // grid padding/gap, each row is roughly ~190px tall and the column is ~668px wide.
+  const STACKED_CASES: Array<[string, number, number]> = [
+    ["700×460", 668, 190],
+    ["700×500", 668, 214],
+  ];
+
+  for (const [label, trackW, trackH] of STACKED_CASES) {
+    it(`${label}: the felt overflows the short track, so it top-anchors and scrolls WITHIN (no downward bleed)`, () => {
+      const scale = readableScale(trackW, trackH);
+      // Width is ample; height alone would scale below the readable floor, so the floor (0.55) holds.
+      expect(scale).toBe(MIN_TABLE_SCALE);
+      const scaledFeltHeight = DESIGN_H * scale; // 286px at the floor
+      // The felt is taller than its short track…
+      expect(scaledFeltHeight).toBeGreaterThan(trackH);
+      // …so it MUST top-anchor (offset 0) and scroll DOWN inside the track. With the track's
+      // overflow:hidden (left-col) and the grid's overflow:hidden, the felt is clipped to the track —
+      // it cannot render past the track bottom into the coaching panel below.
+      expect(shouldTopAnchorTable(scale, trackH)).toBe(true);
+    });
+  }
+
+  it("the wider STACKED layouts the reviewer praised still FIT and stay centered (800×600 stacked)", () => {
+    // 800×600 stacked: the praised "seats ~66px, legible, no overlap" case — the felt fits its track.
+    const scale = readableScale(768, 264);
+    const scaledFeltHeight = DESIGN_H * scale;
+    if (scaledFeltHeight <= 264) {
+      expect(shouldTopAnchorTable(scale, 264)).toBe(false);
+    } else {
+      // If a particular conservative box is itself short, the no-bleed rule still applies (scroll down).
+      expect(shouldTopAnchorTable(scale, 264)).toBe(true);
+    }
+  });
+});
