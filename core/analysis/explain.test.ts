@@ -828,6 +828,63 @@ describe("iter-18 MINOR #1: borderline thin price-call reads ONE coherent break-
     expect(s).not.toContain("just about worth continuing");
   });
 
+  // iter-23 NIT: within the borderline band, distinguish which side of the price the CALL is on. A
+  // thin call with equity at or ABOVE the price (edge ≥ 0) is a slightly +EV, comfortable continue at
+  // a good price — it must NOT read "calling and folding are roughly equal" (which implies edge ≈ 0).
+  // A thin call just BELOW the price (edge < 0) keeps the honest "about break-even / folding is fine"
+  // wording. Both digit-free at Conceptual. Models the reviewer's cheap multiway 98o call (~5:1).
+  describe("iter-23 NIT: cheap thin call ≥ its price reads 'comfortable at the price', below stays break-even", () => {
+    // 30% equity, 28% need → edge +2 (within the ±3 band, but on the right side of the price).
+    const pricedThinCall = (depth: CoachingDepth): ExplainParams => ({
+      kind: "price",
+      verdict: "thin",
+      depth,
+      unit: "usd",
+      action: "call",
+      potBefore: 50, // cheap close call: $10 to win a $60 pot → ~17% need… use explicit need below
+      toCall: 10,
+      equityPct: 30,
+      potOddsPct: 28,
+    });
+
+    it("equity depth: edge ≥ 0 → 'getting the price / comfortable', NOT 'roughly equal'", () => {
+      const s = buildExplanation(pricedThinCall("equity")).toLowerCase();
+      expect(s).toContain("getting the price");
+      expect(s).toContain("comfortable call");
+      expect(s).not.toContain("roughly equal");
+    });
+
+    it("conceptual depth: edge ≥ 0 → digit-free 'comfortable at the price', no digits, NOT 'roughly equal'", () => {
+      const s = buildExplanation(pricedThinCall("conceptual")).toLowerCase();
+      expect(s).toContain("getting the price");
+      expect(s).toContain("comfortable call");
+      expect(s).not.toContain("roughly equal");
+      expect(s).not.toMatch(/\d/); // no digits at Conceptual
+    });
+
+    it("a thin call just BELOW the price (edge < 0) still reads 'break-even / roughly equal'", () => {
+      // 27% equity vs 29% need → edge −2 (borderline, wrong side). Unchanged from iter-18.
+      const below = (depth: CoachingDepth): ExplainParams => ({
+        kind: "price",
+        verdict: "thin",
+        depth,
+        unit: "usd",
+        action: "call",
+        potBefore: 60,
+        toCall: 24,
+        equityPct: 27,
+        potOddsPct: 29,
+      });
+      const eq = buildExplanation(below("equity")).toLowerCase();
+      expect(eq).toContain("break-even");
+      expect(eq).toContain("roughly equal");
+      const con = buildExplanation(below("conceptual")).toLowerCase();
+      expect(con).toContain("break-even");
+      expect(con).toContain("roughly equal");
+      expect(con).not.toMatch(/\d/);
+    });
+  });
+
   it("a CLEARLY thin call (not borderline) keeps the 'just about worth it' wording", () => {
     // 40% equity vs 25% need is well clear of the band — keep the confident thin wording.
     const s = buildExplanation({

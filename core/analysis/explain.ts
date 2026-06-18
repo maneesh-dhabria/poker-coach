@@ -131,6 +131,15 @@ function isBorderlinePrice(equityPct: number, potOddsPct: number): boolean {
   return Math.abs(equityPct - potOddsPct) <= BORDERLINE_PRICE_MARGIN;
 }
 
+// Within the borderline band, is this a CALL whose edge is ≥ 0 — equity at or above the price it
+// needs (iter-23 NIT)? A slightly +EV close call (especially a cheap, well-priced one) is comfortable,
+// not a coin-flip-to-fold, so its copy leans "you're getting the price, calling is fine" rather than
+// "calling and folding are roughly equal". A negative edge (equity just below the price) keeps the
+// break-even wording. Folds are excluded — the action taken there is the fold.
+function isPricedCall(p: ExplainParams): boolean {
+  return p.action !== "fold" && p.equityPct >= p.potOddsPct;
+}
+
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
 
 // The present-participle of a chart verb, built explicitly so we never get the naive "raise"+"ing"
@@ -315,7 +324,15 @@ function price(p: ExplainParams): string {
   // "close, but just about worth it" wording. The equity-bar whyLine is reconciled to match (FeedbackPanel).
   if (p.verdict === "thin")
     return isBorderlinePrice(p.equityPct, p.potOddsPct)
-      ? `${lead} Close — this is about break-even, so calling and folding are roughly equal here.`
+      ? // Inside the band, distinguish which side of the price the call is on (iter-23 NIT). When the
+        // edge is ≥ 0 (equity at or ABOVE the price it needs) a CALL is a slightly +EV continue — at a
+        // good price that's a comfortable, fine call, NOT a coin-flip-to-fold, so don't say "calling and
+        // folding are roughly equal" (which implies edge ≈ 0). When the edge is slightly NEGATIVE (equity
+        // just below the price) keep the honest "about break-even / folding is fine" message. A thin FOLD
+        // in the band still reads as break-even (folding is the action taken).
+        isPricedCall(p)
+        ? `${lead} You're getting the price, so calling is fine — it's close, but a comfortable call at this price.`
+        : `${lead} Close — this is about break-even, so calling and folding are roughly equal here.`
       : `${lead} Close, but just about worth it.`;
   return p.action === "fold"
     ? `${lead} That's a clear call — folding here costs you money.`
@@ -601,7 +618,12 @@ function conceptual(p: ExplainParams): string {
       }
       if (p.verdict === "thin")
         return isBorderlinePrice(p.equityPct, p.potOddsPct)
-          ? "It's about break-even here — calling and folding are roughly equal."
+          ? // Digit-free split on which side of the price the call is on (iter-23 NIT). Edge ≥ 0 (a
+            // priced call) reads as a comfortable continue at the price; a negative edge keeps the
+            // break-even wording. Both stay number-free at Conceptual.
+            isPricedCall(p)
+            ? "You're getting the price here, so calling is fine — it's close, but a comfortable call at this price."
+            : "It's about break-even here — calling and folding are roughly equal."
           : "It's close, but just about worth continuing.";
       return p.action === "fold"
         ? "This was a spot to keep going, not fold."

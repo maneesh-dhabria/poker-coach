@@ -44,7 +44,9 @@ describe("PokerTable — no duplicate Hand review below the table (FR-09)", () =
     expect(src).toMatch(/width: DESIGN_W/);
     expect(src).toMatch(/height: DESIGN_H/);
     expect(src).toMatch(/transform: `scale\(\$\{scale\}\)`/);
-    expect(src).toMatch(/const scale = useFitScale\(stageRef\)/);
+    // useFitScale now also reports the stage height for the iter-23 no-clip top-anchor; the scale is
+    // destructured from it. Still the same measured-stage scale-to-fit.
+    expect(src).toMatch(/const \{ scale, stageHeight \} = useFitScale\(stageRef\)/);
     // The old aspect-ratio approach (fixed-px tiles on a squashed felt) is gone — that was the root
     // cause of the persistent 800×600 overlap.
     expect(src).not.toMatch(/aspectRatio: "760 \/ 520"/);

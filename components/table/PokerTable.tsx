@@ -68,15 +68,32 @@ export function readableScale(w: number, h: number): number {
   return Math.max(MIN_TABLE_SCALE, fitScale(w, h));
 }
 
+// The no-clip decision (iter-23 MINOR #1). When the readable-floored felt (DESIGN_H × scale) is taller
+// than the stage, the scaled box is TOP-anchored so its overhang scrolls DOWNWARD inside the scrollable
+// stage — never centered, which would push the top (UTG) seat UP and out of the container behind the
+// header bar. When it fits (every praised layout: 1366×768, 1280×520, 800×600, 600×900), it stays
+// centered. Pure so the invariant is unit-testable: top-anchored ⇒ the scaled content's top sits at the
+// stage top (offset 0), so no seat can render at negative y / behind the header. stageHeight 0 ⇒ not yet
+// measured (SSR / first paint) ⇒ center (no overflow assumed).
+export function shouldTopAnchorTable(scale: number, stageHeight: number): boolean {
+  return stageHeight > 0 && DESIGN_H * scale > stageHeight;
+}
+
 // Measure a container element and report a uniform scale-to-fit for the fixed design box. A
 // ResizeObserver keeps it in step with viewport/zoom/splitscreen changes (iter-04 #1). 'use client'
 // (top of file) makes this safe — it's a presentational component, not core.
-function useFitScale(ref: { current: HTMLElement | null }): number {
-  const [scale, setScale] = useState(1);
+function useFitScale(ref: { current: HTMLElement | null }): { scale: number; stageHeight: number } {
+  // Track BOTH the fit scale and the stage's own clientHeight. The scale floors at MIN_TABLE_SCALE for
+  // readability, so on a very SHORT stacked area the floored felt can be taller than the stage; the
+  // component compares `DESIGN_H * scale` against `stageHeight` to anchor the scaled box to the TOP
+  // (not center) in that case, so the overflow scrolls DOWNWARD and the top seat is never pushed up
+  // behind the header (iter-23 MINOR #1). 0 height means "not measured yet" (SSR / first paint).
+  const [fit, setFit] = useState<{ scale: number; stageHeight: number }>({ scale: 1, stageHeight: 0 });
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const measure = () => setScale(readableScale(el.clientWidth, el.clientHeight));
+    const measure = () =>
+      setFit({ scale: readableScale(el.clientWidth, el.clientHeight), stageHeight: el.clientHeight });
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -84,7 +101,7 @@ function useFitScale(ref: { current: HTMLElement | null }): number {
     // ref is stable for the component's life; we re-measure via the observer, not deps.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  return scale;
+  return fit;
 }
 
 export function PokerTable() {
@@ -103,7 +120,13 @@ export function PokerTable() {
   // Measure the stage and uniformly scale the fixed-size design box to fit (iter-04 #1). Hooks must
   // run unconditionally, so this lives above the `!flow` early return.
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const scale = useFitScale(stageRef);
+  const { scale, stageHeight } = useFitScale(stageRef);
+  // When the readable-floored felt is TALLER than the stage (a very short stacked viewport, ~≤500px
+  // tall), centering it vertically would push its TOP — and the top/UTG seat — up and out of the
+  // container, behind the header bar (iter-23 MINOR #1). Anchor it to the TOP in that case so the
+  // overhang scrolls DOWNWARD inside the scrollable stage and the top seat stays fully visible. When
+  // the felt fits (every praised layout: 1366×768, 1280×520, 800×600, 600×900), keep centering it.
+  const contentTallerThanStage = shouldTopAnchorTable(scale, stageHeight);
 
   // Reset the reveal cursor when a new hand is dealt.
   useEffect(() => {
@@ -198,7 +221,9 @@ export function PokerTable() {
           minHeight: 0,
           width: "100%",
           display: "flex",
-          alignItems: "center",
+          // Top-anchor when the floored felt overflows the stage vertically so the overhang scrolls
+          // DOWN (never up behind the header); otherwise center it as before (iter-23 MINOR #1).
+          alignItems: contentTallerThanStage ? "flex-start" : "center",
           justifyContent: "center",
           // Floor the table scale at a readable minimum (iter-21 NIT 3): once the felt can't shrink
           // below MIN_TABLE_SCALE, a very small/short viewport scrolls the stage rather than squashing

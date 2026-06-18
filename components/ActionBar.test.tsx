@@ -34,8 +34,11 @@ describe("ActionBar", () => {
     expect(slider).toHaveAttribute("min", "16");
     expect(slider).toHaveAttribute("max", "100");
 
-    fireEvent.change(slider, { target: { value: "500" } }); // beyond max
-    fireEvent.click(screen.getByRole("button", { name: /raise to/i }));
+    fireEvent.change(slider, { target: { value: "500" } }); // beyond max → clamps to 100
+    // 100 === maxRaiseTo (the hero's all-in raise-to), so the button now reads "All-in $100" rather
+    // than "Raise to $100" (iter-23 MINOR #2). The clamp behavior under test is unchanged — the action
+    // still fires the clamped amount; only the label says All-in because the clamp landed on the stack.
+    fireEvent.click(screen.getByRole("button", { name: /all-in \$100/i }));
     expect(onAction).toHaveBeenCalledWith({ type: "raise", amount: 100 });
   });
 
@@ -199,6 +202,49 @@ describe("ActionBar", () => {
     // Set it back to the pot value → Pot re-highlights.
     fireEvent.change(slider, { target: { value: "20" } });
     expect(potBtn).toHaveAttribute("aria-pressed", "true");
+  });
+
+  // iter-23 MINOR #2: when the chosen size commits the hero's ENTIRE remaining stack (sized ===
+  // legal.maxRaiseTo, the engine's all-in raise-to) the button must say "All-in" so a newcomer knows
+  // the bet busts them. A partial size keeps the plain "Bet $X" / "Raise to $X" label.
+  it("the bet button says 'All-in' when the size commits the hero's full remaining stack (iter-23 MINOR #2)", () => {
+    const onAction = vi.fn();
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 170 }}
+        onAction={onAction}
+        pot={50}
+      />,
+    );
+    const slider = screen.getByRole("slider");
+    // A partial bet ($80 < $170 all-in) → plain "Bet", NOT "All-in", and no whole-stack hint.
+    fireEvent.change(slider, { target: { value: "80" } });
+    expect(screen.getByRole("button", { name: /^bet \$80$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /all-in/i })).toBeNull();
+    expect(screen.queryByTestId("all-in-hint")).not.toBeInTheDocument();
+
+    // Push the entire remaining stack ($170 === maxRaiseTo) → button says "All-in $170" + hint.
+    fireEvent.change(slider, { target: { value: "170" } });
+    const allInBtn = screen.getByRole("button", { name: /all-in \$170/i });
+    expect(allInBtn).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^bet \$170$/i })).toBeNull();
+    expect(screen.getByTestId("all-in-hint")).toBeInTheDocument();
+    // The engine action is unchanged — it still fires the same bet amount, just labeled All-in.
+    fireEvent.click(allInBtn);
+    expect(onAction).toHaveBeenCalledWith({ type: "bet", amount: 170 });
+  });
+
+  it("a full-stack RAISE also says 'All-in' (iter-23 MINOR #2)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "call", "raise"], toCall: 8, minRaiseTo: 16, maxRaiseTo: 100 }}
+        onAction={vi.fn()}
+      />,
+    );
+    const slider = screen.getByRole("slider");
+    fireEvent.change(slider, { target: { value: "100" } }); // raise-to == all-in
+    expect(screen.getByRole("button", { name: /all-in \$100/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /raise to/i })).toBeNull();
   });
 
   it("shows Fold when facing a bet (no check available)", () => {

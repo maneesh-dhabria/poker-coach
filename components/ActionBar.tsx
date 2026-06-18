@@ -71,6 +71,14 @@ export function ActionBar({
   // pot — no hard block, the size is still legal. `pot` is the pot before this action.
   const isOverbet = pot > 0 && sized - legal.toCall > pot;
 
+  // Whether this size commits the hero's ENTIRE remaining stack — their all-in (iter-23 MINOR #2). The
+  // engine's `legal.maxRaiseTo` is committedStreet + remaining stack, so a raise-to/bet-to of exactly
+  // that puts the hero's last chip in. (We compare against the engine max, not the effective-stack-capped
+  // `offeredMax`, so an all-in is recognised even when no opponent can cover the full size.) The button
+  // word "All-in" warns a newcomer that "Bet $170" busts them — DISPLAY ONLY; bet legality/sizing are
+  // untouched, the engine still resolves the size as it always has.
+  const isAllIn = sized === legal.maxRaiseTo;
+
   // Folding when you can check for free is strictly dominated — no real client offers it. Hide Fold
   // whenever Check is legal so the only choices are the meaningful ones (check or bet).
   const showFold = legal.actions.includes("fold") && !legal.actions.includes("check");
@@ -134,8 +142,23 @@ export function ActionBar({
             disabled={disabled}
             onClick={() => onAction({ type: sizingKind, amount: sized })}
           >
-            {sizingKind === "raise" ? `Raise to ${money(sized)}` : `Bet ${money(sized)}`}
+            {/* When the size commits the hero's last chip, the button leads with "All-in" so a newcomer
+                knows this bet/raise busts their stack (iter-23 MINOR #2). Otherwise the normal
+                "Bet $X" / "Raise to $X" label. The amount shown is unchanged. */}
+            {isAllIn
+              ? `All-in ${money(sized)}`
+              : sizingKind === "raise"
+                ? `Raise to ${money(sized)}`
+                : `Bet ${money(sized)}`}
           </Button>
+          {isAllIn && (
+            <span
+              data-testid="all-in-hint"
+              style={{ fontSize: "0.75rem", color: "var(--thin, #b8860b)", whiteSpace: "nowrap" }}
+            >
+              commits your whole stack
+            </span>
+          )}
         </span>
       )}
     </div>
