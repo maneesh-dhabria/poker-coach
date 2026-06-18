@@ -3,6 +3,32 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.28.0] — 2026-06-18
+
+### Reviewer-iteration-23 fixes — no major issues; last layout + labeling polish
+
+A twenty-third independent first-time-user playtest (`docs/playtest/reviews/iter-23.md`) found **zero
+major issues** and independently confirmed the preflop overhaul: opens are graded fairly and
+proportionally, no normal open is called a "bluff," and no verdict's words contradict its numbers. Two
+small layout/labeling issues and a copy nuance remained. Layout, a button label, and call copy only;
+no grading, equity/EV, engine, or `HandRecord` schema changes.
+
+### Fixed
+
+- **The table no longer clips at short window heights.** In stacked (narrow/short) layouts below about
+  500px tall, the table oval overflowed its area and the top seat was hidden behind the header. The
+  table now top-anchors and scrolls when it can't fit the height, keeping the readable size — so every
+  seat stays fully visible — while the wider and taller layouts are unchanged
+  (`components/table/PokerTable.tsx`).
+- **A bet that commits your whole stack now says "All-in."** Pushing your entire remaining stack used
+  to read only "Bet $170" even though it busted you; the button now reads "All-in $X" with a note that
+  it commits your whole stack, so it's clear before you click (`components/ActionBar.tsx`).
+- **A cheap call you're priced into reads as a fine call, not a coin-flip.** A close call where your
+  equity meets or beats the price it needs no longer reads "calling and folding are roughly equal"; it
+  now says you're getting the price and it's a comfortable call. A call that's actually below the price
+  still reads "about break-even — folding is fine." The verdict itself is unchanged — only the wording
+  (`core/analysis/explain.ts`).
+
 ## [0.27.0] — 2026-06-18
 
 ### Reviewer-iteration-22 fixes — preflop opens and cheap calls are graded like preflop, not like bluffs
