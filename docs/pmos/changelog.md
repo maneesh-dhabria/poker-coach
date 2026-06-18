@@ -3,6 +3,52 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.19.0] — 2026-06-18
+
+### Reviewer-iteration-14 fixes — depth control takes full effect; no praising a reckless stack-off
+
+A fourteenth independent first-time-user playtest (`docs/playtest/reviews/iter-14.md`)
+exercised the new in-play depth control (shipped in 0.18.0) for the first time and surfaced
+five MAJOR issues — several of them regressions exposed by that control — plus a handful of
+copy/label nits. Coaching-analysis + UI only; no `HandRecord` schema-version change.
+
+### Fixed
+
+- **Changing coaching depth mid-hand now fully re-derives the feedback.** Depth was baked
+  into each hand when it was dealt, so switching to Conceptual in-play still left
+  percentages and dollar figures on the verdict card, the equity readout, the EV expander,
+  and the review list — and switching to Strict silently looked like Equity (no "chart-based"
+  badge, no "no baseline chart covers this spot" note). `HandFlow` now keeps each decision's
+  depth-independent inputs and re-runs the (copy-only) analysis for the displayed and every
+  recorded decision when depth changes, so Conceptual is fully digit-free and Strict shows
+  its badge / off-model note immediately (`core/handFlow.ts`, `store/gameStore.ts`,
+  `components/RightPanel.tsx`).
+- **A grossly oversized postflop bet is no longer praised.** A ~4×-pot turn shove of a whole
+  stack with only ~53% (a marginal middle pair) into two opponents used to be graded
+  "✅ good — get money in while ahead." The gross-overbet flag now uses a postflop threshold
+  of ~3× pot (preflop stays ~8× so normal 3-bets/4-bets and forced short-stack all-ins aren't
+  flagged), so that stack-off is flagged ⚠️ with a "size down" note even though you're ahead
+  (`core/analysis/analyze.ts`).
+- **The end-of-hand "where the leak is" line now names the most serious play.** After busting
+  to that overbet, the recap pointed at a minor preflop min-raise instead of the stack-losing
+  shove. It now picks the most severe flagged decision (ties broken by the largest chip swing)
+  and names it (`components/HandRecap.tsx`).
+- **Iso-raising over limpers is no longer graded "thin" against its own chart.** Raising KQo
+  from the SB into limpers was graded "⚠️ thin" by the live coach while the reference chart
+  marks KQo-SB as a standard open. A raise in a limped pot by a position+hand the chart opens
+  first-in is now graded ✅ (off-model, `gtoClaim: false`) with copy explaining that the chart
+  assumes you're first in but the limpers make this an isolation raise
+  (`core/analysis/analyze.ts`, `core/analysis/explain.ts`).
+- **Smaller copy/label fixes:** the pair-rank label is now computed by position among the
+  distinct board ranks (a pair of 4s on A-6-2-4 is "bottom"/"middle" correctly, not always
+  "middle"); the Mental Math no-draw summary is action-aware on a call ("calling here just
+  pays off…" rather than "betting as a bluff"); the dollar-EV note now reads the bet row when
+  you bet and the call row when you face a bet (no more "betting is worth $24" sourced from the
+  check row); the chart-approved verdict chip says "Standard open" on a raise instead of "Good
+  discipline"; and no table preset is highlighted on load until one is actually applied
+  (`core/mental/estimate.ts`, `components/MentalMathSection.tsx`, `components/FeedbackPanel.tsx`,
+  `components/SetupScreen.tsx`).
+
 ## [0.18.0] — 2026-06-18
 
 ### Reviewer-iteration-13 fixes — Mental Math agrees with the bet you made
