@@ -691,3 +691,83 @@ describe("positive-verdict EV reconciliation note (iter-16 #1)", () => {
     expect(s.toLowerCase()).not.toContain("rough equity-only estimate");
   });
 });
+
+describe("iter-18 MINOR #1: borderline thin price-call reads ONE coherent break-even message", () => {
+  // A genuinely borderline thin call (28% vs 29% need, EV ≈ 0): the headline must NOT be the upbeat
+  // "just about worth it" that then clashes with the equity-bar's grim "you come up short" — it must
+  // read as about break-even.
+  const borderline = (depth: CoachingDepth): ExplainParams => ({
+    kind: "price",
+    verdict: "thin",
+    depth,
+    unit: "usd",
+    action: "call",
+    potBefore: 60,
+    toCall: 24, // 24/84 ≈ 29% need
+    equityPct: 28,
+    potOddsPct: 28.6,
+  });
+
+  it("equity depth: says about break-even, not 'just about worth it'", () => {
+    const s = buildExplanation(borderline("equity")).toLowerCase();
+    expect(s).toContain("break-even");
+    expect(s).toContain("roughly equal");
+    expect(s).not.toContain("just about worth it");
+  });
+
+  it("conceptual depth: says about break-even, no upbeat-vs-grim split", () => {
+    const s = buildExplanation(borderline("conceptual")).toLowerCase();
+    expect(s).toContain("break-even");
+    expect(s).not.toContain("just about worth continuing");
+  });
+
+  it("a CLEARLY thin call (not borderline) keeps the 'just about worth it' wording", () => {
+    // 40% equity vs 25% need is well clear of the band — keep the confident thin wording.
+    const s = buildExplanation({
+      kind: "price",
+      verdict: "thin",
+      depth: "equity",
+      unit: "usd",
+      action: "call",
+      potBefore: 12,
+      toCall: 4,
+      equityPct: 40,
+      potOddsPct: 25,
+    }).toLowerCase();
+    expect(s).toContain("just about worth it");
+  });
+});
+
+describe("iter-18 MAJOR: escalated made-hand value bet copy drops 'value bet' framing", () => {
+  const madeHand = { category: 1, label: "top pair" };
+  const escalated = (depth: CoachingDepth): ExplainParams => ({
+    kind: "aggression",
+    verdict: "mistake",
+    depth,
+    unit: "usd",
+    action: "bet",
+    potBefore: 12,
+    toCall: 0,
+    equityPct: 20,
+    potOddsPct: 0,
+    madeHand,
+    ev: { fold: 0, call: 2.4, raise: -4.8 },
+  });
+
+  it("equity depth: names the made hand, says checking is clearly better and the bet loses money", () => {
+    const s = buildExplanation(escalated("equity")).toLowerCase();
+    expect(s).toContain("top pair");
+    expect(s).toContain("checking is clearly better");
+    expect(s).toContain("loses money");
+    expect(s).not.toContain("this is a value bet");
+    expect(s).not.toContain("thin, vulnerable");
+  });
+
+  it("conceptual depth: plain words, says checking was better and it loses money, no 'value bet'", () => {
+    const s = buildExplanation(escalated("conceptual")).toLowerCase();
+    expect(s).toContain("top pair");
+    expect(s).toContain("checking was clearly better");
+    expect(s).toContain("loses money");
+    expect(s).not.toContain("this is a value");
+  });
+});

@@ -36,6 +36,10 @@ button { font: inherit; cursor: pointer; }
   padding: 8px 16px;
   font-weight: 600;
   line-height: 1.1;
+  /* Keep a short pill label (e.g. "New hand" / "New table") on ONE line so it never wraps to two
+     inside its pill at narrow widths like 600px (iter-18 NIT #4). The labels are short, so this never
+     overflows/clips at the tested 600/700/800/1280/1366 widths. */
+  white-space: nowrap;
   transition: transform 80ms ease, background 120ms ease, border-color 120ms ease,
     box-shadow 120ms ease, color 120ms ease;
   box-shadow: var(--shadow-1);

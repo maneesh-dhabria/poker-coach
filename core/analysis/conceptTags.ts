@@ -35,6 +35,11 @@ export const CONCEPT_TAGS = [
   // value" (iter-17 #2). Replaces any value tag (made_hand_thin_value / thin_value_good) on the
   // low-equity gross-overbet MISTAKE path so the label never reads "Thin value" on a 9%-to-win hand.
   "oversize_no_value",
+  // A made-hand VALUE bet whose absolute EV is clearly negative AND materially worse than checking —
+  // not a near-break-even thin bet but a money-losing one (iter-18 MAJOR). Escalates the made-hand
+  // thin-value path from ⚠️ thin to ❌ mistake; replaces `made_hand_thin_value` so the copy/label never
+  // keeps calling a clearly -EV bet "thin value" / "this is a value bet". Maps to "Checking was better".
+  "value_bet_too_thin",
   "overfold_vs_aggression",
   "wrong_sizing",
   "preflop_chart_deviation",

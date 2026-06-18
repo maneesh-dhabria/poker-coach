@@ -530,3 +530,42 @@ describe("MentalMathSection — override (I count differently)", () => {
     expect(screen.getByTestId("mm-rule-hit").textContent).toBe("60%");
   });
 });
+
+describe("MentalMathSection — good-check made-hand wording fits the ✅ verdict (iter-18 NIT #3)", () => {
+  // Top pair (Q), no draw, hero CHECKED a free street → a ✅ Good check. The no-draw made-hand line
+  // must NOT call the action "marginal here" (which undercut the positive verdict); it should say the
+  // hand isn't strong enough to bet for value, so checking is fine.
+  const frozenGoodCheck = {
+    hole: [c("Qh"), c("4d")] as [Card, Card],
+    board: [c("Qc"), c("Ts"), c("6c")] as Card[],
+    street: "flop" as const,
+    potBefore: 20,
+    toCall: 0,
+    numActiveOpponents: 2,
+    madeHand: { category: 2, label: "top pair" },
+    heroAction: "check" as const,
+  };
+
+  it("a ✅ good check of top pair: says checking is fine, not 'it's marginal here'", () => {
+    setFlow(fakeFlow());
+    render(<MentalMathSection enabled verdictEquityPct={38} frozen={frozenGoodCheck} />);
+    const note = screen.getByTestId("mm-note").textContent ?? "";
+    expect(note.toLowerCase()).toContain("top pair");
+    expect(note.toLowerCase()).toContain("not strong enough to bet for value");
+    expect(note.toLowerCase()).toContain("checking is fine");
+    expect(note.toLowerCase()).not.toContain("marginal here");
+  });
+
+  it("a made-hand bet/call spot (not a good check) keeps the neutral 'marginal here' wording", () => {
+    setFlow(fakeFlow());
+    render(
+      <MentalMathSection
+        enabled
+        verdictEquityPct={38}
+        frozen={{ ...frozenGoodCheck, toCall: 8, heroAction: "call" }}
+      />,
+    );
+    const note = screen.getByTestId("mm-note").textContent ?? "";
+    expect(note.toLowerCase()).toContain("marginal here");
+  });
+});

@@ -692,3 +692,38 @@ describe("FeedbackPanel — assumed-range context is legible near equity (iter-0
     expect(note).toMatch(/not their actual cards/i);
   });
 });
+
+describe("FeedbackPanel — borderline thin call shows ONE coherent message (iter-18 MINOR #1)", () => {
+  it("a borderline thin call's whyLine says about break-even, not 'you come up short … loses money'", () => {
+    // 28% equity vs ~29% need → ⚠️ thin and borderline (within the 3-pt band).
+    const a = analyze({ action: "call", potBefore: 60, toCall: 24, equityPct: 28, unit: "usd" });
+    expect(a.verdict).toBe("thin");
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "flop", potBefore: 60, toCall: 24, action: "call" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/about break-even/i);
+    expect(text).toMatch(/roughly equal/i);
+    // The headline and the equity-bar line must AGREE — neither the grim nor the upbeat split survives.
+    expect(text).not.toMatch(/you come up short, so this loses money over time/i);
+    expect(text).not.toMatch(/just about worth it/i);
+  });
+
+  it("a CLEARLY-short call (not borderline) keeps the 'come up short … loses money' whyLine", () => {
+    // 16% equity vs ~29% need → a ❌ mistake, well outside the borderline band: keep the honest grim line.
+    const a = analyze({ action: "call", potBefore: 60, toCall: 24, equityPct: 16, unit: "usd" });
+    render(
+      <FeedbackPanel
+        analysis={a}
+        enabled
+        context={{ street: "flop", potBefore: 60, toCall: 24, action: "call" }}
+      />,
+    );
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/loses money over time/i);
+  });
+});

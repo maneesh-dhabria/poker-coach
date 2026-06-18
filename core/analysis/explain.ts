@@ -250,7 +250,15 @@ function price(p: ExplainParams): string {
     return p.action === "fold"
       ? `${lead} Folding is right — you don't have the odds${close ? ", though it's close" : ""}.`
       : `${lead} ${close ? "A call — though it's close, you're just on the right side of the price." : "Easy call — you're getting a great price."}`;
-  if (p.verdict === "thin") return `${lead} Close, but just about worth it.`;
+  // A ⚠️ thin price-call. When it's genuinely BORDERLINE (equity within a few points of the need, so
+  // EV ≈ 0) present ONE coherent "about break-even" message rather than an upbeat "just about worth it"
+  // headline that then clashes with the equity-bar "you come up short, this loses money" line (iter-18
+  // MINOR #1). Outside the borderline band (a thin call that's clearly the worse side) keep the honest
+  // "close, but just about worth it" wording. The equity-bar whyLine is reconciled to match (FeedbackPanel).
+  if (p.verdict === "thin")
+    return isBorderlinePrice(p.equityPct, p.potOddsPct)
+      ? `${lead} Close — this is about break-even, so calling and folding are roughly equal here.`
+      : `${lead} Close, but just about worth it.`;
   return p.action === "fold"
     ? `${lead} That's a clear call — folding here costs you money.`
     : `${lead} You're calling too wide — fold and save the chips.`;
@@ -404,6 +412,13 @@ function aggression(p: ExplainParams): string {
         ? `You have ${p.madeHand.label}, but this ${noun} is far too small to get value — it charges draws almost nothing and barely builds the pot. Size up to get paid while you're in front.`
         : `You have ${p.madeHand.label} — some showdown value — but this ${noun} is far too small to get value or charge draws. Size up so the bet actually does its job.`
       : `You're ahead with ~${win}%, but this ${noun} is far too small — it charges draws almost nothing and barely builds the pot. Size up to get paid while you're in front.`;
+  // A made-hand value bet that the verdict ESCALATED to a ❌ mistake because its EV is clearly negative
+  // and materially worse than checking (iter-18 MAJOR). It must NOT keep reading "this is a value bet"
+  // / "thin value" — checking was clearly the better line and this bet loses money. Builds on the
+  // iter-16 EV-aware "checking rates higher" copy, strengthened for the mistake case. Gated on the
+  // mistake verdict so a genuinely break-even made-hand thin bet keeps the ⚠️ copy just below.
+  if (p.madeHand && p.verdict === "mistake")
+    return `You have ${p.madeHand.label}, but multiway on a dangerous board your ~${win}% to win is too low to bet for value — checking is clearly better here, and this ${noun} loses money on average.`;
   // A made hand with low equity is never a "bluff with no equity" (iter-06 #1): it has real showdown
   // value, so the low win% is about being multiway on a dangerous board, not about having nothing.
   // This takes precedence over the generic thin copy so the made hand is always named, not hidden.
@@ -494,7 +509,10 @@ function conceptual(p: ExplainParams): string {
             ? "You're just on the right side of the price here, so calling is fine — though it's close."
             : "You're getting a good price here — your hand wins often enough relative to the call, so it's an easy continue.";
       }
-      if (p.verdict === "thin") return "It's close, but just about worth continuing.";
+      if (p.verdict === "thin")
+        return isBorderlinePrice(p.equityPct, p.potOddsPct)
+          ? "It's about break-even here — calling and folding are roughly equal."
+          : "It's close, but just about worth continuing.";
       return p.action === "fold"
         ? "This was a spot to keep going, not fold."
         : "You're continuing too loosely here — folding is cleaner.";
@@ -529,6 +547,11 @@ function conceptual(p: ExplainParams): string {
             ? `You have ${p.madeHand.label}, but that ${raising ? "raise" : "bet"} is far too small to get value — it barely charges draws or builds the pot. Make it bigger so you actually get paid while you're in front.`
             : `You have ${p.madeHand.label} — some showdown value — but that ${raising ? "raise" : "bet"} is far too small to do its job. Make it bigger so it charges draws and builds the pot.`
           : `You're ahead, but that ${raising ? "raise" : "bet"} is far too small — it barely charges draws or builds the pot. Make it bigger so you actually get paid while you're in front.`;
+      // A made-hand value bet escalated to a ❌ mistake (clearly -EV, worse than checking) — plain
+      // words, no numbers (iter-18 MAJOR). Don't call it "value": say checking was better and this
+      // loses money. Gated on the mistake verdict so a break-even made-hand thin bet keeps the line below.
+      if (p.madeHand && p.verdict === "mistake")
+        return `You have ${p.madeHand.label}, but multiway on a dangerous board it's too weak to bet for value here — checking was clearly better, and this ${raising ? "raise" : "bet"} loses money on average.`;
       // A made hand still has showdown value — never call it a bluff/"nothing here" (iter-06 #1).
       // Checked first (and for the vulnerable low-equity case) so the made hand is always named.
       if (p.madeHand && p.equityPct < 33)

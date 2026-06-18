@@ -396,3 +396,26 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     });
   });
 });
+
+describe("HandRecap — prominent net result so a big all-in win is explained (iter-18 MINOR #2)", () => {
+  it("renders the won amount as a prominent, bold, coloured result headline", () => {
+    const decisions = [
+      decision("preflop", "raise", 216, { action: "raise", potBefore: 3, toCall: 0, equityPct: 55 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={792} />);
+    const result = screen.getByTestId("recap-result");
+    expect(result.textContent).toMatch(/you won \$792/i);
+    expect(result).toHaveStyle({ fontWeight: "700" });
+    expect(result).toHaveStyle({ color: "var(--good)" });
+  });
+
+  it("colours a loss with the mistake colour on the result headline", () => {
+    const decisions = [
+      decision("flop", "call", 8, { action: "call", potBefore: 20, toCall: 8, equityPct: 30 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={-18} />);
+    const result = screen.getByTestId("recap-result");
+    expect(result.textContent).toMatch(/you lost \$18/i);
+    expect(result).toHaveStyle({ color: "var(--mistake)" });
+  });
+});

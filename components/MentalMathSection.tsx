@@ -310,7 +310,7 @@ export function MentalMathSection({
           )}
           {estimate.status === "no-draw" && (
             <>
-              <Note>{noDrawSummary(estimate, trueWinPct)}</Note>
+              <Note>{noDrawSummary(estimate, trueWinPct, frozen?.heroAction === "check" && (frozen?.toCall ?? input.toCall) <= 0)}</Note>
               <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
             </>
           )}
@@ -695,15 +695,29 @@ function madeHandLine(
 
 // The no-draw headline (iter-07 #2b). A made hand with no extra outs is "often ahead" only when the
 // unified win-% is high; otherwise it's marginal and the copy must track the equity, not over-claim.
-function noDrawSummary(estimate: MentalEstimate, trueWinPct: number | null): string {
+function noDrawSummary(
+  estimate: MentalEstimate,
+  trueWinPct: number | null,
+  // True when the hero CHECKED a free street with this made hand (iter-18 NIT #3). A check there is a
+  // ✅ good decision, so the generic "it's marginal here" undercut the verdict — frame it as "not strong
+  // enough to bet for value, so checking is fine" to fit the positive grade. Optional/false ⇒ unchanged.
+  goodCheck = false,
+): string {
   if (estimate.madeHand) {
     if (trueWinPct == null) {
       return `No extra outs to count — you already have ${estimate.madeHand.label}. See the true win % below.`;
     }
     const win = Math.round(trueWinPct);
-    return trueWinPct >= AHEAD_THRESHOLD_PCT
-      ? `No extra outs to count — but you already have ${estimate.madeHand.label} and win ~${win}%, so you're often ahead already.`
-      : `No extra outs to count — you have ${estimate.madeHand.label}, but at ~${win}% to win it's marginal here.`;
+    if (trueWinPct >= AHEAD_THRESHOLD_PCT) {
+      return `No extra outs to count — but you already have ${estimate.madeHand.label} and win ~${win}%, so you're often ahead already.`;
+    }
+    // A good CHECK of this made hand: don't call the ACTION "marginal" (which read as criticism next to
+    // a ✅ Good verdict, iter-18 NIT #3). Say the hand isn't strong enough to bet for value, so checking
+    // is fine — matching the verdict. The bet/call spots keep the neutral "it's marginal here" wording.
+    if (goodCheck) {
+      return `No extra outs to count — you have ${estimate.madeHand.label}, but at ~${win}% it's not strong enough to bet for value, so checking is fine.`;
+    }
+    return `No extra outs to count — you have ${estimate.madeHand.label}, but at ~${win}% to win it's marginal here.`;
   }
   return estimate.plainSummary;
 }

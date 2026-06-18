@@ -227,7 +227,9 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
   // iter-06 #1: a MADE hand (two pair) bet at low multiway equity is VALUE, not a no-equity bluff.
   // The tag/verdict must NOT be bluff_no_equity, and the explanation must not say "bluff"/"no equity".
   it("does NOT tag a low-equity MADE-hand bet as a no-equity bluff (#1)", () => {
-    // 4s2s on a 3s4c3d flop = two pair (fours & threes); ~18% multiway vs 5 all-ins.
+    // 4s2s on a 3s4c3d flop = two pair (fours & threes); ~18% multiway vs 5 all-ins. A SMALL bet keeps
+    // the EV near break-even so it stays a ⚠️ thin VALUE bet (a clearly-losing one now escalates to a
+    // mistake — see the iter-18 MAJOR tests below). The point here is only that it's never a "bluff".
     const a = analyze({
       action: "bet",
       potBefore: 32,
@@ -237,6 +239,7 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
       numActiveOpponents: 5,
       hole: ["4s", "2s"],
       board: ["3s", "4c", "3d"],
+      raiseToExtra: 10, // a small bet → EV ≈ −0.3 BB, near break-even, so it stays ⚠️ thin value
     });
     expect(a.conceptTags).not.toContain("bluff_no_equity");
     expect(a.conceptTags).toContain("made_hand_thin_value");
@@ -263,6 +266,78 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     const lower = a.plainExplanation.toLowerCase();
     expect(lower).not.toContain("bluff");
     expect(lower).toContain("two pair");
+  });
+
+  // iter-18 MAJOR — calibration anchor #1 (STAYS thin): a made-hand VALUE bet whose absolute EV is only
+  // SLIGHTLY negative (≈ −0.5 BB, near break-even) stays ⚠️ thin. The iter-17 reviewer explicitly
+  // accepted a thin value bet at ≈ −0.5 BB as correctly "thin"; the threshold must keep it there.
+  it("a made-hand value bet at ≈ −0.5 BB (near break-even) STAYS ⚠️ thin (MAJOR anchor)", () => {
+    // 5h5c on 9d 5s 2c → bottom set's not it; here a paired 5 = a pair (made hand). eq 25% multiway.
+    // check EV = 0.25×20 = +$5; a small bet → bet EV ≈ −$1 (≈ −0.5 BB): clearly worse? no — within the
+    // loss band, so it must remain a thin value bet, not escalate.
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 25,
+      street: "flop",
+      numActiveOpponents: 3,
+      hole: ["5h", "5c"],
+      board: ["9d", "5s", "2c"],
+      raiseToExtra: 12, // bet EV ≈ −$1 ≈ −0.5 BB
+    });
+    expect(a.numbers.ev.raise).toBeCloseTo(-1, 0); // ≈ −0.5 BB on the $1/$2 table
+    expect(a.verdict).toBe("thin"); // stays ⚠️ thin — near break-even
+    expect(a.conceptTags).toContain("made_hand_thin_value");
+    expect(a.conceptTags).not.toContain("value_bet_too_thin");
+    expect(a.plainExplanation.toLowerCase()).toContain("value"); // still framed as a value bet
+  });
+
+  // iter-18 MAJOR — calibration anchor #2 (ESCALATES to mistake): the exact iter-18 Hand-6 spot — top
+  // pair on a wet multiway board, check +1.2 BB vs bet −2.4 BB (3.6 BB worse AND clearly negative).
+  // This must grade ❌ mistake (tally as a mistake) and NOT keep calling it "this is a value bet".
+  it("a top-pair value bet at ≈ −2.4 BB (check positive) ESCALATES to ❌ mistake (MAJOR anchor)", () => {
+    // 6h Js on 6c 3c 2d → top pair (the 6), J kicker; ~20% multiway. check EV = 0.20×12 = +$2.4 (+1.2
+    // BB); a half-pot-plus bet → bet EV ≈ −$4.8 (−2.4 BB) — 3.6 BB worse than checking and clearly -EV.
+    const a = analyze({
+      action: "bet",
+      potBefore: 12,
+      toCall: 0,
+      equityPct: 20,
+      street: "flop",
+      numActiveOpponents: 3,
+      hole: ["6h", "Js"],
+      board: ["6c", "3c", "2d"],
+      raiseToExtra: 12, // bet EV ≈ −$4.8 ≈ −2.4 BB
+    });
+    expect(a.numbers.ev.call).toBeCloseTo(2.4, 1); // CHECK row: +1.2 BB
+    expect(a.numbers.ev.raise).toBeCloseTo(-4.8, 1); // BET row: −2.4 BB
+    expect(a.verdict).toBe("mistake"); // escalated — clearly money-losing, worse than checking
+    expect(a.severity).toBe(2);
+    expect(a.conceptTags).toContain("value_bet_too_thin");
+    expect(a.conceptTags).not.toContain("made_hand_thin_value");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("this is a value bet");
+    expect(lower).not.toContain("thin value");
+    expect(lower).toContain("checking is clearly better");
+    expect(lower).toContain("loses money");
+  });
+
+  // iter-18 MAJOR — the escalated bet must TALLY as a mistake (HandRecap.counts buckets off verdict).
+  it("the escalated thin-value bet tallies as a mistake, not thin (MAJOR)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 12,
+      toCall: 0,
+      equityPct: 20,
+      street: "flop",
+      numActiveOpponents: 3,
+      hole: ["6h", "Js"],
+      board: ["6c", "3c", "2d"],
+      raiseToExtra: 12,
+    });
+    // The bucket HandRecap.counts() tallies on is analysis.verdict.
+    expect(a.verdict).toBe("mistake");
   });
 
   // iter-09 #6b: reserve "bluff_no_equity" for genuinely tiny equity (< ~20%). A ~20–33% air-shove

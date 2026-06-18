@@ -120,7 +120,22 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       ? input.raiseToAmount / potBefore
       : undefined;
 
-  const branch = route(input, madeHand, openSizeBb, betPotFraction, betPotMultiple);
+  // One big blind in dollars, derived from the blinds threaded through the flow (iter-18 MAJOR): the
+  // made-hand thin→mistake escalation below is denominated in BB, so we need a robust 1-BB figure.
+  // Prefer the explicit bigBlind; else infer it as 2× the smallBlind; else fall back to the $1/$2
+  // table's $2 (the app's only table today). Always ≥ a sane floor so we never divide by ~0.
+  const oneBigBlind =
+    input.bigBlind && input.bigBlind > 0
+      ? input.bigBlind
+      : input.smallBlind && input.smallBlind > 0
+        ? input.smallBlind * 2
+        : FALLBACK_BIG_BLIND;
+
+  const branch = escalateThinValueIfLosing(
+    route(input, madeHand, openSizeBb, betPotFraction, betPotMultiple),
+    ev,
+    oneBigBlind,
+  );
 
   const plainExplanation = buildExplanation({
     kind: branch.kind,
@@ -216,6 +231,56 @@ const PREFLOP_OVERBET_POT_MULTIPLE = 8;
 // hand (e.g. a 9%-equity underpair) is still a low-equity spew when it ships a 6×-pot overbet, so the
 // prior `madeHand == null` carve-out is dropped — it wrongly spared exactly that case (iter-17 #1).
 const OVERBET_VALUE_EQUITY_PCT = 50;
+
+// The $1/$2 table's big blind, used only as a last-resort fallback when no blinds are threaded into
+// analyze (older/card-less callers). Today the app has exactly one table ($1/$2 ⇒ 1 BB = $2).
+const FALLBACK_BIG_BLIND = 2;
+
+// A made-hand VALUE bet (the `made_hand_thin_value` path) is "thin" only while its absolute EV is
+// near break-even (iter-18 MAJOR). Once the bet bleeds CLEARLY-negative money it is a ❌ mistake, not a
+// soft ⚠️ thin "value bet". The discriminator is the BET's absolute EV magnitude (how much it loses),
+// NOT merely the gap vs checking — so a barely-negative thin bet stays thin. Threshold: 1.5 BB. This
+// puts the reviewer's two real data points on the right sides: a value bet at ≈ −0.5 BB (iter-17,
+// explicitly accepted as thin) stays ⚠️ thin; the iter-18 case at ≈ −2.4 BB becomes ❌ mistake.
+const THIN_VALUE_LOSS_BB = 1.5;
+
+// In addition to the absolute-loss gate, the bet must be MATERIALLY worse than the best alternative
+// (checking — `ev.call` is the CHECK row when facing no bet) by more than the EV noise margin (≈ 1 BB
+// on the $1/$2 table). So a clearly-negative bet that is only a hair below a (still-negative) check is
+// not escalated — only one that is both money-losing AND meaningfully worse than checking.
+const EV_RECONCILE_MARGIN = 2;
+
+// Escalate a made-hand thin-VALUE bet from ⚠️ thin to ❌ mistake when the chosen aggressive action's
+// EV is CLEARLY negative (beyond −THIN_VALUE_LOSS_BB) AND materially worse than checking (iter-18
+// MAJOR). Keeps genuinely break-even / slightly-negative thin value bets as ⚠️ thin. Only ever touches
+// the made-hand thin-value path (tag `made_hand_thin_value`, verdict thin); every other branch passes
+// through unchanged. When escalated, the value tag/label is dropped for a coherent mistake framing
+// (`value_bet_too_thin` → "Checking was better"), so the copy never keeps calling it "value".
+function escalateThinValueIfLosing(
+  branch: Branch,
+  ev: { fold: number; call: number; raise: number },
+  bigBlind: number,
+): Branch {
+  if (branch.verdict !== "thin" || !branch.conceptTags.includes("made_hand_thin_value")) {
+    return branch;
+  }
+  // A grossly UNDER-sized thin bet is a SIZE problem (bet_too_small), not a money-bleeding overbet —
+  // its tiny stake can't lose much, and the right lesson is "size up", not "checking was better". Leave
+  // that path as ⚠️ thin so the size critique stands.
+  if (branch.flagUndersize) return branch;
+  const lossThreshold = -THIN_VALUE_LOSS_BB * bigBlind;
+  const clearlyLosing = ev.raise < lossThreshold;
+  const worseThanCheck = ev.raise < ev.call - EV_RECONCILE_MARGIN;
+  if (!clearlyLosing || !worseThanCheck) return branch;
+  return {
+    ...branch,
+    verdict: "mistake",
+    severity: 2,
+    conceptTags: branch.conceptTags
+      .filter((t) => t !== "made_hand_thin_value")
+      .concat("value_bet_too_thin"),
+  };
+}
 
 // Apply the gross-overbet SIZE critique on top of an aggression-branch result (iter-13 #2). The
 // direction/equity grade is kept; the size is flagged with a ⚠️ (a ✅ value bet downgrades to ⚠️

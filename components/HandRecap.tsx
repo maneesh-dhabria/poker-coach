@@ -250,8 +250,29 @@ export function HandRecap({
           user think the hand has ended (finding #3). The decision list above stays live. */}
       {handComplete ? (
         <>
-          <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 12 }}>
-            {resultLine(heroNet, displayUnit, conceptual)} For a deeper plain-language write-up of this hand, run{" "}
+          {/* Prominent net result (iter-18 MINOR #2): a big multiway all-in win can jump the stack
+              hundreds of dollars, and a quiet grey "Result: you won $X." line didn't obviously account
+              for it. Surface the net amount as a bold, coloured headline so the stack change is always
+              clearly explained. The follow-on /poker-coach pointer stays in the muted line below. */}
+          <p
+            data-testid="recap-result"
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              marginTop: 12,
+              marginBottom: 0,
+              color:
+                (heroNet ?? 0) > 0
+                  ? "var(--good)"
+                  : (heroNet ?? 0) < 0
+                    ? "var(--mistake)"
+                    : "var(--ink)",
+            }}
+          >
+            {resultLine(heroNet, displayUnit, conceptual)}
+          </p>
+          <p style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 6 }}>
+            For a deeper plain-language write-up of this hand, run{" "}
             <code>/poker-coach last</code> in your terminal, then open the Coaching panel and hit Refresh.
           </p>
 

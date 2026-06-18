@@ -29,6 +29,9 @@ const TAG_LABELS: Record<string, string> = {
   // A low-equity gross overbet is an oversized punt/bluff, not "thin value" — the chip says so plainly
   // alongside the "Oversized" chip (iter-17 #2).
   oversize_no_value: "No value",
+  // A made-hand value bet escalated to ❌ mistake because it's clearly -EV and worse than checking
+  // (iter-18 MAJOR) — the chip says checking was the better line, never "Thin value".
+  value_bet_too_thin: "Checking was better",
   call_too_wide: "Called too wide",
   played_too_wide: "Played too wide",
   fold_too_tight: "Folded too tight",
@@ -130,10 +133,20 @@ function EquityBar({ equityPct, neededPct }: { equityPct: number; neededPct: num
 // only meaningful when the hero is facing a bet and deciding whether to continue (call). It must
 // NEVER be shown for a bet/raise — there "need ~0%" is meaningless and "continuing makes money over
 // time" directly contradicts a ❌ bet verdict (iter-03 #2). The caller gates this with `isCallSpot`.
-function whyLine(eq: number, need: number | null): string {
+// A price decision is "borderline" when equity is within a few points of the break-even need — kept in
+// sync with explain.ts's BORDERLINE_PRICE_MARGIN (iter-18 MINOR #1).
+const BORDERLINE_PRICE_MARGIN = 3;
+
+function whyLine(eq: number, need: number | null, verdict: DecisionAnalysis["verdict"]): string {
   if (need === null) return "";
   const win = Math.round(eq);
   const n = Math.round(need);
+  // A genuinely BORDERLINE ⚠️ thin call (equity a hair under the need, EV ≈ 0) must NOT read "you come
+  // up short, so this loses money over time" — that grim line clashes with the headline's "about
+  // break-even" (iter-18 MINOR #1). Present ONE coherent break-even message that matches the headline.
+  if (verdict === "thin" && Math.abs(eq - need) <= BORDERLINE_PRICE_MARGIN) {
+    return `You win ~${win}% and need ~${n}% — that's about break-even, so calling and folding are roughly equal here.`;
+  }
   if (eq >= need) {
     return `You win ~${win}% but only need ~${n}% — that gap is why continuing makes money over time.`;
   }
@@ -375,7 +388,7 @@ export function FeedbackPanel({
             {showWhyLine ? ` · need ~${Math.round(need!)}%` : ""}
           </div>
           {showWhyLine && (
-            <p style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{whyLine(eq, need)}</p>
+            <p style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>{whyLine(eq, need, analysis.verdict)}</p>
           )}
           {/* Make the assumed-range context legible right next to the equity figure, so a surprising
               number (e.g. queen-high ~47% vs a wide calling-station range) reads as "vs a range",
