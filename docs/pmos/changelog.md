@@ -3,6 +3,39 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.21.0] — 2026-06-18
+
+### Reviewer-iteration-16 fixes — the words and the tally now agree with the dollar EV
+
+A sixteenth independent first-time-user playtest (`docs/playtest/reviews/iter-16.md`) again
+found **zero major or flow issues** and validated the decision-over-results grading, the depth
+modes, mid-hand switching, the pot-odds engine, and the references. Three small consistency
+gaps remained — each a case where the verdict *prose* or the hand-review *tally* didn't line up
+with the (correct) dollar EV shown under "Show the numbers." This release reconciles them.
+Coaching copy + grade-bucket only; no equity/EV/pot-odds math changed; no `HandRecord` schema change.
+
+### Fixed
+
+- **A ✅-good action whose displayed EV is a tie-or-tiny-loss now explains itself.** An
+  isolation raise over limpers was correctly graded "✅ Good," but "Show the numbers" showed
+  raise −$1 vs fold $0 with no reconciliation — reading as a contradiction. When a good verdict's
+  chosen action is within ~1 BB of (or modestly below) the best alternative, the panel now notes
+  these are rough equity-only averages so a gap that small is within the estimate's noise, and —
+  for an isolation/aggressive line — that the raise also wins the pot outright often (fold equity)
+  which the showdown-EV figure doesn't capture. The number isn't doctored; it's explained
+  (`core/analysis/explain.ts`).
+- **A ⚠️-thin bet that the EV says is clearly worse than checking is no longer called "fine."**
+  A thin top-pair bet was described "fine as value or a semi-bluff" while the EV showed checking
+  materially higher. When betting's EV is meaningfully below checking's, the copy now says
+  checking rates higher on average and the bet is marginal-to-slightly-losing; a genuinely
+  EV-neutral thin bet keeps the softer "fine" wording. The ⚠️ thin verdict is unchanged
+  (`core/analysis/explain.ts`).
+- **A reckless low-equity overbet now tallies as a mistake, not "thin."** A 100 BB shove with a
+  weak hand was flagged ⚠️ Oversized but counted under "thin" in the hand-review tally. The
+  gross-overbet grade is now equity-aware: an oversized bet/shove made while behind with no made
+  hand (a spew) grades ❌ mistake and tallies as one, while an oversized bet made while ahead (a
+  value overbet — "you're ahead, size down") keeps its ⚠️ treatment (`core/analysis/analyze.ts`).
+
 ## [0.20.0] — 2026-06-18
 
 ### Reviewer-iteration-15 polish — a clean playtest, four small clarity touches
