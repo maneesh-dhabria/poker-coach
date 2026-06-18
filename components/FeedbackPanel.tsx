@@ -240,9 +240,13 @@ export function FeedbackPanel({
   // single source). What VARIES by depth is how much numeric scaffolding we surface around it:
   //   • conceptual — plain words only: NO equity %, NO "chart-based" badge, NO concept-tag jargon.
   //   • equity     — lead with the win-rate: show the equity bar + %, the EV table, the why-line.
-  //   • strict     — the chart/GTO citation (already in the plain sentence); the "chart-based" badge
-  //                  is allowed, but we do NOT surface raw equity %s (they belong to the equity tier).
-  const showEquity = depth === "equity";
+  //   • strict     — the chart/GTO citation (already in the plain sentence) PLUS the equity bar + the
+  //                  numeric EV scaffolding, the SAME as equity. Strict is a NUMBERS depth (only
+  //                  Conceptual is digit-free), and its plain sentence already shows inline ~%/~× — so
+  //                  hiding the equity bar in Strict while keeping inline numbers was an inconsistency
+  //                  (iter-19 MINOR #3). Both equity and strict surface the numeric block; only
+  //                  Conceptual stays fully digit-free.
+  const showEquity = depth === "equity" || depth === "strict";
   const showJargon = depth !== "conceptual"; // badge + concept-tag chips are chart/odds jargon
   const eq = analysis.numbers.equityPct;
   const need = analysis.numbers.potOddsPct;

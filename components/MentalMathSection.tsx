@@ -250,6 +250,11 @@ export function MentalMathSection({
   // Equity + Strict depths.
   if (conceptual) return null;
 
+  // True when the hero CHECKED a free street (no bet to call) — the graded line on a check-is-better
+  // spot (iter-19 MINOR #1). Threaded into the dollar-EV note so it endorses the check rather than
+  // reading as bet advice. Mirrors the goodCheck flag the no-draw summary already uses.
+  const heroChecked = frozen?.heroAction === "check" && (frozen?.toCall ?? input.toCall) <= 0;
+
   const handContext =
     estimate.status === "ok" && input.hole
       ? `${input.hole.join(" ")} · ${input.board.join(" ")} · ${estimate.street}`
@@ -305,13 +310,13 @@ export function MentalMathSection({
           {estimate.status === "river" && (
             <>
               <Note>No cards left to come on the river — you either have your hand or you don&apos;t.</Note>
-              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
+              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} heroChecked={heroChecked} />
             </>
           )}
           {estimate.status === "no-draw" && (
             <>
-              <Note>{noDrawSummary(estimate, trueWinPct, frozen?.heroAction === "check" && (frozen?.toCall ?? input.toCall) <= 0)}</Note>
-              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
+              <Note>{noDrawSummary(estimate, trueWinPct, heroChecked)}</Note>
+              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} heroChecked={heroChecked} />
             </>
           )}
           {estimate.status === "ok" && (
@@ -325,6 +330,7 @@ export function MentalMathSection({
               betBeatsCheck={betBeatsCheck}
               actionEv={actionEv}
               heroBet={frozen?.heroAction === "bet" || frozen?.heroAction === "raise"}
+              heroChecked={heroChecked}
               outsOverride={outsOverride}
               setOutsOverride={setOutsOverride}
               showOverride={showOverride}
@@ -347,6 +353,7 @@ function Steps({
   betBeatsCheck,
   actionEv,
   heroBet,
+  heroChecked,
   outsOverride,
   setOutsOverride,
   showOverride,
@@ -363,6 +370,9 @@ function Steps({
   // Whether the hero actually bet/raised this free street (iter-13 #1) — threaded into conclusionFrom
   // so Step 6 reconciles with a ❌/⚠️ bet verdict instead of saying "just take the free card".
   heroBet?: boolean;
+  // Whether the hero CHECKED a free street that's the graded line (iter-19 #1) — threaded into the
+  // dollar-EV note so a good-check spot endorses checking rather than reading as bet advice.
+  heroChecked?: boolean;
   outsOverride: number | null;
   setOutsOverride: (n: number | null) => void;
   showOverride: boolean;
@@ -582,7 +592,7 @@ function Steps({
           );
         })()}
 
-      <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
+      <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} heroChecked={heroChecked} />
     </div>
   );
 }
@@ -593,12 +603,19 @@ function TrueEquityCheck({
   input,
   displayUnit,
   actionEv,
+  heroChecked = false,
 }: {
   estimate: MentalEstimate;
   trueWinPct: number | null;
   input: MentalInput;
   displayUnit: "usd" | "bb";
   actionEv?: { fold: number; call: number; raise: number };
+  // True when the hero CHECKED a free street (no bet to call) and that check is the graded line
+  // (iter-19 MINOR #1). On a check-is-better spot a bare "Betting is worth $X" line — sitting right
+  // under a verdict that praises the CHECK — read like advice to bet. When this is set, the dollar-EV
+  // line names the CHECK value (ev.call) and contrasts it with betting (ev.raise) so it endorses the
+  // check it sits under. Optional/false ⇒ the existing bet/call wording is unchanged.
+  heroChecked?: boolean;
 }) {
   if (trueWinPct == null) return null;
 
@@ -607,7 +624,9 @@ function TrueEquityCheck({
   const potAfter = (estimate.potOdds?.potAfterCall ?? input.potBefore + input.toCall);
   // Match the dollar-EV verb to the ACTUAL action so the line never says "Calling" about a bet
   // (iter-08 #2). When there's a bet to call (toCall > 0) the hero is calling; with no bet to face
-  // (toCall === 0) the money goes in as a bet, so the EV is the value of betting.
+  // (toCall === 0) the money goes in as a bet, so the EV is the value of betting — UNLESS the hero
+  // CHECKED that free street and checking is the graded line (iter-19 #1), in which case the line is
+  // about CHECKING, contrasted with betting, so it endorses the check rather than reading as "bet".
   const evVerb = input.toCall > 0 ? "Calling" : "Betting";
   // Use the verdict's EV row that MATCHES the named action — the SAME figure the "Show the numbers"
   // table shows: a bet uses ev.raise, a call uses ev.call (iter-14 #8). Falling back to the
@@ -619,6 +638,13 @@ function TrueEquityCheck({
         ? actionEv.call
         : actionEv.raise
       : (trueWinPct / 100) * potAfter - input.toCall;
+  // A CHECK that's graded right (iter-19 #1): the EV note must endorse CHECKING, not betting. Use the
+  // CHECK row (ev.call — the going-forward value of checking, the SAME figure the "Show the numbers"
+  // check row shows) and contrast it with the bet row (ev.raise) so the line reads "checking is worth
+  // more than betting — so checking is right", never a bare "Betting is worth $X" under a check verdict.
+  const goodCheckEv = heroChecked && actionEv !== undefined;
+  const checkEv = actionEv?.call ?? evValue;
+  const betEv = actionEv?.raise ?? evValue;
 
   return (
     <div
@@ -654,7 +680,16 @@ function TrueEquityCheck({
           {displayUnit === "bb" ? "Show the BB EV ▸" : "Show the dollar EV ▸"}
         </summary>
         <p data-testid="mm-ev" style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>
-          {evVerb} is worth about {money(evValue, displayUnit)} on average (based on the true equity).
+          {goodCheckEv ? (
+            <>
+              Checking is worth about {money(checkEv, displayUnit)} on average — more than betting (
+              {money(betEv, displayUnit)}) — so checking is right (based on the true equity).
+            </>
+          ) : (
+            <>
+              {evVerb} is worth about {money(evValue, displayUnit)} on average (based on the true equity).
+            </>
+          )}
         </p>
       </details>
     </div>

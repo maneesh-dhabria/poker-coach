@@ -569,3 +569,55 @@ describe("MentalMathSection — good-check made-hand wording fits the ✅ verdic
     expect(note.toLowerCase()).toContain("marginal here");
   });
 });
+
+describe("MentalMathSection — good-check dollar-EV line endorses checking, not betting (iter-19 MINOR #1)", () => {
+  // The reviewer's Hand-3 turn: Ace-high CHECKED, verdict praised the check, but the dollar-EV row read
+  // only "Betting is worth about $14 on average" — looking like advice to BET. When the hero checked a
+  // free street and checking is the graded line, the line must name the CHECK value (ev.call) and
+  // contrast it with betting (ev.raise), endorsing the check.
+  const frozenGoodCheck = {
+    hole: [c("As"), c("Jd")] as [Card, Card],
+    board: [c("4s"), c("3s"), c("Qh"), c("9c")] as Card[], // Ace-high, no made hand, turn
+    street: "turn" as const,
+    potBefore: 36,
+    toCall: 0,
+    numActiveOpponents: 1,
+    madeHand: null,
+    heroAction: "check" as const,
+  };
+
+  it("names the CHECK value and reads as endorsing the check (check $17 > bet $14)", () => {
+    setFlow(fakeFlow());
+    render(
+      <MentalMathSection
+        enabled
+        verdictEquityPct={52}
+        actionEv={{ fold: 0, call: 17, raise: 14 }}
+        frozen={frozenGoodCheck}
+      />,
+    );
+    const ev = screen.getByTestId("mm-ev").textContent ?? "";
+    expect(ev).toMatch(/Checking is worth/);
+    expect(ev).toContain("$17"); // the CHECK row (ev.call)
+    expect(ev).toContain("$14"); // contrasted with the bet row (ev.raise)
+    expect(ev).toMatch(/so checking is right/i);
+    // It must NOT read as a bare "Betting is worth $14" recommendation under a check verdict.
+    expect(ev).not.toMatch(/^Betting is worth/);
+  });
+
+  it("a BET on a free street still says 'Betting is worth' (existing wording unchanged)", () => {
+    setFlow(fakeFlow());
+    render(
+      <MentalMathSection
+        enabled
+        verdictEquityPct={85}
+        actionEv={{ fold: 0, call: 17, raise: 27 }}
+        frozen={{ ...frozenGoodCheck, madeHand: { category: 4, label: "a set" }, heroAction: "bet" }}
+      />,
+    );
+    const ev = screen.getByTestId("mm-ev").textContent ?? "";
+    expect(ev).toMatch(/Betting is worth/);
+    expect(ev).toContain("$27");
+    expect(ev).not.toMatch(/Checking is worth/);
+  });
+});

@@ -107,6 +107,21 @@ function mostSevereFlagged(decisions: HeroDecisionRecord[]): HeroDecisionRecord 
   return best;
 }
 
+// Group consecutive hero decisions on the SAME street into one recap row (iter-19 NIT #4). A
+// check-then-fold on one street showed as two "Turn —" lines ("you checked" / "you then folded") —
+// accurate but busy. Grouping merges them into a single "Turn — you checked, then folded to a bet"
+// header while keeping every decision's icon + explanation inside the row, so no information is lost
+// and the count-of-streets reads naturally. A street the hero acted on once stays a single-item group.
+function groupBySameStreet(decisions: HeroDecisionRecord[]): HeroDecisionRecord[][] {
+  const groups: HeroDecisionRecord[][] = [];
+  for (const d of decisions) {
+    const last = groups[groups.length - 1];
+    if (last && last[last.length - 1].street === d.street) last.push(d);
+    else groups.push([d]);
+  }
+  return groups;
+}
+
 // A short, readable phrase naming the leak play for the "where the leak is" pointer (iter-14 #4):
 // e.g. "your turn bet of $185", "your preflop raise to $4", "your river call of $8". Conceptual stays
 // digit-free ("your turn bet"). Reads naturally inside the recap sentence.
@@ -129,6 +144,36 @@ function leakPlayPhrase(d: HeroDecisionRecord, unit: MoneyUnit, conceptual: bool
     default:
       return `your ${street} play`;
   }
+}
+
+// The going-forward EV of the action the hero actually CHOSE on a decision (iter-19 MINOR #2). Reads
+// the SAME numbers.ev rows the "Show the numbers" table shows — bet/raise → ev.raise (the BET/RAISE
+// row), call/check → ev.call (the CALL/CHECK row), fold → ev.fold. Used to decide whether the
+// won-with-a-flagged-play recap may honestly say the play "loses money on average": an oversized
+// bet/shove that's marginally +EV only because these bots over-fold must NOT claim −EV.
+function chosenActionEv(d: HeroDecisionRecord): number | null {
+  const ev = d.analysis.numbers?.ev;
+  if (!ev) return null;
+  switch (d.heroAction.action) {
+    case "bet":
+    case "raise":
+      return ev.raise;
+    case "call":
+    case "check":
+      return ev.call;
+    case "fold":
+      return ev.fold;
+    default:
+      return null;
+  }
+}
+
+// A flagged play is an OVERSIZED sizing/risk problem (iter-19 MINOR #2) when its tag says so — a
+// gross overbet/shove. When such a play WON and is marginally non-negative EV (only because these
+// bots over-fold), the recap frames it as a reckless SIZE, not "loses money on average".
+const OVERSIZE_TAGS = ["preflop_oversize", "oversize_bet", "oversize_no_value"];
+function isOversizedPlay(d: HeroDecisionRecord): boolean {
+  return d.analysis.conceptTags.some((t) => OVERSIZE_TAGS.includes(t));
 }
 
 export function HandRecap({
@@ -188,57 +233,73 @@ export function HandRecap({
       </div>
 
       <ol style={{ listStyle: "none", padding: 0, margin: "12px 0 0", display: "grid", gap: 10 }}>
-        {decisions.map((d, i) => {
-          const m = VERDICT_META[d.analysis.verdict];
-          // Disambiguate a 2nd+ hero action on the SAME street (e.g. bet then call a raise on the
-          // turn) so two "Turn —" rows don't read identically (iter-08 #6). Prefix the later one with
-          // "then" → "Turn — you then called …".
-          const sameStreetAsPrev = i > 0 && decisions[i - 1].street === d.street;
+        {groupBySameStreet(decisions).map((group, gi) => {
+          // Consecutive hero actions on one street merge into a single row (iter-19 NIT #4): one
+          // "Turn — you checked, then folded to a bet" header, each decision's icon + explanation
+          // kept below. The leading icon is the FIRST action's; a multi-action group shows each
+          // action's own icon next to its explanation so nothing is lost.
+          const first = group[0];
+          const m = VERDICT_META[first.analysis.verdict];
+          const conceptualRow = first.analysis.coachingDepth === "conceptual";
           return (
             <li
-              key={d.decisionId ?? i}
+              key={first.decisionId ?? gi}
               data-testid="recap-decision"
               style={{ display: "flex", gap: 10, alignItems: "flex-start" }}
             >
               <span
                 aria-hidden
-                style={{
-                  flex: "0 0 auto",
-                  width: 22,
-                  textAlign: "center",
-                  fontSize: 15,
-                  marginTop: 1,
-                }}
-                title={d.analysis.verdict}
+                style={{ flex: "0 0 auto", width: 22, textAlign: "center", fontSize: 15, marginTop: 1 }}
+                title={first.analysis.verdict}
               >
                 {m.icon}
               </span>
               <div style={{ display: "grid", gap: 2 }}>
                 <div style={{ fontWeight: 600 }}>
-                  <span style={{ color: m.color }}>{STREET_LABEL[d.street] ?? d.street}</span> — you{" "}
-                  {sameStreetAsPrev ? "then " : ""}
-                  {actionLabel(d.heroAction, displayUnit, d.analysis.coachingDepth === "conceptual")}
+                  <span style={{ color: m.color }}>{STREET_LABEL[first.street] ?? first.street}</span> — you{" "}
+                  {/* The merged action verbs as ONE contiguous text node ("checked, then folded to a
+                      bet") — not per-action spans — so a single-action row's "you called $2" stays one
+                      matchable string (iter-19 NIT #4). A fold that follows another action on the same
+                      street faced a bet → "then folded to a bet". */}
+                  {group
+                    .map((d, di) => {
+                      const verb = actionLabel(d.heroAction, displayUnit, d.analysis.coachingDepth === "conceptual");
+                      const tail = di > 0 && d.heroAction.action === "fold" ? " to a bet" : "";
+                      return `${di > 0 ? ", then " : ""}${verb}${tail}`;
+                    })
+                    .join("")}
                   {/* At conceptual depth ("plain words, no numbers") the recap row carries no digits
-                      either — drop the "· pot $X" amount (iter-10 #4). Per-decision depth, so a
-                      mixed-depth session still shows amounts on its equity/strict rows. */}
-                  {d.analysis.coachingDepth !== "conceptual" && (
+                      either — drop the "· pot $X" amount (iter-10 #4). The pot tag uses the FIRST
+                      action's pot (the pot when the street's first decision happened). */}
+                  {!conceptualRow && (
                     <span style={{ fontSize: 11, fontWeight: 400, color: "var(--ink-soft)", marginLeft: 6 }}>
-                      · pot {formatMoney(Math.round(d.spot.potBefore), displayUnit, BIG_BLIND)}
+                      · pot {formatMoney(Math.round(first.spot.potBefore), displayUnit, BIG_BLIND)}
                     </span>
                   )}
                   {/* "chart-based" is a Strict-mode badge (iter-04 #7) — only show it on a strict-depth
                       decision, matching the live feedback panel; honest only when gtoClaim. */}
-                  {d.analysis.gtoClaim && d.analysis.coachingDepth === "strict" ? (
+                  {first.analysis.gtoClaim && first.analysis.coachingDepth === "strict" ? (
                     <span style={{ fontSize: 11, color: "var(--ink-soft)", marginLeft: 6 }}>
                       chart-based
                     </span>
                   ) : null}
                 </div>
-                {/* Render the explanation sentence in the display unit (iter-04 #3) so a "you called
-                    54 BB" header never sits above a "$108 to win $560" dollar sentence. */}
-                <div style={{ fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.5 }}>
-                  {formatExplanation(d.analysis, displayUnit, BIG_BLIND)}
-                </div>
+                {/* Each decision's explanation sentence in the display unit (iter-04 #3). In a merged
+                    multi-action group, prefix each with its own verdict icon so the per-action grade is
+                    still visible after the actions were combined into one header. */}
+                {group.map((d, di) => (
+                  <div
+                    key={d.decisionId ?? di}
+                    style={{ fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.5 }}
+                  >
+                    {group.length > 1 ? (
+                      <span aria-hidden style={{ marginRight: 6 }} title={d.analysis.verdict}>
+                        {VERDICT_META[d.analysis.verdict].icon}
+                      </span>
+                    ) : null}
+                    {formatExplanation(d.analysis, displayUnit, BIG_BLIND)}
+                  </div>
+                ))}
               </div>
             </li>
           );
@@ -290,10 +351,32 @@ export function HandRecap({
           {/* Reconcile result vs verdict: winning a hand with a flagged decision feels contradictory,
               so spell out that the verdicts grade the decision, not this one outcome. */}
           {heroNet !== null && heroNet >= 0 && flagged ? (
-            <p data-testid="recap-reconcile" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
-              You won this hand, but the {leakIcon} above — {leakPhrase} — flags a play that loses money
-              on average; results swing hand to hand, so we grade the decision, not the outcome.
-            </p>
+            (() => {
+              // iter-19 MINOR #2: the "loses money on average" claim must be CONDITIONAL on the flagged
+              // play's displayed chosen-action EV actually being negative. An oversized bet/shove that's
+              // marginally +EV only because these specific bots over-fold (raise $1 vs fold $0) contradicts
+              // a literal −EV claim. When the flagged play's EV is non-negative AND it's an oversized
+              // play, frame it as a SIZING/RISK problem; otherwise keep the accurate "loses money" wording.
+              // The play is STILL graded a mistake and still flagged — only the EV-claim wording changes.
+              const leakEv = leak ? chosenActionEv(leak) : null;
+              const sizingFraming = leak != null && isOversizedPlay(leak) && leakEv != null && leakEv >= 0;
+              return (
+                <p data-testid="recap-reconcile" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
+                  {sizingFraming ? (
+                    <>
+                      You won this hand, but the {leakIcon} above — {leakPhrase} — flags a play whose size
+                      risked far more than it could win — it worked against these players, but it&apos;s a
+                      reckless size you can&apos;t rely on; we grade the decision, not the outcome.
+                    </>
+                  ) : (
+                    <>
+                      You won this hand, but the {leakIcon} above — {leakPhrase} — flags a play that loses
+                      money on average; results swing hand to hand, so we grade the decision, not the outcome.
+                    </>
+                  )}
+                </p>
+              );
+            })()
           ) : null}
 
           {/* The mirror case (finding #1): you LOST the hand but every graded decision was CLEAN — no

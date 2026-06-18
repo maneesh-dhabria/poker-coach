@@ -52,26 +52,47 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.getByText(/no money won or lost/i)).toBeInTheDocument();
   });
 
-  // iter-08 #6 — when the hero bets then calls a raise on the SAME street, the second same-street row
-  // is prefixed with "then" so two "Turn —" rows don't read identically.
-  it("disambiguates a 2nd same-street hero action with 'then'", () => {
+  // iter-08 #6 / iter-19 NIT #4 — two hero actions on the SAME street merge into ONE recap row with a
+  // combined "you <a>, then <b>" header (was two separate rows). The ", then called" continuation must
+  // still read coherently and stay in a single recap-decision item.
+  it("merges two same-street actions into one row with a ', then' continuation", () => {
     const decisions = [
       decision("turn", "bet", 110, { action: "bet", potBefore: 100, toCall: 0, equityPct: 85 }, 110),
       decision("turn", "call", 54, { action: "call", potBefore: 320, toCall: 54, equityPct: 80 }),
     ];
     render(<HandRecap decisions={decisions} heroNet={200} />);
-    // The first turn row is NOT prefixed; the second IS ("you then called").
-    expect(screen.getByText(/you then called/i)).toBeInTheDocument();
-    expect(screen.getByText(/you bet/i)).toBeInTheDocument();
+    // Both actions live in ONE merged row, headed by a single "Turn —".
+    const rows = screen.getAllByTestId("recap-decision");
+    expect(rows).toHaveLength(1);
+    const header = rows[0].textContent ?? "";
+    expect(header).toMatch(/Turn — you bet/i);
+    expect(header).toMatch(/, then called/i);
   });
 
-  it("does NOT add 'then' for the first action on a street", () => {
+  // iter-19 NIT #4 — the reviewer's exact case: check then fold to a bet on one street reads as one
+  // coherent line, "you checked, then folded to a bet", not two separate "Turn —" items.
+  it("merges check-then-fold on one street into a single coherent line (iter-19 NIT #4)", () => {
+    const decisions = [
+      decision("turn", "check", 0, { action: "check", potBefore: 18, toCall: 0, equityPct: 40 }),
+      decision("turn", "fold", 0, { action: "fold", potBefore: 18, toCall: 16, equityPct: 17 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={-10} />);
+    const rows = screen.getAllByTestId("recap-decision");
+    expect(rows).toHaveLength(1);
+    const header = rows[0].textContent ?? "";
+    expect(header).toMatch(/you checked, then folded to a bet/i);
+  });
+
+  it("keeps separate rows for actions on DIFFERENT streets (no spurious merge)", () => {
     const decisions = [
       decision("preflop", "call", 2, { action: "call", potBefore: 6, toCall: 2, equityPct: 55 }),
       decision("flop", "bet", 20, { action: "bet", potBefore: 12, toCall: 0, equityPct: 70 }, 20),
     ];
     render(<HandRecap decisions={decisions} heroNet={10} />);
-    expect(screen.queryByText(/you then/i)).toBeNull();
+    const rows = screen.getAllByTestId("recap-decision");
+    expect(rows).toHaveLength(2);
+    // No ", then" continuation inside the decision rows (the /poker-coach pointer text is separate).
+    for (const r of rows) expect(r.textContent ?? "").not.toMatch(/, then/i);
   });
 
   it("renders nothing with no decisions", () => {
@@ -394,6 +415,52 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
       expect(screen.getByText(/Result: you lost \$4/i)).toBeInTheDocument();
       expect(screen.getByText(/good · .*thin · .*mistake/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe("HandRecap — won-with-a-flagged-play EV claim is conditional on the EV sign (iter-19 MINOR #2)", () => {
+  // A ~40×-pot oversized SB shove (8♥5♥) that WON. Against these over-folding bots its chosen-action
+  // (raise) EV is marginally POSITIVE — so the recap must NOT say "loses money on average"; it frames
+  // it as a reckless SIZE instead. The play is STILL a graded mistake and still flagged.
+  const oversizedWinningShove = () =>
+    decision(
+      "preflop",
+      "raise",
+      202,
+      { action: "raise", potBefore: 5, toCall: 2, equityPct: 38, street: "preflop", hand: ["8h", "5h"], position: "SB", facing: "unopened", raiseToAmount: 202, bigBlind: 2, smallBlind: 1 },
+      202,
+    );
+
+  it("a won hand whose oversized flagged play is non-negative EV does NOT say 'loses money on average'", () => {
+    const d = oversizedWinningShove();
+    expect(d.analysis.verdict).toBe("mistake"); // guard: still flagged
+    expect(d.analysis.conceptTags).toContain("oversize_bet"); // guard: oversized
+    expect(d.analysis.numbers.ev.raise).toBeGreaterThanOrEqual(0); // guard: marginally +EV
+    render(<HandRecap decisions={[d]} heroNet={4} handComplete />);
+    const note = screen.getByTestId("recap-reconcile").textContent ?? "";
+    expect(note).toMatch(/won this hand/i);
+    expect(note).toMatch(/grade the decision, not the outcome/i);
+    // The corrected wording: a sizing/risk problem, not a literal −EV claim.
+    expect(note).not.toMatch(/loses money on average/i);
+    expect(note).toMatch(/risked far more than it could win/i);
+    expect(note).toMatch(/reckless size/i);
+  });
+
+  it("a won hand whose flagged play IS negative EV still says 'loses money on average'", () => {
+    // A no-equity bluff bet (9% on a wet flop) that happened to win — its chosen (bet) EV is clearly
+    // negative, so the "loses money on average" wording is accurate and stays.
+    const bluff = decision(
+      "flop",
+      "bet",
+      6,
+      { action: "bet", potBefore: 6, toCall: 0, equityPct: 9, street: "flop", numActiveOpponents: 2, hole: ["7c", "5s"], board: ["Kh", "2d", "Qh"], raiseToAmount: 6 },
+      6,
+    );
+    expect(bluff.analysis.numbers.ev.raise).toBeLessThan(0); // guard: genuinely −EV
+    render(<HandRecap decisions={[bluff]} heroNet={4} handComplete />);
+    const note = screen.getByTestId("recap-reconcile").textContent ?? "";
+    expect(note).toMatch(/loses money on average/i);
+    expect(note).not.toMatch(/reckless size/i);
   });
 });
 

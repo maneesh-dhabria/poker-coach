@@ -408,11 +408,49 @@ describe("FeedbackPanel — depth-aware presentation (iter-03 #7)", () => {
     expect(screen.getByTestId("feedback-panel").textContent ?? "").toMatch(/%/);
   });
 
-  it("Strict: shows the chart citation, not a bare equity %", () => {
+  // iter-19 MINOR #3: Strict is a NUMBERS depth (only Conceptual is digit-free) and its sentence
+  // already shows inline numbers — so it now ALSO shows the equity bar + numeric scaffolding, like
+  // equity. (Previously Strict hid the equity bar but kept inline numbers — inconsistent.)
+  it("Strict: shows the chart citation AND the equity bar (numeric depth, iter-19 #3)", () => {
     render(<FeedbackPanel analysis={preflopRaise("strict")} enabled />);
     const text = screen.getByTestId("feedback-panel").textContent ?? "";
     expect(text.toLowerCase()).toMatch(/chart/);
-    expect(text).not.toContain("%"); // equity %s belong to the equity tier, not strict
+    expect(screen.getByTestId("equity-bar")).toBeInTheDocument();
+  });
+});
+
+describe("FeedbackPanel — Strict shows the equity bar + numeric EV like Equity (iter-19 MINOR #3)", () => {
+  // A postflop facing-a-bet call (off-chart, so Strict falls back to equity/pot-odds). Strict must
+  // render the equity bar AND the numeric EV table — the SAME numeric scaffolding equity shows — while
+  // Conceptual stays fully digit-free.
+  const callSpot = (depth: "conceptual" | "equity" | "strict") =>
+    analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd", coachingDepth: depth, street: "flop" });
+
+  it("Strict renders the equity bar, the win-% line, and the numeric EV table", () => {
+    render(
+      <FeedbackPanel
+        analysis={callSpot("strict")}
+        enabled
+        context={{ street: "flop", potBefore: 12, toCall: 4, action: "call" }}
+      />,
+    );
+    expect(screen.getByTestId("equity-bar")).toBeInTheDocument();
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/You win ~46%/);
+    expect(text).toMatch(/show the numbers/i);
+    expect(text).toMatch(/average result if you call/i);
+  });
+
+  it("Conceptual still hides the equity bar and stays digit-free (no regression)", () => {
+    render(
+      <FeedbackPanel
+        analysis={callSpot("conceptual")}
+        enabled
+        context={{ street: "flop", potBefore: 12, toCall: 4, action: "call" }}
+      />,
+    );
+    expect(screen.queryByTestId("equity-bar")).toBeNull();
+    expect(screen.getByTestId("feedback-panel").textContent ?? "").not.toContain("%");
   });
 });
 
