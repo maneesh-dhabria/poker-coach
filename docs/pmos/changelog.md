@@ -3,6 +3,41 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.29.0] — 2026-06-18
+
+### Reviewer-iteration-24 fixes — the chart explains itself, and the table fits short windows
+
+A twenty-fourth independent first-time-user playtest (`docs/playtest/reviews/iter-24.md`) again
+confirmed the instant feedback, Mental Math, depth control, showdown reveal, and all-in warning all
+hold. It caught one trust issue in the reference chart and a few layout/copy items. Explanation copy,
+layout, and labels only; no grading, equity/EV, engine, chart ranges, or `HandRecord` schema changes.
+
+### Fixed
+
+- **The preflop chart explains why a lower-equity hand can be the raise.** A5s (a suited wheel ace) is
+  opened while A7s — which shows a higher raw "vs a random hand" win-rate — is folded, which read as
+  the chart contradicting its own number. The per-hand detail now explains the real reason: the wheel
+  aces make the nut flush and the A-2-3-4-5 straight and block the big aces, so they play far better
+  than their raw equity suggests, while middling suited aces like A6s/A7s are often dominated, so that
+  raw number overstates them. The chart's ranges are unchanged — only the explanation
+  (`core/charts/preflop.ts`).
+- **The table no longer overlaps the panel below at short window heights.** In narrow stacked layouts
+  around 700px wide and very short, the table area used to bleed down over the coaching tabs; each
+  region is now bounded to its own space and scrolls within it, so the two panels never overlap (and
+  the top seat still isn't clipped behind the header) (`app/globals.css`).
+- **A loose open over limpers no longer claims you were "first in."** When you open too loose into a
+  pot that already has limpers, the feedback acknowledges the limpers instead of saying the chart
+  "opens first-in" (`core/analysis/explain.ts`).
+- **The beginner depth explains a no-equity bluff.** A Conceptual-depth flop bluff no longer says only
+  "there's not enough here"; it names the concept — a pure bluff with no showdown value that won't
+  fold out better hands, so nothing backs the bet (`core/analysis/explain.ts`).
+- **Only one bet-size shortcut highlights at a time.** At the minimum raise or all-in, the ½/¾/Pot
+  buttons no longer all light up at once; a shortcut is highlighted only when the amount truly matches
+  that size (`components/ActionBar.tsx`).
+- **The all-in amounts are no longer ambiguous.** The all-in seat badge now reads "ALL-IN · $X in"
+  (total committed), distinct from the bet button's per-action all-in amount
+  (`components/table/Seat.tsx`).
+
 ## [0.28.0] — 2026-06-18
 
 ### Reviewer-iteration-23 fixes — no major issues; last layout + labeling polish
