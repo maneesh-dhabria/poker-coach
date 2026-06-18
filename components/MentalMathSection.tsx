@@ -16,7 +16,7 @@ import {
   MentalEstimate,
 } from "@/core/mental";
 import { HandFlow } from "@/core/handFlow";
-import { Street } from "@/core/analysis/types";
+import { Street, HeroAction } from "@/core/analysis/types";
 import { Card } from "@/core/cards";
 import { formatMoney } from "@/core/money";
 
@@ -46,6 +46,10 @@ export interface FrozenDecisionContext {
   // The verdict's made-hand label (e.g. "middle pair"), so Mental Math's hand description is
   // IDENTICAL to the verdict's — never a different label from a re-detection on a later board.
   madeHand: { category: number; label: string } | null;
+  // The action the hero actually took on this decision (iter-13 #1). On a free street with no made
+  // hand, a BET that the verdict grades ❌/⚠️ must NOT get a "just take the free card" Step 6 — Step 5
+  // and Step 6 reconcile with the bet the hero made instead. Optional so older records fall back.
+  heroAction?: HeroAction | null;
 }
 
 /** Build the MentalInput from the live hand (spec §3.1): richest snapshot on hero's turn, a
@@ -313,6 +317,7 @@ export function MentalMathSection({
               displayUnit={displayUnit}
               conceptual={conceptual}
               betBeatsCheck={betBeatsCheck}
+              heroBet={frozen?.heroAction === "bet" || frozen?.heroAction === "raise"}
               outsOverride={outsOverride}
               setOutsOverride={setOutsOverride}
               showOverride={showOverride}
@@ -333,6 +338,7 @@ function Steps({
   displayUnit,
   conceptual,
   betBeatsCheck,
+  heroBet,
   outsOverride,
   setOutsOverride,
   showOverride,
@@ -345,6 +351,9 @@ function Steps({
   displayUnit: "usd" | "bb";
   conceptual: boolean;
   betBeatsCheck?: boolean;
+  // Whether the hero actually bet/raised this free street (iter-13 #1) — threaded into conclusionFrom
+  // so Step 6 reconciles with a ❌/⚠️ bet verdict instead of saying "just take the free card".
+  heroBet?: boolean;
   outsOverride: number | null;
   setOutsOverride: (n: number | null) => void;
   showOverride: boolean;
@@ -443,12 +452,13 @@ function Steps({
         )}
       </div>
 
-      {/* Step 3 — shade for opponents. The shaded figure is a DRAW-HIT chance (outs only). With a
-          made hand it is NOT the win %: labeling it "to win" once put a ~14% next to a ~54% win
-          bar, two contradictory "to win" numbers in one panel (iter-12 #1). So when a made hand is
-          present we label it "to hit your draw" and say the real win % (Step 6 / the bar) already
-          includes the made hand. With no made hand, hitting the draw IS basically winning, so the
-          "to win" label stays honest. */}
+      {/* Step 3 — shade for opponents. The shaded figure is a DRAW-HIT chance (outs only), an ESTIMATE
+          to improve. It is NEVER the win %, so it is always labeled "to hit", with "to win" reserved
+          for the single true-equity figure in "Check your work" / the bar (iter-12 #1, iter-13 #4).
+          With a made hand we additionally note the real win chance is higher (the made hand the outs
+          ignore); with no made hand hitting the draw is roughly winning, but two figures both labeled
+          "to win" (the shaded estimate vs the exact true win) read as inconsistent — so the shaded one
+          stays an explicit "to hit" estimate. */}
       {estimate.opponentShade && (
         <div style={STEP_CARD}>
           <div style={STEP_HEAD}>
@@ -462,9 +472,9 @@ function Steps({
                 Roughly{" "}
                 <strong data-testid="mm-shade-figure">
                   ~{estimate.opponentShade.lowPct}–{estimate.opponentShade.highPct}%{" "}
-                  {estimate.madeHand ? "to hit your draw" : "to win"}
+                  {estimate.madeHand ? "to hit your draw" : "to hit"}
                 </strong>
-                .
+                {estimate.madeHand ? "" : " (an estimate — the true win % is below)"}.
               </>
             )}
           </p>
@@ -513,6 +523,13 @@ function Steps({
               </p>
               <BreakEvenBar pct={estimate.potOdds.breakEvenPct} />
             </>
+          ) : heroBet ? (
+            // The hero CHOSE to bet on a free street (iter-13 #1): there was no price to call, so a
+            // check would have been free — but they put money in, so we must not imply they got a free
+            // card. State the choice plainly so Step 5 agrees with the bet the verdict grades.
+            <p style={{ margin: "2px 0", fontSize: 13 }}>
+              No bet faced you, so a check would have been free — but you chose to bet.
+            </p>
           ) : (
             <p style={{ margin: "2px 0", fontSize: 13 }}>It&apos;s free to see the next card — no price to pay.</p>
           )}
@@ -532,6 +549,7 @@ function Steps({
                   toCall: estimate.potOdds.toCall,
                   madeHand: estimate.madeHand,
                   betBeatsCheck,
+                  heroBet,
                 })
               : estimate.decision!;
           // When there's no bet to call the hero is deciding whether to bet or check — not facing a

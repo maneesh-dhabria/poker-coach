@@ -68,6 +68,10 @@ interface Branch {
   flagOversize?: boolean;
   // True when a postflop value bet is grossly UNDER-sized and the explanation should flag it (iter-08 #1).
   flagUndersize?: boolean;
+  // True when a bet/raise is a GROSS overbet (many multiples of the pot) and the size should be
+  // critiqued even when the direction/equity is fine (iter-13 #2). Carries the pot-multiple for copy.
+  flagGrossOverbet?: boolean;
+  overbetPotMultiple?: number;
 }
 
 export function analyze(input: AnalyzeInput): DecisionAnalysis {
@@ -104,7 +108,19 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       ? input.raiseToAmount / potBefore
       : undefined;
 
-  const branch = route(input, madeHand, openSizeBb, betPotFraction);
+  // The bet/raise size as a MULTIPLE of the pot, for the gross-overbet check (iter-13 #2). Applies to
+  // ANY bet or raise (a non-open preflop 3-bet/4-bet/shove and any postflop bet/raise), unlike
+  // betPotFraction which only sizes a clean first-in postflop bet. Uses the total raise-to amount vs
+  // the pot before the action — a normal pot-sized bet is ~1×, a standard 3-bet/4-bet ~2× the small
+  // preflop pot, so only a clearly absurd multiple (≥ GROSS_OVERBET_POT_MULTIPLE) ever flags. A forced
+  // short-stack shove is ~1× the pot (the stack, not a choice, caps it), so the high threshold
+  // naturally excludes it.
+  const betPotMultiple =
+    (action === "bet" || action === "raise") && input.raiseToAmount && potBefore > 0
+      ? input.raiseToAmount / potBefore
+      : undefined;
+
+  const branch = route(input, madeHand, openSizeBb, betPotFraction, betPotMultiple);
 
   const plainExplanation = buildExplanation({
     kind: branch.kind,
@@ -124,6 +140,7 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     madeHand,
     openSizeBb: branch.flagOversize ? openSizeBb : undefined,
     betTooSmall: branch.flagUndersize ?? false,
+    overbetPotMultiple: branch.flagGrossOverbet ? branch.overbetPotMultiple : undefined,
   });
 
   return {
@@ -157,6 +174,9 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       ...(madeHand ? { madeHand } : {}),
       ...(branch.flagOversize && openSizeBb !== undefined ? { openSizeBb } : {}),
       ...(branch.flagUndersize ? { betTooSmall: true } : {}),
+      ...(branch.flagGrossOverbet && branch.overbetPotMultiple !== undefined
+        ? { overbetPotMultiple: branch.overbetPotMultiple }
+        : {}),
     },
   };
 }
@@ -174,11 +194,40 @@ const UNDERSIZE_BET_FRACTION = 0.15;
 // 33% aggression cutoff) it's a real light/thin semi-bluff, not "no equity" (iter-09 #6b).
 const NO_EQUITY_PCT = 20;
 
+// A bet/raise this many times the pot (or larger) is a GROSS overbet whose SIZE is flagged even when
+// the direction/equity is fine (iter-13 #2). Deliberately conservative: a normal pot-sized bet is 1×,
+// a standard 3-bet/4-bet is ~2× the small preflop pot, and a forced short-stack shove caps at ~1× the
+// pot — so 5× is well beyond any standard sizing and only catches absurd overbets (e.g. shoving 92 into
+// a 7 pot ≈ 13×). It does NOT flag forced near-all-in shoves (their pot-multiple stays low).
+const GROSS_OVERBET_POT_MULTIPLE = 5;
+
+// Apply the gross-overbet SIZE critique on top of an aggression-branch result (iter-13 #2). The
+// direction/equity grade is kept; the size is flagged with a ⚠️ (a ✅ value bet downgrades to ⚠️
+// "Oversized" so a 13×-pot shove is never praised without comment, while an already-flagged thin/❌ bet
+// keeps its severity and just gains the size tag).
+function withGrossOverbet(branch: Branch, betPotMultiple?: number): Branch {
+  if (betPotMultiple === undefined || betPotMultiple < GROSS_OVERBET_POT_MULTIPLE) return branch;
+  const tags: ConceptTag[] = branch.conceptTags.includes("oversize_bet")
+    ? branch.conceptTags
+    : [...branch.conceptTags, "oversize_bet"];
+  return {
+    ...branch,
+    // Never leave a gross overbet as a clean ✅: surface the size concern at ⚠️ thin. A bet already
+    // graded thin/mistake keeps its (equal-or-worse) verdict + severity.
+    verdict: branch.verdict === "good" ? "thin" : branch.verdict,
+    severity: branch.verdict === "good" ? 1 : branch.severity,
+    conceptTags: tags,
+    flagGrossOverbet: true,
+    overbetPotMultiple: betPotMultiple,
+  };
+}
+
 function route(
   input: AnalyzeInput,
   madeHand: MadeHand | null,
   openSizeBb?: number,
   betPotFraction?: number,
+  betPotMultiple?: number,
 ): Branch {
   const { action, equityPct } = input;
   const street = input.street ?? "preflop";
@@ -210,10 +259,15 @@ function route(
     chartApplies(input.position, input.facing)
   ) {
     // Flag the SIZE only on a first-in OPEN (raise, nothing to call) that's absurdly large; a 3-bet
-    // facing a raise is intentionally not size-checked by this conservative rule.
+    // facing a raise is intentionally not size-checked by this BB-based rule.
     const isOpen = action === "raise" && input.facing === "unopened";
     const oversize = isOpen && openSizeBb !== undefined && openSizeBb >= OVERSIZE_OPEN_BB;
-    return preflopBranch(input.hand, input.position, input.facing, action, oversize);
+    const chartBranch = preflopBranch(input.hand, input.position, input.facing, action, oversize);
+    // A NON-open preflop raise (3-bet/4-bet/shove) isn't size-checked by the BB-open rule above, so a
+    // grossly oversized 4-bet (e.g. shoving 92 into a 7 pot) once drew no size critique even when the
+    // direction was ✅ (iter-13 #2). Apply the pot-multiple overbet flag to non-open raises here. An
+    // open that's already BB-flagged keeps that flag (don't double-flag the same open).
+    return isOpen ? chartBranch : withGrossOverbet(chartBranch, betPotMultiple);
   }
 
   // 2..5 postflop / no-chart heuristics.
@@ -221,7 +275,10 @@ function route(
   if (action === "bet" || action === "raise") {
     const undersize =
       betPotFraction !== undefined && betPotFraction < UNDERSIZE_BET_FRACTION;
-    return aggressionBranch(equityPct, madeHand, undersize);
+    const aggression = aggressionBranch(equityPct, madeHand, undersize);
+    // A grossly oversized postflop bet/raise (a ≥5×-pot overbet) gets a ⚠️ size critique even with good
+    // equity (iter-13 #2). An undersized bet can't also be a gross overbet, so the flags never collide.
+    return undersize ? aggression : withGrossOverbet(aggression, betPotMultiple);
   }
   if (action === "fold") {
     // No chips to call means checking is free — folding forfeits a free look at the pot and is

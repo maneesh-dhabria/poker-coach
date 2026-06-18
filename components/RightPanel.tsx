@@ -11,8 +11,73 @@ import { CoachingViewer } from "@/components/CoachingViewer";
 import { HandRecap } from "@/components/HandRecap";
 import { RankingsTab } from "@/components/RankingsTab";
 import { PreflopChartTab } from "@/components/PreflopChartTab";
+import { CoachingDepth } from "@/core/analysis/types";
 
 const STREET_ORDER = ["preflop", "flop", "turn", "river"] as const;
+
+// In-play coaching controls (iter-13 #3): change coaching depth + toggle instant feedback WITHOUT
+// starting a new session. Writes through useSessionStore().setSettings — the same field the setup
+// screen sets — so the live feedback re-renders at the new depth (components read settings) and the
+// feedback toggle behaves exactly like the setup-screen one. Compact, in the live-feedback tab header.
+const DEPTH_OPTIONS: { value: CoachingDepth; label: string }[] = [
+  { value: "conceptual", label: "Conceptual" },
+  { value: "equity", label: "Equity" },
+  { value: "strict", label: "Strict" },
+];
+
+function InPlayControls() {
+  const settings = useSessionStore((s) => s.settings);
+  const setSettings = useSessionStore((s) => s.setSettings);
+  return (
+    <div
+      data-testid="inplay-controls"
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+        flexWrap: "wrap",
+        marginBottom: 12,
+        padding: "8px 10px",
+        background: "var(--panel-2, #1d2c26)",
+        border: "1px solid #2a3a32",
+        borderRadius: "var(--r-md)",
+        fontSize: 12,
+      }}
+    >
+      <label style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--ink-soft)" }}>
+        Depth
+        <select
+          data-testid="inplay-depth"
+          value={settings.coachingDepth}
+          onChange={(e) => setSettings({ coachingDepth: e.target.value as CoachingDepth })}
+          style={{
+            background: "var(--panel)",
+            color: "var(--ink)",
+            border: "1px solid #2a3a32",
+            borderRadius: "var(--r-md)",
+            padding: "2px 6px",
+            fontSize: 12,
+          }}
+        >
+          {DEPTH_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "var(--ink-soft)", cursor: "pointer" }}>
+        <input
+          data-testid="inplay-feedback-toggle"
+          type="checkbox"
+          checked={settings.feedbackEnabled}
+          onChange={(e) => setSettings({ feedbackEnabled: e.target.checked })}
+        />
+        Instant feedback
+      </label>
+    </div>
+  );
+}
 
 export function RightPanel() {
   const activeTab = useSessionStore((s) => s.activeTab);
@@ -49,6 +114,9 @@ export function RightPanel() {
       >
         {activeTab === "live-feedback" && (
           <>
+            {/* In-play coaching controls (iter-13 #3): switch depth / toggle instant feedback without a
+                new session. Always shown on the live-feedback tab so the user can compare modes mid-play. */}
+            <InPlayControls />
             {/* While a NEW street's decision is pending, the last verdict describes a PRIOR decision
                 (e.g. preflop while you're deciding the flop). iter-02 blanked this to an empty
                 "Deciding your <street>…" placeholder so two unrelated win%/EV figures never read AS
@@ -100,7 +168,7 @@ export function RightPanel() {
                 <p style={{ margin: 0, lineHeight: 1.5 }}>
                   <strong>Instant per-decision verdicts are off.</strong> You&apos;ll still see the
                   running hand review below populate after each move as you play; the big verdict and
-                  equity block is hidden. Turn instant feedback back on from <em>New session</em>.
+                  equity block is hidden. Flip <em>Instant feedback</em> back on above to show it again.
                 </p>
               </aside>
             ) : null}

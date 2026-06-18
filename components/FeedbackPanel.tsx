@@ -25,6 +25,7 @@ const TAG_LABELS: Record<string, string> = {
   bluff_no_equity: "Bluff (no equity)",
   preflop_oversize: "Oversized",
   bet_too_small: "Bet too small",
+  oversize_bet: "Oversized",
   call_too_wide: "Called too wide",
   played_too_wide: "Played too wide",
   fold_too_tight: "Folded too tight",
@@ -52,7 +53,10 @@ function VerdictBadge({
   // An oversized preflop OPEN grades ⚠️ thin, but "Thin" reads as thin VALUE and confuses (iter-09
   // #6a). When the oversize tag is present, show the clearer "Oversized" label while keeping the same
   // ⚠️ icon / thin severity color.
-  const label = conceptTags.includes("preflop_oversize") ? "Oversized" : m.label;
+  const label =
+    conceptTags.includes("preflop_oversize") || conceptTags.includes("oversize_bet")
+      ? "Oversized"
+      : m.label;
   return (
     <span
       data-testid="verdict-badge"
@@ -424,5 +428,8 @@ function frozenMentalContext(analysis: DecisionAnalysis): FrozenDecisionContext 
     toCall: ei.toCall,
     numActiveOpponents: ei.numActiveOpponents ?? 0,
     madeHand: ei.madeHand ?? null,
+    // The action the verdict judges (iter-13 #1), so Mental Math's free-street Step 5/6 reconcile
+    // with a BET the verdict graded a mistake rather than telling the user to "take the free card".
+    heroAction: ei.action ?? null,
   };
 }

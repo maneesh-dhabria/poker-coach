@@ -307,6 +307,70 @@ describe("made-hand reconciliation (findings #1/#2/#3)", () => {
     expect(lower).toContain("take it");
   });
 
+  // iter-13 #1: on a free street with no made hand, when the hero ACTUALLY BET (a -EV semi-bluff the
+  // verdict grades ❌/⚠️) Step 6 must RECONCILE with that grade — acknowledge the bet, frame the free
+  // card as the cheaper ALTERNATIVE — never a present-tense "just take the free card".
+  it("(iter-13 #1) free street, no made hand, hero BET a low-equity hand → reconciles with the mistake, not 'just take it'", () => {
+    const c = conclusionFrom({
+      trueWinPct: 20,
+      breakEvenPct: 0,
+      toCall: 0,
+      madeHand: null,
+      betBeatsCheck: false,
+      heroBet: true,
+    });
+    const lower = c.sentence.toLowerCase();
+    // Frames the bet as a mistake (not profitable) and mentions the bet itself.
+    expect(c.profitable).toBe(false);
+    expect(lower).toContain("you bet");
+    expect(lower).toContain("20%");
+    // The free card is the cheaper ALTERNATIVE, not a present-tense instruction.
+    expect(lower).toContain("cheaper");
+    expect(lower).not.toContain("just take it");
+  });
+
+  it("(iter-13 #1) same spot but hero CHECKED → keeps the free-card line", () => {
+    const c = conclusionFrom({
+      trueWinPct: 20,
+      breakEvenPct: 0,
+      toCall: 0,
+      madeHand: null,
+      betBeatsCheck: false,
+      heroBet: false,
+    });
+    const lower = c.sentence.toLowerCase();
+    expect(lower).toContain("free card");
+    expect(lower).toContain("take it");
+  });
+
+  it("(iter-13 #1) heroBet does NOT override the made-hand value-bet path", () => {
+    const c = conclusionFrom({
+      trueWinPct: 66,
+      breakEvenPct: 0,
+      toCall: 0,
+      madeHand: { category: 2, label: "two pair" },
+      heroBet: true,
+    });
+    // Made hand worth betting: still framed as value, never a free card or a mistake.
+    expect(c.sentence.toLowerCase()).toContain("value");
+    expect(c.sentence.toLowerCase()).not.toContain("free");
+  });
+
+  it("(iter-13 #1) heroBet does NOT override the +EV betBeatsCheck path", () => {
+    const c = conclusionFrom({
+      trueWinPct: 30,
+      breakEvenPct: 0,
+      toCall: 0,
+      madeHand: null,
+      betBeatsCheck: true,
+      heroBet: true,
+    });
+    // Betting IS the higher-EV line → keep the semi-bluff recommendation, profitable.
+    expect(c.profitable).toBe(true);
+    expect(c.sentence.toLowerCase()).toContain("betting");
+    expect(c.sentence.toLowerCase()).not.toContain("cheaper");
+  });
+
   it("(b) the gap explanation DIFFERS between a pure-draw spot and a made-hand spot", () => {
     const madeGap = gapExplanation({
       exactHitPct: 16,

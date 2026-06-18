@@ -567,6 +567,96 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(lower).toMatch(/bigger than a standard open|size it down/);
   });
 
+  // iter-13 #2: a GROSS overbet (≥5× pot) is flagged for SIZE even with good equity, while standard
+  // 3-bets/4-bets and forced short-stack all-ins (pot-multiple stays low) are NOT flagged.
+  it("(iter-13 #2) flags a gross postflop overbet (≥5× pot) for size even with good equity", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 70, // clearly ahead — direction is fine
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Ad"],
+      board: ["As", "7c", "2d"], // set — a real value bet
+      raiseToAmount: 140, // 7× the pot — a gross overbet
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.verdict).toBe("thin"); // good direction downgraded to ⚠️ for size
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("size down");
+    expect(lower).toMatch(/7×|7x| 7 ×/);
+  });
+
+  it("(iter-13 #2) flags a gross preflop 4-bet OVERBET (non-open raise) for size even with good equity", () => {
+    // AJo facing a 3-bet, shoving 92 into a 7 pot ≈ 13× — the reviewer's scenario.
+    const a = analyze({
+      action: "raise",
+      potBefore: 7,
+      toCall: 5,
+      equityPct: 63,
+      street: "preflop",
+      hand: hand("Ah", "Jc"),
+      position: "BTN",
+      facing: "raise", // a 4-bet facing a 3-bet — NOT a first-in open
+      raiseToAmount: 184, // 92 BB at $1/$2 into a 7 pot ≈ 26× — absurd
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.verdict).not.toBe("good");
+    expect(a.plainExplanation.toLowerCase()).toContain("size down");
+  });
+
+  it("(iter-13 #2) does NOT flag a standard 3-bet/4-bet size", () => {
+    // A normal ~2.5× 3-bet of a small preflop pot.
+    const a = analyze({
+      action: "raise",
+      potBefore: 8,
+      toCall: 6,
+      equityPct: 55,
+      street: "preflop",
+      hand: hand("Kh", "Kd"),
+      position: "BTN",
+      facing: "raise",
+      raiseToAmount: 20, // 2.5× the pot — standard 3-bet sizing
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).not.toContain("oversize_bet");
+  });
+
+  it("(iter-13 #2) does NOT flag a forced short-stack all-in (pot-multiple stays low)", () => {
+    // Short stack shoves ~1× the pot — the stack, not a choice, caps the size.
+    const a = analyze({
+      action: "raise",
+      potBefore: 30,
+      toCall: 6,
+      equityPct: 55,
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Kh"],
+      board: ["Ad", "7c", "2s"],
+      raiseToAmount: 40, // ~1.3× the pot — a forced shove, not an overbet
+    });
+    expect(a.conceptTags).not.toContain("oversize_bet");
+    expect(a.verdict).toBe("good"); // a normal-sized value raise stays ✅
+  });
+
+  it("(iter-13 #2) does NOT flag a standard pot-sized postflop bet", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 100,
+      toCall: 0,
+      equityPct: 70,
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Ad"],
+      board: ["As", "7c", "2d"],
+      raiseToAmount: 100, // 1× the pot — standard
+    });
+    expect(a.conceptTags).not.toContain("oversize_bet");
+    expect(a.verdict).toBe("good");
+  });
+
   // iter-06 #6: an essentially-breakeven price-branch call (edge within a small band of 0) grades
   // ⚠️ thin, not ❌ mistake; a clearly -EV call stays a mistake.
   it("grades a near-breakeven call as thin, not a mistake (#6)", () => {

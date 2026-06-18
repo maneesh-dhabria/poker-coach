@@ -69,6 +69,10 @@ export interface ExplainParams {
   // must NOT praise it as standard "get money in while ahead" value — it charges no draws / builds no
   // pot. Symmetric to the oversize flag.
   betTooSmall?: boolean;
+  // The pot-multiple of a GROSS overbet bet/raise (iter-13 #2): the direction can be right (good
+  // equity), but the size risks a huge amount to win a tiny pot, so the copy keeps the direction and
+  // adds a "size down" critique. Present only when the overbet flag fired.
+  overbetPotMultiple?: number;
 }
 
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
@@ -146,6 +150,7 @@ export function formatExplanation(
     madeHand: ei.madeHand ?? null,
     openSizeBb: ei.openSizeBb,
     betTooSmall: ei.betTooSmall,
+    overbetPotMultiple: ei.overbetPotMultiple,
     bigBlind,
   });
 }
@@ -193,6 +198,14 @@ function preflop(p: ExplainParams): string {
       ? "that size bloats the pot out of position and risks a lot to win a little"
       : "it bloats the pot and risks a lot to win a little";
     return `Raising ${label}${where} can be fine, but ${bb} BB is far bigger than a standard open (about 2–3 BB) — ${sizeHarm}. Size it down to a normal open.`;
+  }
+
+  // A grossly oversized NON-open raise (a 3-bet/4-bet/shove, iter-13 #2): the chart may agree the
+  // direction is right, but the SIZE risks a huge amount to win a tiny pot. Keep the direction, flag
+  // the size — never praise it as "standard".
+  if (p.overbetPotMultiple !== undefined) {
+    const win = Math.round(p.equityPct);
+    return `Raising ${label}${where} with ~${win}% can be right${overbetClause(p.overbetPotMultiple, "raise", false)}.`;
   }
 
   // Strict charts → the chart/GTO citation it has always given.
@@ -248,10 +261,34 @@ function valuecheck(p: ExplainParams): string {
   return `You win ~${win}% here — checking gives up value. A bet earns more from worse hands.`;
 }
 
+// A gross overbet's SIZE critique (iter-13 #2). The DIRECTION can be right (good equity), so we keep
+// the "right" read and append a "risks a huge amount to win a tiny pot — size down" clause. Used by
+// both the postflop aggression branch and the preflop (3-bet/4-bet) branch. Plain words at conceptual.
+function overbetClause(multiple: number, noun: string, conceptual: boolean): string {
+  if (conceptual)
+    return `, but that's a much bigger ${noun} than the pot — it risks a huge amount to win a tiny pot, so size it down`;
+  const x = Math.round(multiple);
+  return `, but ${noun === "raise" ? "shoving" : "betting"} ~${x}× the pot risks a huge amount to win a tiny pot — size down`;
+}
+
 function aggression(p: ExplainParams): string {
   const win = Math.round(p.equityPct);
   const act = p.action === "raise" ? "Raising" : "Betting";
   const noun = p.action === "raise" ? "raise" : "bet";
+  // A GROSS overbet (iter-13 #2): keep the value/semi-bluff direction read, then flag the absurd size.
+  // Takes precedence over the plain good/thin copy so the headline is the sizing, while the equity
+  // direction is still acknowledged.
+  // Base the DIRECTION read on the equity, not the verdict — the verdict was downgraded to ⚠️ by the
+  // overbet flag itself, so it no longer signals whether the underlying line was value vs a semi-bluff.
+  if (p.overbetPotMultiple !== undefined) {
+    const dir =
+      p.equityPct >= 50
+        ? `${act} for value with ~${win}% is right`
+        : p.equityPct >= NO_EQUITY_PCT
+          ? `${act} with ~${win}% can be a fine semi-bluff`
+          : `${act} with only ~${win}%`;
+    return `${dir}${overbetClause(p.overbetPotMultiple, noun, false)}.`;
+  }
   // A grossly UNDER-sized value bet (iter-08 #1): you're ahead, but this bet is far too small to do
   // its job — it charges draws almost nothing and barely builds the pot. Praise the read, flag the
   // size. Takes precedence so the headline is the sizing, not "good value".
@@ -346,6 +383,9 @@ function conceptual(p: ExplainParams): string {
       // Oversized open: flag the SIZE in plain words, no numbers (iter-06 #3).
       if (p.openSizeBb !== undefined)
         return "Raising can be fine here, but that's a much bigger open than usual — it bloats the pot and risks a lot to win a little. Make it a normal-sized raise.";
+      // Grossly oversized 3-bet/4-bet, plain words (iter-13 #2): direction can be right, size isn't.
+      if (p.overbetPotMultiple !== undefined)
+        return `Raising can be right here${overbetClause(p.overbetPotMultiple, "raise", true)}.`;
       return p.heroDeviates
         ? "This differs from the standard baseline line for this spot."
         : "This is the standard line for this spot.";
@@ -359,6 +399,9 @@ function conceptual(p: ExplainParams): string {
       const raising = p.action === "raise";
       // Present-participle built explicitly so "bet" never becomes "beting" (iter-06 #2).
       const acting = raising ? "raising" : "betting";
+      // A grossly OVER-sized bet/raise, plain words (iter-13 #2): direction can be right, size isn't.
+      if (p.overbetPotMultiple !== undefined)
+        return `${raising ? "Raising" : "Betting"} can be right here${overbetClause(p.overbetPotMultiple, raising ? "raise" : "bet", true)}.`;
       // A grossly under-sized value bet, in plain words (iter-08 #1): you're ahead, but the bet is far
       // too small to charge draws or build the pot. Flag the size, not the read.
       if (p.betTooSmall)

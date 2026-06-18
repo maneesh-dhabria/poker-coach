@@ -63,4 +63,7 @@ export interface ExplanationInput {
   // True when a postflop value bet was flagged as grossly under-sized (iter-08 #1), so a re-formatted
   // sentence still says the bet is too small to charge draws / build the pot.
   betTooSmall?: boolean;
+  // The pot-multiple of a GROSS overbet bet/raise (iter-13 #2), so a re-formatted sentence still flags
+  // the absurd size ("shoving ~13× the pot"). Present only when the overbet flag fired.
+  overbetPotMultiple?: number;
 }

@@ -281,6 +281,44 @@ describe("made-hand aggression copy is value, not a bluff (iter-06 #1)", () => {
   });
 });
 
+describe("gross-overbet copy keeps the direction but flags the SIZE (iter-13 #2)", () => {
+  const overbet = (depth: CoachingDepth, kind: "aggression" | "preflop", equityPct = 70): ExplainParams => ({
+    kind,
+    verdict: "thin", // downgraded from good by the overbet flag
+    depth,
+    unit: "usd",
+    action: kind === "preflop" ? "raise" : "bet",
+    potBefore: 20,
+    toCall: kind === "preflop" ? 5 : 0,
+    equityPct,
+    potOddsPct: 0,
+    hand: ["Ah", "Jc"],
+    position: "BTN",
+    chartAction: "raise",
+    heroDeviates: false,
+    overbetPotMultiple: 7,
+  });
+
+  it("postflop equity depth: keeps the value direction and says 'size down' with the pot-multiple", () => {
+    const s = buildExplanation(overbet("equity", "aggression")).toLowerCase();
+    expect(s).toMatch(/for value with ~70%/);
+    expect(s).toMatch(/size down/);
+    expect(s).toMatch(/7×|7x/);
+  });
+
+  it("preflop equity depth (a 4-bet/3-bet overbet): keeps direction, flags size", () => {
+    const s = buildExplanation(overbet("equity", "preflop", 63)).toLowerCase();
+    expect(s).toMatch(/can be right/);
+    expect(s).toMatch(/size down/);
+  });
+
+  it("conceptual depth: flags the size in plain words with NO digits", () => {
+    const s = buildExplanation(overbet("conceptual", "aggression"));
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).toMatch(/bigger|size it down/);
+  });
+});
+
 describe("oversized preflop open copy flags the SIZE (iter-06 #3)", () => {
   const open = (depth: CoachingDepth): ExplainParams => ({
     kind: "preflop",

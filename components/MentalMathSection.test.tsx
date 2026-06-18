@@ -407,6 +407,77 @@ describe("MentalMathSection — pinned to the frozen decision snapshot (iter-12 
   });
 });
 
+describe("MentalMathSection — free-street bet reconciliation (iter-13 #1)", () => {
+  // A pure draw / air on a free street (no bet to call, no made hand): hero 9c8c on Kd-7d-2h-Js. A
+  // flush draw to come, no made hand. betBeatsCheck false (a -EV semi-bluff the verdict grades ❌/⚠️).
+  const frozenAirBet = (action: "bet" | "check") => ({
+    hole: [c("9d"), c("8d")] as [Card, Card], // a flush draw to the diamonds — a draw, no made hand
+    board: [c("Kd"), c("7d"), c("2h")] as Card[],
+    street: "flop" as const,
+    potBefore: 20,
+    toCall: 0,
+    numActiveOpponents: 1,
+    madeHand: null,
+    heroAction: action,
+  });
+
+  it("hero BET a low-equity no-made-hand hand → Step 6 reconciles with the mistake, NOT 'just take it'", () => {
+    setFlow(fakeFlow());
+    render(
+      <MentalMathSection
+        enabled
+        verdictEquityPct={20}
+        betBeatsCheck={false}
+        frozen={frozenAirBet("bet")}
+      />,
+    );
+    const concl = screen.getByTestId("mm-conclusion").textContent?.toLowerCase() ?? "";
+    expect(concl).toContain("you bet");
+    expect(concl).toContain("cheaper");
+    expect(concl).not.toContain("just take it");
+    // Step 5 must not imply a free card was taken when the hero chose to bet.
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    expect(body).toContain("you chose to bet");
+  });
+
+  it("hero CHECKED the same spot → keeps the free-card line", () => {
+    setFlow(fakeFlow());
+    render(
+      <MentalMathSection
+        enabled
+        verdictEquityPct={20}
+        betBeatsCheck={false}
+        frozen={frozenAirBet("check")}
+      />,
+    );
+    const concl = screen.getByTestId("mm-conclusion").textContent?.toLowerCase() ?? "";
+    expect(concl).toContain("free card");
+    expect(concl).toContain("take it");
+  });
+
+  it("Step 3's shaded figure is labeled 'to hit' (not 'to win') with no made hand — only true-win is 'to win' (iter-13 #4)", () => {
+    setFlow(fakeFlow());
+    // Two opponents so the shade band actually renders (lowPct !== highPct).
+    render(
+      <MentalMathSection
+        enabled
+        verdictEquityPct={30}
+        frozen={{ ...frozenAirBet("check"), numActiveOpponents: 2 }}
+      />,
+    );
+    const shade = screen.queryByTestId("mm-shade-figure");
+    if (shade) {
+      const txt = shade.textContent?.toLowerCase() ?? "";
+      expect(txt).toContain("to hit");
+      expect(txt).not.toContain("to win");
+    }
+    // Exactly one "to win" figure in the whole panel (the true-win line).
+    const body = screen.getByTestId("mm-body").textContent ?? "";
+    const winMatches = (body.match(/to win/gi) ?? []).length;
+    expect(winMatches).toBeLessThanOrEqual(1);
+  });
+});
+
 describe("MentalMathSection — BB EV label is unit-aware (iter-12 #5)", () => {
   it("reads 'Show the BB EV' in BB mode", () => {
     act(() => useSessionStore.setState({ displayUnit: "bb" }));

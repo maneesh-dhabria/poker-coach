@@ -25,6 +25,11 @@ export const CONCEPT_TAGS = [
   // A postflop bet whose SIZE is far too small relative to the pot (a token underbet that charges no
   // draws and builds no pot) — the decision to bet may be fine, but the size gives up value (iter-08 #1).
   "bet_too_small",
+  // A bet/raise (a non-open preflop 3-bet/4-bet/shove OR any postflop bet/raise) whose SIZE is a gross
+  // overbet — many multiples of the pot — risking a huge amount to win a tiny pot. The direction can be
+  // right (good equity); only the size is critiqued (iter-13 #2). Distinct from `preflop_oversize`,
+  // which only covers a first-in OPEN sized in big blinds.
+  "oversize_bet",
   "overfold_vs_aggression",
   "wrong_sizing",
   "preflop_chart_deviation",

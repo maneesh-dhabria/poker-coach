@@ -98,6 +98,37 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     expect(screen.queryByTestId("recap-reconcile")).toBeNull();
   });
 
+  // iter-13 #5 — a fully clean (all-✅) WINNING hand gets explicit positive reinforcement.
+  it("shows a 'nicely played' praise line on a clean all-good WIN (#5)", () => {
+    const decisions = [
+      decision("flop", "bet", 20, { action: "bet", potBefore: 12, toCall: 0, equityPct: 75 }, 20),
+      decision("turn", "bet", 40, { action: "bet", potBefore: 50, toCall: 0, equityPct: 82 }, 40),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={60} />);
+    const praise = screen.getByTestId("recap-praise");
+    expect(praise.textContent).toMatch(/nicely played/i);
+    expect(praise.textContent).toMatch(/every decision was solid/i);
+  });
+
+  it("does NOT show praise when ANY decision was flagged (#5)", () => {
+    const decisions = [
+      decision("flop", "bet", 20, { action: "bet", potBefore: 12, toCall: 0, equityPct: 75 }, 20),
+      // A low-equity bluff bet — a ❌ mistake.
+      decision("turn", "bet", 40, { action: "bet", potBefore: 50, toCall: 0, equityPct: 12 }, 40),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={60} />);
+    expect(screen.queryByTestId("recap-praise")).toBeNull();
+  });
+
+  it("does NOT show praise on a clean but LOST hand (it gets the variance bridge instead, no double-up) (#5)", () => {
+    const decisions = [
+      decision("river", "bet", 100, { action: "bet", potBefore: 200, toCall: 0, equityPct: 92 }),
+    ];
+    render(<HandRecap decisions={decisions} heroNet={-200} />);
+    expect(screen.queryByTestId("recap-praise")).toBeNull();
+    expect(screen.getByTestId("recap-variance")).toBeInTheDocument();
+  });
+
   // iter-03 #1 — the variance bridge on a WELL-PLAYED LOSS, shown by default.
   it("shows the variance note when the hand was LOST but every graded decision was sound (#1)", () => {
     const decisions = [

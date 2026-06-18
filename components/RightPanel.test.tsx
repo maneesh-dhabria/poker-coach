@@ -144,6 +144,64 @@ describe("RightPanel", () => {
     expect(off.textContent).not.toMatch(/when the hand ends/i);
   });
 
+  // iter-13 #3: in-play coaching controls let the user change depth / toggle feedback WITHOUT a new
+  // session — writing through setSettings (the same field the setup screen sets).
+  it("changing coaching depth in-play updates the rendered feedback depth immediately", () => {
+    const flopVerdict = (depth: "equity" | "conceptual") => ({
+      decisionId: "h1-d2",
+      street: "flop",
+      spot: { potBefore: 32, toCall: 12, position: "BTN", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
+      heroAction: { action: "call", amount: 12 },
+      analysis: analyze({ action: "call", potBefore: 32, toCall: 12, equityPct: 47, unit: "usd", coachingDepth: depth }),
+    });
+    act(() =>
+      useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: false }) as never, feedback: flopVerdict("equity") as never, tick: 1 }),
+    );
+    render(<RightPanel />);
+    // Equity depth shows the equity bar.
+    expect(screen.getByTestId("equity-bar")).toBeInTheDocument();
+    // Switch depth in-play to Conceptual via the control.
+    fireEvent.change(screen.getByTestId("inplay-depth"), { target: { value: "conceptual" } });
+    expect(useSessionStore.getState().settings.coachingDepth).toBe("conceptual");
+    // Re-render the feedback at the new depth (the verdict the panel reads is depth-tagged).
+    act(() =>
+      useGameStore.setState({ feedback: flopVerdict("conceptual") as never, tick: 2 }),
+    );
+    // Conceptual hides the equity bar (no numbers).
+    expect(screen.queryByTestId("equity-bar")).toBeNull();
+  });
+
+  it("toggling instant feedback off/on in-play hides/shows the live verdict panel", () => {
+    const flopVerdict = {
+      decisionId: "h1-d2",
+      street: "flop",
+      spot: { potBefore: 32, toCall: 12, position: "BTN", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
+      heroAction: { action: "call", amount: 12 },
+      analysis: analyze({ action: "call", potBefore: 32, toCall: 12, equityPct: 47, unit: "usd" }),
+    };
+    act(() =>
+      useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: false }) as never, feedback: flopVerdict as never, tick: 1 }),
+    );
+    render(<RightPanel />);
+    expect(screen.getByTestId("verdict-badge")).toBeInTheDocument();
+    // Toggle feedback OFF in-play.
+    fireEvent.click(screen.getByTestId("inplay-feedback-toggle"));
+    expect(useSessionStore.getState().settings.feedbackEnabled).toBe(false);
+    expect(screen.queryByTestId("verdict-badge")).toBeNull();
+    expect(screen.getByTestId("feedback-off")).toBeInTheDocument();
+    // Toggle back ON.
+    fireEvent.click(screen.getByTestId("inplay-feedback-toggle"));
+    expect(useSessionStore.getState().settings.feedbackEnabled).toBe(true);
+    expect(screen.getByTestId("verdict-badge")).toBeInTheDocument();
+  });
+
+  it("the in-play controls are present on the live-feedback tab", () => {
+    render(<RightPanel />);
+    expect(screen.getByTestId("inplay-controls")).toBeInTheDocument();
+    expect(screen.getByTestId("inplay-depth")).toBeInTheDocument();
+    expect(screen.getByTestId("inplay-feedback-toggle")).toBeInTheDocument();
+  });
+
   it("coerces a stale persisted tab key to live-feedback", () => {
     // @ts-expect-error — simulate an old persisted value outside the new union
     useSessionStore.getState().setActiveTab("rankings");

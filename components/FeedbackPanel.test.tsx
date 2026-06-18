@@ -38,6 +38,26 @@ describe("FeedbackPanel", () => {
     expect(screen.getByTestId("feedback-panel").textContent).not.toContain("%");
   });
 
+  it("shows an 'Oversized' badge label for a gross overbet (oversize_bet tag) (iter-13 #2)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 70,
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Ad"],
+      board: ["As", "7c", "2d"],
+      raiseToAmount: 140, // 7× pot — gross overbet
+      unit: "usd",
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    render(<FeedbackPanel analysis={a} enabled context={{ street: "flop", potBefore: 20, toCall: 0, action: "bet" }} />);
+    const badge = screen.getByTestId("verdict-badge").textContent ?? "";
+    expect(badge).toContain("Oversized");
+    expect(screen.getByTestId("plain-math").textContent).toMatch(/size down/i);
+  });
+
   it("explains WHY the verdict landed, in win-vs-need words (observation #4)", () => {
     const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
     render(<FeedbackPanel analysis={a} enabled />);

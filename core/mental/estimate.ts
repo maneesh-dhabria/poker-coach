@@ -341,8 +341,14 @@ export function conclusionFrom(args: {
   // Step 6 must recommend betting, not "take the free card" (which once contradicted "Betting is worth
   // ~$9"). When omitted/false it keeps the free-card line. Optional so existing callers are unaffected.
   betBeatsCheck?: boolean;
+  // Whether the hero ACTUALLY BET/RAISED this free street (iter-13 #1). When they did — and betting is
+  // the WORSE line (betBeatsCheck false), so the verdict grades it ❌/⚠️ — Step 6 must RECONCILE with
+  // that grade, not issue a present-tense "just take the free card" check instruction for a decision
+  // the hero already made. We acknowledge the bet and frame the free card as the cheaper ALTERNATIVE.
+  // Optional/false so check-spots and existing callers keep the unchanged free-card line.
+  heroBet?: boolean;
 }): { profitable: boolean; sentence: string } {
-  const { trueWinPct, breakEvenPct, toCall, madeHand, betBeatsCheck } = args;
+  const { trueWinPct, breakEvenPct, toCall, madeHand, betBeatsCheck, heroBet } = args;
   const win = Math.round(trueWinPct);
   const lead = madeHand ? ` You already have ${madeHand.label}.` : "";
   // "Ahead" only when the unified win-% is actually high — never claim a lead against the equity
@@ -368,6 +374,16 @@ export function conclusionFrom(args: {
       return {
         profitable: true,
         sentence: `Betting is the higher-EV play here — a semi-bluff with your ~${win}% equity — rather than just taking the free card.`,
+      };
+    }
+    // Betting is NOT the higher-EV line. If the hero ALREADY BET (iter-13 #1), Step 6 must agree with
+    // the verdict that grades that bet a mistake — not tell them to "just take the free card" as if the
+    // decision were still open. Acknowledge the bet; present checking for the free card as the cheaper
+    // ALTERNATIVE that would have been the better line.
+    if (heroBet) {
+      return {
+        profitable: false,
+        sentence: `You bet as a semi-bluff with only ~${win}% and no made hand — with this little equity, checking to take the free card would have been the cheaper line.`,
       };
     }
     return {

@@ -203,6 +203,17 @@ export function HandRecap({
             <code>/poker-coach last</code> in your terminal, then open the Coaching panel and hit Refresh.
           </p>
 
+          {/* Positive reinforcement on a fully clean hand (iter-13 #5): every graded decision was
+              ✅ good (no ⚠️ thin, no ❌ mistake). The app already WITHHOLDS praise after any flag
+              (correct), but never congratulated a genuinely clean hand. Show it on a clean WIN (a
+              clean LOSS gets the variance bridge below instead, so we don't double up). Gated on
+              `!flagged` so a ⚠️/❌ hand never sees it. */}
+          {heroNet !== null && heroNet > 0 && !flagged ? (
+            <p data-testid="recap-praise" style={{ fontSize: 13, color: "var(--good)", marginTop: 8 }}>
+              Nicely played — every decision was solid.
+            </p>
+          ) : null}
+
           {/* Reconcile result vs verdict: winning a hand with a flagged decision feels contradictory,
               so spell out that the verdicts grade the decision, not this one outcome. */}
           {heroNet !== null && heroNet >= 0 && flagged ? (
