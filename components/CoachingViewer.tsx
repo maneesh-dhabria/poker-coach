@@ -66,6 +66,11 @@ function EmptyState() {
     <div data-testid="coaching-empty" style={{ color: "var(--ink-soft)" }}>
       <h2>No coaching yet</h2>
       <p>
+        Narrative coaching is written by the <code>/poker-coach</code> terminal command — by design,
+        it doesn&apos;t run automatically in the app. (Your instant in-app coaching is the Live
+        Feedback panel after each decision.) This tab stays empty until you run the command.
+      </p>
+      <p>
         Finish a hand, then in your terminal (from the repo root) run one of:
       </p>
       <ul style={{ marginTop: 4 }}>

@@ -29,6 +29,9 @@ describe("CoachingViewer", () => {
     render(<CoachingViewer sessionId="s" />);
     expect(await screen.findByTestId("coaching-empty")).toBeInTheDocument();
     expect(screen.getAllByText(/poker-coach/i).length).toBeGreaterThan(0);
+    // Lead reassures the user this is an intentional, separate terminal step (iter-15 #2).
+    expect(screen.getByText(/doesn't run automatically in the app/i)).toBeInTheDocument();
+    expect(screen.getByText(/Live\s+Feedback/i)).toBeInTheDocument();
   });
 
   it("has a refresh control", async () => {

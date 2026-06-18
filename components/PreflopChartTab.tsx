@@ -222,7 +222,8 @@ export function PreflopChartTab({ heroPosition }: { heroPosition?: Position } = 
             </li>
             <li>
               Heads-up &ldquo;vs a random hand&rdquo; <strong>overstates</strong> real equity — at a
-              full table opponents fold their worst hands, so whoever keeps playing is stronger.
+              full table opponents fold their worst hands, so whoever keeps playing is stronger. That&apos;s
+              why your live win-chance against the players still in a hand is usually lower than this number.
             </li>
           </ul>
         </div>

@@ -16,6 +16,8 @@ describe("PreflopChartTab", () => {
     expect(getByText(/wins ~\d+ out of 100 vs a random hand/i)).toBeTruthy();
     expect(getByText(/baseline/i)).toBeTruthy();
     expect(getByText(/overstates/i)).toBeTruthy(); // the honest vs-random caveat
+    // Bridging clause so a skimmer isn't confused when the live number is lower (iter-15 #1).
+    expect(getByText(/live win-chance.*is usually lower than this/i)).toBeTruthy();
   });
 
   it("offers a position selector with all six table positions", () => {

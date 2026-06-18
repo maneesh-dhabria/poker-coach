@@ -37,8 +37,11 @@ export function HeaderBar({
         padding: "8px 16px",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }} aria-label="session profit and loss">
+      <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap", minWidth: 0 }}>
+        <span
+          style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+          aria-label="session profit and loss"
+        >
           <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-soft)" }}>
             Session
           </span>
@@ -46,7 +49,10 @@ export function HeaderBar({
             <span aria-hidden="true">{arrow}</span> {formatMoney(sessionPnl, displayUnit, bigBlind)}
           </span>
         </span>
-        <span style={{ display: "flex", alignItems: "center", gap: 6 }} aria-label="lifetime bank">
+        <span
+          style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
+          aria-label="lifetime bank"
+        >
           <span style={{ fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, color: "var(--ink-soft)" }}>
             Bank
           </span>
