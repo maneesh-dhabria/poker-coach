@@ -3,6 +3,38 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.23.0] — 2026-06-18
+
+### Reviewer-iteration-18 fixes — a clearly-losing value bet is a mistake, not "thin"
+
+An eighteenth independent first-time-user playtest (`docs/playtest/reviews/iter-18.md`) confirmed
+the app's integrity (it refuses to praise a winning punt, EV matches every verdict's tone, the
+depth modes and the terminal `/poker-coach` narrative agree with live feedback) and found one
+grading inconsistency plus a few copy/CSS items. Coaching grade/copy + CSS only; no equity/EV math
+changed; no `HandRecord` schema change.
+
+### Fixed
+
+- **A clearly money-losing "thin value" bet is now graded a mistake.** A half-pot top-pair bet on a
+  wet multiway board showed check +1.2 BB vs bet −2.4 BB — clearly the worse line and negative — yet
+  was bucketed ⚠️ "thin," while a barely-negative loose call was already graded ❌ mistake. A made-hand
+  value bet now escalates to ❌ mistake when its EV is clearly negative (worse than about −1.5 BB) AND
+  materially below checking; a genuinely near-break-even thin bet (e.g. about −0.5 BB) stays ⚠️ thin.
+  When escalated it no longer reads "this is a value bet" — it says checking was clearly better
+  (`core/analysis/analyze.ts`, `core/analysis/explain.ts`, `core/analysis/conceptTags.ts`).
+- **A borderline call no longer sends mixed signals.** For a near-break-even call (e.g. 28% vs 29%
+  needed), the headline "Close, but just about worth it" used to sit directly above "you come up
+  short, so this loses money over time." Within the borderline band both lines now say the same
+  thing — it's about break-even, calling and folding are roughly equal
+  (`core/analysis/explain.ts`, `components/FeedbackPanel.tsx`).
+- **The end-of-hand result is now prominent.** After a big multiway all-in the stack could jump with
+  little explanation; the result line is now a bold, coloured headline ("Result: you won $792.") so
+  the swing is clearly accounted for (`components/HandRecap.tsx`).
+- **Smaller copy/CSS:** the Mental Math line under a ✅ good check no longer calls the action
+  "marginal" (it now says top pair isn't strong enough to bet for value, so checking is fine), and
+  the top-bar buttons keep their labels on one line at narrow widths
+  (`components/MentalMathSection.tsx`, `app/globals.css`).
+
 ## [0.22.0] — 2026-06-18
 
 ### Reviewer-iteration-17 fixes — a reckless overbet is a mistake, even with a weak pair
