@@ -26,6 +26,9 @@ const TAG_LABELS: Record<string, string> = {
   preflop_oversize: "Oversized",
   bet_too_small: "Bet too small",
   oversize_bet: "Oversized",
+  // A low-equity gross overbet is an oversized punt/bluff, not "thin value" — the chip says so plainly
+  // alongside the "Oversized" chip (iter-17 #2).
+  oversize_no_value: "No value",
   call_too_wide: "Called too wide",
   played_too_wide: "Played too wide",
   fold_too_tight: "Folded too tight",

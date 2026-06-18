@@ -58,6 +58,30 @@ describe("FeedbackPanel", () => {
     expect(screen.getByTestId("plain-math").textContent).toMatch(/size down/i);
   });
 
+  // iter-17 #1,#2: a LOW-equity gross overbet with a weak made hand (5♥5♠ underpair, 9%, 6×-pot shove)
+  // grades ❌ Mistake and must NOT read "Thin value" — it shows an "Oversized" badge + a "No value" chip.
+  it("a low-equity gross overbet shows ❌ Oversized + 'No value', never 'Thin value' (iter-17 #1,#2)", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 25,
+      toCall: 0,
+      equityPct: 9,
+      street: "flop",
+      numActiveOpponents: 2,
+      hole: ["5h", "5s"],
+      board: ["9d", "Tc", "7d"], // underpair — a weak made hand
+      raiseToAmount: 153, // ~6× the pot
+      unit: "usd",
+    });
+    expect(a.verdict).toBe("mistake");
+    const { container } = render(<FeedbackPanel analysis={a} enabled context={{ street: "flop", potBefore: 25, toCall: 0, action: "bet" }} />);
+    const badge = screen.getByTestId("verdict-badge").textContent ?? "";
+    expect(badge).toContain("Oversized");
+    const text = container.textContent ?? "";
+    expect(text).toMatch(/No value/);
+    expect(text).not.toMatch(/Thin value/);
+  });
+
   it("explains WHY the verdict landed, in win-vs-need words (observation #4)", () => {
     const a = analyze({ action: "call", potBefore: 12, toCall: 4, equityPct: 46, unit: "usd" });
     render(<FeedbackPanel analysis={a} enabled />);

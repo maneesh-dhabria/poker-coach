@@ -218,7 +218,7 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
     return emptyEstimate(
       "preflop",
       "preflop",
-      "The Rule of 2 & 4 is for the flop and turn — for preflop, see the Preflop Chart tab.",
+      "The Rule of 2 & 4 is for the flop and turn — for preflop, see the Preflop Chart in the References tab.",
     );
   }
   if (board.length < 3) {

@@ -299,7 +299,7 @@ export function MentalMathSection({
             <Note>
               {conceptual
                 ? "Counting outs is for the flop and turn, once cards are still to come. There's nothing to count before the flop."
-                : "The Rule of 2 & 4 is for the flop and turn. For preflop, see the Preflop Chart tab."}
+                : "The Rule of 2 & 4 is for the flop and turn. For preflop, see the Preflop Chart in the References tab."}
             </Note>
           )}
           {estimate.status === "river" && (

@@ -805,8 +805,11 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.verdict).toBe("thin"); // ahead but too big — keep the "size down" treatment
   });
 
-  it("(iter-16 #3) a low-equity MADE-hand gross overbet is NOT escalated to a mistake", () => {
-    // A made hand at low multiway equity is value (showdown value), not a spew — keep ⚠️ thin.
+  // iter-17 #1 WIDENS the iter-16 gate to EQUITY ALONE: a WEAK made hand at low equity that ships a
+  // gross overbet is still a low-equity spew, so it now escalates to a ❌ mistake (the prior
+  // `madeHand == null` carve-out wrongly spared exactly this case). Replaces the old iter-16 assertion
+  // that a low-equity made-hand overbet stayed ⚠️ thin.
+  it("(iter-17 #1) a low-equity MADE-hand gross overbet IS escalated to a mistake (equity-alone gate)", () => {
     const a = analyze({
       action: "bet",
       potBefore: 32,
@@ -815,11 +818,56 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
       street: "flop",
       numActiveOpponents: 5,
       hole: ["4s", "2s"],
-      board: ["3s", "4c", "3d"], // two pair — a made hand
+      board: ["3s", "4c", "3d"], // two pair — a made hand, but still 18% multiway
       raiseToAmount: 160, // 5× the pot
     });
     expect(a.conceptTags).toContain("oversize_bet");
-    expect(a.verdict).toBe("thin"); // a made hand is never a "spew mistake"
+    expect(a.verdict).toBe("mistake"); // a low-equity spew, even with a (weak) made hand
+    expect(a.severity).toBeGreaterThanOrEqual(2);
+  });
+
+  // iter-17 #1 — the reviewer's exact repro: 5♥5♠ (an underpair, ~9% equity) shoves a ~6×-pot overbet
+  // on 9♦T♣7♦. The underpair counts as a made hand, which the old gate spared — now it grades a ❌
+  // mistake and tallies as one. Issue #2: the value tag is dropped (no "Thin value" on a 9% hand) and
+  // an "oversize_no_value" tag is added instead.
+  it("(iter-17 #1,#2) the 5♥5♠ underpair 9%-equity 6×-pot shove grades a MISTAKE with no 'thin value' tag", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 25,
+      toCall: 0,
+      equityPct: 9,
+      street: "flop",
+      numActiveOpponents: 2,
+      hole: ["5h", "5s"],
+      board: ["9d", "Tc", "7d"], // an underpair to the board — a (weak) made hand
+      raiseToAmount: 153, // ~6× the pot — a reckless overbet shove
+    });
+    expect(a.verdict).toBe("mistake"); // tallies as a mistake (HandRecap buckets off verdict)
+    expect(a.severity).toBeGreaterThanOrEqual(2);
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.conceptTags).toContain("oversize_no_value");
+    // No VALUE in a 9%-to-win overbet — the value tags must be gone.
+    expect(a.conceptTags).not.toContain("made_hand_thin_value");
+    expect(a.conceptTags).not.toContain("thin_value_good");
+  });
+
+  // iter-17 #1 — PRESERVE the value-overbet case: genuinely ahead (a set, 70%) keeps ⚠️ thin/oversized
+  // and the value tag, so "you're ahead, size down" copy is unchanged.
+  it("(iter-17 #1) a high-equity value gross overbet (a set, 70%) stays ⚠️ thin and keeps its value framing", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 20,
+      toCall: 0,
+      equityPct: 70,
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Ad"],
+      board: ["As", "7c", "2d"], // a set — a genuine value overbet
+      raiseToAmount: 140, // 7× the pot
+    });
+    expect(a.verdict).toBe("thin"); // ahead but too big — keep the "size down" treatment
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.conceptTags).not.toContain("oversize_no_value");
   });
 
   it("(iter-16 #3) a 100 BB shove of a fold-range hand (97o) grades a ❌ mistake, tallies as a mistake", () => {

@@ -116,6 +116,16 @@ function evReconcileNote(
   return ` (The dollar figures are rough equity-only estimates, so a gap this small is within the noise.${foldEquity})`;
 }
 
+// A price (pot-odds) decision is "borderline" when the hero's equity is within this many points of the
+// break-even need — a 13%-vs-14% fold or a barely-priced call (iter-17 #4). Inside this band the copy
+// adds a brief "it's close" hedge so a razor-thin spot isn't presented as clear-cut; a clear gap keeps
+// its confident wording. Small by design so the hedge never fires on an obvious fold/call.
+const BORDERLINE_PRICE_MARGIN = 3;
+
+function isBorderlinePrice(equityPct: number, potOddsPct: number): boolean {
+  return Math.abs(equityPct - potOddsPct) <= BORDERLINE_PRICE_MARGIN;
+}
+
 const CHART_VERB: Record<ChartAction, string> = { raise: "raise", call: "call", fold: "fold" };
 
 // The present-participle of a chart verb, built explicitly so we never get the naive "raise"+"ing"
@@ -230,10 +240,16 @@ function price(p: ExplainParams): string {
   const need = Math.round(p.potOddsPct);
   const win = Math.round(p.equityPct);
   const lead = `It costs you ${cost} to win a ${pot} pot — you only need to win about ${need}% of the time. Your hand wins ~${win}%.`;
+  // A razor-thin price — the hero's equity is within a hair of the break-even need — is still graded
+  // ✅ good (it's on the right side of the line), but presenting it as clear-cut oversells it (iter-17
+  // #4). Append a brief "though it's close" acknowledgement so a borderline call/fold doesn't read as
+  // a comfortable one. Tightly gated: only inside the small margin; a clear gap keeps its confident
+  // wording. The hedge text is depth-aware (conceptual stays digit-free, handled in conceptual()).
+  const close = isBorderlinePrice(p.equityPct, p.potOddsPct);
   if (p.verdict === "good")
     return p.action === "fold"
-      ? `${lead} Folding is right — you don't have the odds.`
-      : `${lead} Easy call — you're getting a great price.`;
+      ? `${lead} Folding is right — you don't have the odds${close ? ", though it's close" : ""}.`
+      : `${lead} ${close ? "A call — though it's close, you're just on the right side of the price." : "Easy call — you're getting a great price."}`;
   if (p.verdict === "thin") return `${lead} Close, but just about worth it.`;
   return p.action === "fold"
     ? `${lead} That's a clear call — folding here costs you money.`
@@ -463,13 +479,21 @@ export function narrateWinner(
 function conceptual(p: ExplainParams): string {
   switch (p.kind) {
     case "price":
-      if (p.verdict === "good")
+      if (p.verdict === "good") {
+        // Conceptual stays digit-free, but a razor-thin price still earns a plain "it's close" hedge so
+        // a borderline fold/call isn't presented as clear-cut (iter-17 #4).
+        const close = isBorderlinePrice(p.equityPct, p.potOddsPct);
         return p.action === "fold"
           // The honest reason to fold for a price is that the hand wins too rarely to justify the
           // call — NOT that "the pot isn't big enough" (it can be huge; iter-03 #5). Frame it as
           // win-chance vs the price, in plain words.
-          ? "Your hand wins too rarely to call this price — you'd be paying more than it can win back often enough, so folding is right."
-          : "You're getting a good price here — your hand wins often enough relative to the call, so it's an easy continue.";
+          ? close
+            ? "Your hand wins a touch too rarely to call this price, so folding is right — though it's close."
+            : "Your hand wins too rarely to call this price — you'd be paying more than it can win back often enough, so folding is right."
+          : close
+            ? "You're just on the right side of the price here, so calling is fine — though it's close."
+            : "You're getting a good price here — your hand wins often enough relative to the call, so it's an easy continue.";
+      }
       if (p.verdict === "thin") return "It's close, but just about worth continuing.";
       return p.action === "fold"
         ? "This was a spot to keep going, not fold."

@@ -30,6 +30,11 @@ export const CONCEPT_TAGS = [
   // right (good equity); only the size is critiqued (iter-13 #2). Distinct from `preflop_oversize`,
   // which only covers a first-in OPEN sized in big blinds.
   "oversize_bet",
+  // A gross overbet made while clearly BEHIND (low equity) — it risks a huge amount to win a tiny pot
+  // with a hand that's losing, so there is NO value in it: it's an oversized punt/bluff, not "thin
+  // value" (iter-17 #2). Replaces any value tag (made_hand_thin_value / thin_value_good) on the
+  // low-equity gross-overbet MISTAKE path so the label never reads "Thin value" on a 9%-to-win hand.
+  "oversize_no_value",
   "overfold_vs_aggression",
   "wrong_sizing",
   "preflop_chart_deviation",

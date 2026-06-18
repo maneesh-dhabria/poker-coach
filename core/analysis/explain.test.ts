@@ -471,6 +471,58 @@ describe("explanation sentence renders in the display unit (iter-04 #3)", () => 
   });
 });
 
+// iter-17 #4: a razor-thin price (equity within ~3 pts of the need) is still graded ✅ good but earns a
+// brief "it's close" hedge so a borderline call/fold isn't presented as clear-cut; a clear gap keeps
+// its confident wording.
+describe("borderline price gets an 'it's close' hedge (iter-17 #4)", () => {
+  const priceGood = (over: Partial<ExplainParams>): ExplainParams => ({
+    kind: "price",
+    verdict: "good",
+    depth: "equity",
+    unit: "usd",
+    action: "fold",
+    potBefore: 100,
+    toCall: 16,
+    equityPct: 13,
+    potOddsPct: 14,
+    ...over,
+  });
+
+  it("within-margin fold (win ~13% / need ~14%) hedges 'it's close'", () => {
+    const s = buildExplanation(priceGood({})).toLowerCase();
+    expect(s).toMatch(/close/);
+    expect(s).toMatch(/folding is right/);
+  });
+
+  it("within-margin call (win ~24% / need ~22%) hedges 'it's close'", () => {
+    const s = buildExplanation(
+      priceGood({ action: "call", equityPct: 24, potOddsPct: 22 }),
+    ).toLowerCase();
+    expect(s).toMatch(/close/);
+  });
+
+  it("a CLEAR fold (win ~5% / need ~24%) keeps confident wording, NO hedge", () => {
+    const s = buildExplanation(
+      priceGood({ equityPct: 5, potOddsPct: 24 }),
+    ).toLowerCase();
+    expect(s).not.toMatch(/close/);
+    expect(s).toMatch(/don't have the odds/);
+  });
+
+  it("conceptual depth: borderline fold still says 'it's close', NO digits", () => {
+    const s = buildExplanation(priceGood({ depth: "conceptual" }));
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).toMatch(/close/);
+  });
+
+  it("conceptual depth: a CLEAR fold keeps confident wording, NO hedge", () => {
+    const s = buildExplanation(
+      priceGood({ depth: "conceptual", equityPct: 5, potOddsPct: 24 }),
+    );
+    expect(s.toLowerCase()).not.toMatch(/close/);
+  });
+});
+
 describe("narrateWinner (T19: winner's-perspective fold narration)", () => {
   it("narrates the winner with their made hand when the cards were shown", () => {
     const s = narrateWinner(
