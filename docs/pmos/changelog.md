@@ -3,6 +3,43 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.26.0] — 2026-06-18
+
+### Reviewer-iteration-21 fixes — zero major issues, polishing the last rough edges
+
+A twenty-first independent first-time-user playtest (`docs/playtest/reviews/iter-21.md`) found **zero
+major or flow issues** — every verdict's words and numbers agreed, the depth control took effect from
+the first decision in all three modes, side-pot math was correct, and the recap named the right leak.
+It surfaced one copy inconsistency and five small polish items. Copy and UI polish only; no
+equity/EV math, verdict bucketing, engine/side-pot logic, or `HandRecord` schema changes.
+
+### Fixed
+
+- **Conceptual depth now teaches the preflop "why."** A preflop mistake at Conceptual depth used to
+  read only "This differs from the standard baseline line for this spot" — no plain reason a beginner
+  could learn from — while the same hand's flop fold gave a clear one. Conceptual preflop mistakes now
+  give a digit-free reason from the position and the kind of deviation: too loose ("too weak to raise
+  from early position — hands like it play poorly after the flop"), too tight ("strong enough to play
+  from here — folding gives up a profitable raise"), or a raise-vs-call mismatch
+  (`core/analysis/explain.ts`).
+- **Quick-size buttons no longer stay falsely highlighted.** Clicking ½/¾/Pot and then dragging the
+  bet slider off that value left the button highlighted; the highlight now follows the current amount
+  and clears when it no longer matches (`components/ActionBar.tsx`).
+- **The preflop chart explains why it folds small pairs early.** The tighter house chart folds
+  22–44 from early position; the per-cell detail now explains the reasoning (small pairs mainly want
+  to flop a set, which needs depth and callers) instead of surprising a knowledgeable user. The chart
+  ranges and grades are unchanged (`core/charts/preflop.ts`, `components/PreflopChartTab.tsx`).
+- **The table stays readable at small window sizes.** Below the comfortable range the felt and seats
+  used to shrink until cards and labels were cramped; the layout now holds a legible minimum and
+  scrolls instead of shrinking past readability, while the wider layouts reflow exactly as before
+  (`components/table/PokerTable.tsx`).
+- **The feedback panel fills its column.** In single-column (narrow) layouts the Live Feedback block
+  no longer leaves dead space on the right — it fills the panel width, capped so it stays sensible on
+  wide screens (`components/FeedbackPanel.tsx`).
+- **Folded players' cards stay mucked at showdown.** The showdown used to reveal every bot's hole
+  cards including players who folded; now only players who reach showdown are revealed, as in real
+  poker. Display only — winners and pot math are unchanged (`components/table/Seat.tsx`).
+
 ## [0.25.0] — 2026-06-18
 
 ### Reviewer-iteration-20 fixes — a break-even fold no longer argues with itself
