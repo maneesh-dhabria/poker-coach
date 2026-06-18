@@ -3,6 +3,59 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.18.0] — 2026-06-18
+
+### Reviewer-iteration-13 fixes — Mental Math agrees with the bet you made
+
+A thirteenth independent first-time-user playtest (`docs/playtest/reviews/iter-13.md`)
+confirmed the iter-12 fixes held (Mental Math pinned to the verdict, Strict off-model
+note explicit, Conceptual digit-free, chart never folds AA/KK, variance withheld after a
+flagged play) and found one remaining contradiction plus two friction points.
+Coaching-analysis + UI only; no `HandRecord` schema-version change.
+
+### Fixed
+
+- **Mental Math no longer tells you to "take the free card" after grading your bet a
+  mistake.** Betting a draw/air with no made hand correctly gets a ❌ semi-bluff verdict,
+  but the Mental Math below it still issued a present-tense "it's a free card — just take
+  it" (i.e. check) instruction. The free-street conclusion is now action-aware: when you
+  *bet* a low-equity hand it reconciles with the verdict ("you bet as a semi-bluff with
+  only ~20% — checking for the free card would have been the cheaper line") instead of
+  telling you to check as if the decision were still open. A genuine check still gets the
+  free-card line, and made-hand value bets are unchanged (`core/mental/estimate.ts`,
+  `components/MentalMathSection.tsx`).
+- **Grossly oversized bets are now flagged.** A ~13×-pot all-in overbet used to be graded
+  "✅ good · raising for value" with no comment on the size. A bet or raise that's a very
+  large multiple of the pot (≥ ~5×) is now flagged ⚠️ with a "size down" note while
+  keeping the correct direction — covering 3-bets/4-bets/shoves and postflop overbets, not
+  just first-in opens. Standard 3-bet/4-bet sizing, pot-sized bets, and forced short-stack
+  all-ins are deliberately left unflagged (`core/analysis/analyze.ts`, `explain.ts`,
+  `conceptTags.ts`).
+
+### Added
+
+- **Change coaching depth and toggle instant feedback mid-session.** Both used to be
+  locked in at session creation; a compact control in the live-feedback header now lets
+  you switch depth (Conceptual / Equity / Strict) and turn instant feedback on/off in
+  place, applied immediately (`components/RightPanel.tsx`).
+- **A clean hand now gets credit.** When every one of your decisions graded ✅, a won hand
+  closes with "Nicely played — every decision was solid" — the encouraging counterpart to
+  withholding praise after a flagged play (`components/HandRecap.tsx`).
+
+### Polish
+
+- In the Mental Math walkthrough, the opponent-shaded figure is always labeled an estimate
+  "to hit" your draw; "to win" is reserved for the single true-equity number, so no two
+  figures read as conflicting win chances (`components/MentalMathSection.tsx`).
+
+### Engineering notes
+
+- Found by an **independent, context-free** reviewer (no memory of the design or prior
+  fixes); evidence at `docs/playtest/reviews/iter-13.md`. The reviewer verified the
+  "no equity" wording is already correct (reserved for < ~20%; ~20–33% reads as a light
+  semi-bluff). Verified: `tsc --noEmit` clean, ESLint clean, production build clean,
+  **468** tests passing (+22). See `docs/pmos/features/2026-06-18_reviewer-iter13-fixes/`.
+
 ## [0.17.0] — 2026-06-18
 
 ### Reviewer-iteration-12 fixes — Mental Math always matches its verdict
