@@ -3,6 +3,40 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.20.0] — 2026-06-18
+
+### Reviewer-iteration-15 polish — a clean playtest, four small clarity touches
+
+A fifteenth independent first-time-user playtest (`docs/playtest/reviews/iter-15.md`) found
+**zero major or flow issues** — the in-play depth control, the gross-overbet flag, the
+isolation-raise reconciliation, the decision-over-results grading, the unit toggle, and the
+references all behaved as advertised with no console errors. Only four small clarity/polish
+items remained; this release addresses them. Copy + responsive CSS only; no coaching-analysis,
+verdict/equity/EV, or `HandRecord` schema changes.
+
+### Fixed
+
+- **The preflop chart now bridges its equity number to the live one.** The chart shows a
+  hand's heads-up "wins ~N out of 100 vs a random hand" while live coaching shows a lower
+  multiway figure; both were already labeled and caveated, but the jump could briefly confuse.
+  The chart's "vs a random hand overstates real equity" caveat now adds that your live
+  win-chance against the players still in a hand is usually lower than the chart number
+  (`components/PreflopChartTab.tsx`).
+- **The Coaching tab's empty state explains the terminal workflow up front.** "No coaching yet"
+  now leads with a note that narrative coaching is written by the `/poker-coach` terminal
+  command and, by design, doesn't run automatically in the app — with a reminder that the
+  in-app Live Feedback is the instant coaching. The run instructions are unchanged
+  (`components/CoachingViewer.tsx`).
+- **Header session/bank stats no longer wrap mid-stat on a narrow window.** Each stat keeps its
+  label and value together (`white-space: nowrap`); the row wraps as whole units only if a very
+  narrow header truly can't fit both, never forcing horizontal clipping (`components/HeaderBar.tsx`).
+
+### Notes
+
+- The slight vertical crampedness between the table and the controls at extreme short window
+  heights (e.g. 1280×520) is left as an accepted scale-to-fit tradeoff: nothing clips or
+  overlaps, and adding a gap would steal height from the felt and shrink it further.
+
 ## [0.19.0] — 2026-06-18
 
 ### Reviewer-iteration-14 fixes — depth control takes full effect; no praising a reckless stack-off
