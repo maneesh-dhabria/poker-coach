@@ -298,16 +298,27 @@ export function HandRecap({
                     multi-action group, prefix each with its own verdict icon so the per-action grade is
                     still visible after the actions were combined into one header. */}
                 {group.map((d, di) => (
+                  // iter-22 MINOR #7: lay each stacked sub-row out as flex so the verdict icon sits in
+                  // its own column with clear space before the text (no more "❌You're…" glued together),
+                  // and give multi-action sub-rows vertical breathing room between them.
                   <div
                     key={d.decisionId ?? di}
-                    style={{ fontSize: 13, color: "var(--ink-soft)", lineHeight: 1.5 }}
+                    style={{
+                      fontSize: 13,
+                      color: "var(--ink-soft)",
+                      lineHeight: 1.5,
+                      display: "flex",
+                      alignItems: "baseline",
+                      gap: 8,
+                      ...(group.length > 1 && di > 0 ? { marginTop: 6 } : {}),
+                    }}
                   >
                     {group.length > 1 ? (
-                      <span aria-hidden style={{ marginRight: 6 }} title={d.analysis.verdict}>
+                      <span aria-hidden style={{ flex: "0 0 auto" }} title={d.analysis.verdict}>
                         {VERDICT_META[d.analysis.verdict].icon}
                       </span>
                     ) : null}
-                    {formatExplanation(d.analysis, displayUnit, BIG_BLIND)}
+                    <span>{formatExplanation(d.analysis, displayUnit, BIG_BLIND)}</span>
                   </div>
                 ))}
               </div>

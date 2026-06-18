@@ -188,6 +188,51 @@ describe("Conceptual preflop MISTAKE gives a plain, digit-free reason (iter-21 M
   });
 });
 
+// iter-22 MAJOR-1a/#3/#5: a LOOSE preflop OPEN (chart folds, hero raised, off-model) must read as a
+// RAISE with a position + strength reason at EVERY depth — never the postflop semi-bluff / "no made
+// hand" / "push" framing, and never the wrong "betting" verb.
+describe("loose-open copy reads as a raise with a position/strength reason (iter-22 MAJOR-1a)", () => {
+  const looseBase = (depth: ExplainParams["depth"], verdict: ExplainParams["verdict"]): ExplainParams => ({
+    kind: "preflop",
+    verdict,
+    depth,
+    unit: "usd",
+    action: "raise",
+    potBefore: 5,
+    toCall: 0,
+    equityPct: 22,
+    potOddsPct: 0,
+    hand: ["Jh", "9c"],
+    position: "CO",
+    chartAction: "fold",
+    heroDeviates: true,
+    looseOpen: true,
+  });
+
+  for (const depth of ["equity", "strict"] as const) {
+    it(`${depth} depth: a thin loose open says "raising", a position/strength reason, and no postflop framing`, () => {
+      const s = buildExplanation(looseBase(depth, "thin")).toLowerCase();
+      expect(s).toContain("raising"); // correct verb
+      expect(s).not.toContain("betting"); // never the postflop "you're betting" (reviewer #3)
+      expect(s).not.toContain("semi-bluff");
+      expect(s).not.toContain("no made hand");
+      expect(s).not.toContain("push");
+      expect(s).not.toContain("bluff (no equity)");
+      expect(s).toMatch(/loose|easily-dominated/); // a strength reason
+      expect(s).toMatch(/late position|chart opens first-in/); // a position / chart reason
+    });
+  }
+
+  it("conceptual depth: a loose open gives a plain, digit-free position/strength reason (no 'little behind it')", () => {
+    const s = buildExplanation(looseBase("conceptual", "mistake"));
+    expect(s).not.toMatch(/\d/);
+    const lower = s.toLowerCase();
+    expect(lower).toContain("too weak to raise");
+    expect(lower).not.toContain("little behind it");
+    expect(lower).not.toContain("there's not enough here");
+  });
+});
+
 describe("preflop equity copy labels MULTIWAY opponents, not 'a random hand' (iter-04 #2)", () => {
   const ttRaise = (numActiveOpponents: number): ExplainParams => ({
     kind: "preflop",

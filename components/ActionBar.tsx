@@ -60,6 +60,17 @@ export function ActionBar({
   // to a non-matching value clears the highlight automatically. Sizes are integers, so exact match.
   const quickActive = (fraction: number) => sized === quickTo(fraction);
 
+  // A FINE slider step so a precise size can be dialed by keyboard (iter-22 NIT #8). The default
+  // range step is (max−min)/100 — on a deep stack one ArrowRight jumped ~$48, far too coarse. One
+  // small blind ($1 at $1/$2) gives single-dollar keyboard control while the min-raise / all-in
+  // bounds and the effective-stack cap (offeredMax) stay intact.
+  const sliderStep = Math.max(1, Math.round(bigBlind / 2));
+
+  // A subtle OVERBET hint (iter-22 NIT #8): when the chosen size puts MORE than the pot in (the extra
+  // beyond calling exceeds the current pot), note it so a newcomer realizes they're betting over the
+  // pot — no hard block, the size is still legal. `pot` is the pot before this action.
+  const isOverbet = pot > 0 && sized - legal.toCall > pot;
+
   // Folding when you can check for free is strictly dominated — no real client offers it. Hide Fold
   // whenever Check is legal so the only choices are the meaningful ones (check or bet).
   const showFold = legal.actions.includes("fold") && !legal.actions.includes("check");
@@ -88,6 +99,7 @@ export function ActionBar({
             aria-label="Bet size"
             min={legal.minRaiseTo}
             max={offeredMax}
+            step={sliderStep}
             value={sized}
             disabled={disabled}
             onChange={(e) =>
@@ -108,6 +120,15 @@ export function ActionBar({
             </span>
           )}
           <span data-testid="bet-size">{money(sized)}</span>
+          {isOverbet && (
+            <span
+              data-testid="overbet-hint"
+              title="This is more than the pot — an overbet. It's allowed, but it risks a lot to win the current pot."
+              style={{ fontSize: "0.75rem", color: "var(--thin, #b8860b)", whiteSpace: "nowrap" }}
+            >
+              overbet
+            </span>
+          )}
           <Button
             variant="primary"
             disabled={disabled}

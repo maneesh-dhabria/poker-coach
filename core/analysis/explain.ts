@@ -80,6 +80,11 @@ export interface ExplainParams {
   // tied/slightly-below the best alternative gets a one-line "rough estimate / fold-equity" note so it
   // doesn't read as an unreconciled contradiction (#1). Optional — absent ⇒ today's EV-blind copy.
   ev?: { fold: number; call: number; raise: number };
+  // True when this is a LOOSE preflop OPEN (chart folds, hero raised, off-model — iter-22 MAJOR-1a):
+  // the copy gives a PREFLOP position + strength reason with the correct "raise" verb, and NEVER the
+  // postflop semi-bluff / "no made hand" / "push" framing. Off-model, so it reconciles with the chart
+  // ("the chart opens first-in; here there are limpers and this hand is too weak to raise from here").
+  looseOpen?: boolean;
 }
 
 // Dollar-EV reconciliation margin (iter-16 #1, #2). The displayed `numbers.ev` are rough Monte-Carlo
@@ -270,6 +275,7 @@ export function formatExplanation(
     // field is needed since `numbers.ev` already rides on every record. EV is unit-invariant for the
     // comparison (a margin in dollars vs the same dollars), so passing the stored USD figures is fine.
     ev: analysis.numbers.ev,
+    looseOpen: ei.looseOpen,
     bigBlind,
   });
 }
@@ -325,6 +331,36 @@ function preflop(p: ExplainParams): string {
   const label = p.hand ? handLabel(p.hand) : "this hand";
   const rec = p.chartAction ? CHART_VERB[p.chartAction] : "play";
   const where = p.position ? ` from ${p.position}` : "";
+
+  // A LOOSE preflop OPEN of a hand the chart folds, in an off-model spot (a limped pot / off-chart
+  // seat) — iter-22 MAJOR-1a. NEVER the postflop semi-bluff/"no made hand"/"push" framing: an open is
+  // a RAISE (correct verb), not a bet, and preflop you never have a made hand. Lead with the
+  // position + strength reason; reconcile with the chart (it opens first-in; here it's off-model and
+  // this hand is too weak to raise from this seat). Verdict tunes "too weak" (mistake) vs "loose"
+  // (thin). At Strict, lean on the chart-doesn't-cover-this-cleanly honesty; at Equity, the win%/
+  // strength reason. Conceptual is handled in conceptual().
+  if (p.looseOpen) {
+    const place = positionPhrase(p.position);
+    const win = Math.round(p.equityPct);
+    // A grossly OVERSIZED loose open: the headline is the absurd SIZE, not a literal -EV claim (the
+    // size escalated it to a mistake; against over-folding limpers its showdown EV may even be
+    // non-negative). Lead with the size + the weak hand, so the copy never claims "loses money on
+    // average" for a play whose EV figure isn't negative (iter-22 keeps the iter-19 honesty fix).
+    if (p.overbetPotMultiple !== undefined) {
+      return p.depth === "strict"
+        ? `The chart opens first-in, but here there are limpers — and ${label} is a weak, easily-dominated hand to open${where}. Worse, this raise is far bigger than the pot: it risks a huge amount to win a tiny pot. Size it down to a normal open of a stronger hand.`
+        : `Raising ${label}${where} with only ~${win}% is far too big — it risks a huge amount to win a tiny pot, and this is a weak, easily-dominated hand to open from ${place} in the first place. Size it down to a normal open, and from this seat a tighter hand.`;
+    }
+    // A non-oversized loose open: lead with the position + strength reason and the correct "raise" verb.
+    if (p.depth === "strict") {
+      return p.verdict === "mistake"
+        ? `The chart opens first-in, but here there are limpers and ${label} is too weak to raise${where} — low, easily-dominated cards that play poorly after the flop. Raising it is a loose open that loses money on average; folding is the standard line.`
+        : `The chart opens first-in, but here there are limpers, so this is off the chart. Raising ${label}${where} is on the loose side — it's a marginal, easily-dominated open; a tighter open from ${place} is the standard line.`;
+    }
+    return p.verdict === "mistake"
+      ? `Raising ${label}${where} is too loose — its ~${win}% comes from low, easily-dominated cards that play poorly after the flop, so opening from ${place} loses money on average. Folding is the standard line here.`
+      : `Raising ${label}${where} is on the loose side — at ~${win}% it's a marginal, easily-dominated open. The chart opens first-in and tighter than this from ${place}, so it's a thin raise, not a clear-cut one.`;
+  }
 
   // An absurdly oversized OPEN (iter-06 #3): raising can be right, but the SIZE is far off, so we
   // never call it "the standard, profitable play". Lead with the size, keep it depth-light.
@@ -571,6 +607,17 @@ function conceptual(p: ExplainParams): string {
         ? "This was a spot to keep going, not fold."
         : "You're continuing too loosely here — folding is cleaner.";
     case "preflop":
+      // A LOOSE preflop OPEN (chart folds, hero raised, off-model — iter-22 MAJOR-1a/MAJOR-2). The
+      // plain reason is the position + strength one from conceptualPreflopDeviation ("too weak to raise
+      // from early position — hands like it play poorly after the flop, so folding is the standard
+      // line"), NEVER the old "raising with little behind it — there's not enough here". For an
+      // ALSO-oversized loose open, lead with the size in plain words. Checked BEFORE the generic
+      // oversize/overbet guards so a junk open is never softened to "raising can be right".
+      if (p.looseOpen) {
+        if (p.overbetPotMultiple !== undefined)
+          return "This is a weak hand to open from this early seat, and the raise is far bigger than the pot — it risks a lot to win a little. Fold it, or at most make a normal-sized open of a stronger hand.";
+        return conceptualPreflopDeviation(p);
+      }
       // Oversized open: flag the SIZE in plain words, no numbers (iter-06 #3).
       if (p.openSizeBb !== undefined)
         return "Raising can be fine here, but that's a much bigger open than usual — it bloats the pot and risks a lot to win a little. Make it a normal-sized raise.";

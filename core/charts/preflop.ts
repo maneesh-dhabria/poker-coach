@@ -47,27 +47,33 @@ export function chartApplies(position: Position, facing: Facing): boolean {
 
 // Seats that act early (whole table behind them), where this tighter chart folds the smallest pairs.
 const EARLY_POSITIONS: Position[] = ["UTG", "MP"];
-// Pocket pairs this chart folds from early position (22/33/44) — the surprise the reviewer flagged
-// (iter-21 NIT 2): many 6-max charts open all pairs UTG, so a knowledgeable user wonders why these
-// are folds. The chart RANGE is unchanged; we just explain it.
-const SMALL_PAIRS = ["22", "33", "44", "55", "66"];
+// The small pocket pairs (22..55) whose RAISE/FOLD boundary this tighter chart draws within from early
+// position — the surprise the reviewer flagged (iter-21 NIT 2 / iter-22 MINOR #6). The chart RANGE is
+// unchanged; cellRationale just explains BOTH sides of the boundary coherently: the folded bottom of
+// the range AND the small pairs the chart still opens.
+const SMALL_PAIRS = ["22", "33", "44", "55"];
 
 /**
- * A short, plain rationale for a per-cell chart decision that might surprise a user, shown under the
- * detail card (iter-21 NIT 2). Today it explains only the one documented surprise: a small pocket
- * pair the chart FOLDS from early position. Returns "" for every other cell (no rationale to add),
- * so the UI can render it conditionally. Pure — derived from the cell's key/position/action, which
- * the detail card already computes. Does NOT change any raise/fold classification.
+ * A short, plain rationale for a per-cell chart decision, shown under the detail card (iter-21 NIT 2,
+ * extended iter-22 MINOR #6). Covers two coherent cases at the small-pair RAISE/FOLD boundary this
+ * tighter chart draws from early position:
+ *   • a small pair the chart FOLDS (22 from MP, 22/33/44 from UTG) → it's the BOTTOM of the range, a
+ *     CLOSE fold at the threshold — NOT a blanket condemnation of all small pairs (the older copy read
+ *     as arguing against the very next pair the chart raises);
+ *   • a small pair the chart RAISES (33/44/55 from MP, 55 from UTG) → a brief "why raise" line so the
+ *     hands you're told to PLAY get strategic guidance too (fixes the "coverage backwards" MINOR).
+ * Returns "" for every other cell. Pure — derived from the cell's key/position/action the detail card
+ * already computes. Does NOT change any raise/fold classification.
  */
 export function cellRationale(key: string, position: Position, action: ChartAction): string {
-  if (
-    action === "fold" &&
-    EARLY_POSITIONS.includes(position) &&
-    SMALL_PAIRS.includes(key)
-  ) {
-    return "Small pairs are a close fold from early position in this tighter chart: they mostly want to flop a set, which needs deep stacks and several callers to pay off — and from up front you rarely have either.";
+  if (!EARLY_POSITIONS.includes(position) || !SMALL_PAIRS.includes(key)) return "";
+  if (action === "fold") {
+    // The folded bottom of the range — framed as a close threshold fold, NOT a condemnation of all
+    // small pairs (the next pair up is a raise, so the reason can't be "small pairs don't set-mine").
+    return "This is the bottom of the range — a close fold at the threshold this tighter chart draws from early position. Small pairs set-mine, which needs deep stacks and callers to pay off; the very smallest pairs clear that bar least often from up front, so they're folded while the slightly bigger ones are opened.";
   }
-  return "";
+  // A small pair the chart RAISES — a brief strategic "why open" line so the play hands are coached too.
+  return "A small-pair open at this chart's threshold: it set-mines like the smaller pairs, but with a touch more equity and the chance to flop an overpair or take the pot down, it's worth opening from early position where the smaller pairs are folded.";
 }
 
 // Ranks high→low, so the enumerator emits keys with the higher rank first (matching handKey).

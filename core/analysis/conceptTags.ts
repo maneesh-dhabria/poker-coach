@@ -48,6 +48,13 @@ export const CONCEPT_TAGS = [
   // "⚠️ thin", contradicting the chart's "raise". This tag marks it a standard iso (good), with copy
   // explaining the limpers difference. Off-model (gtoClaim false) — limpers aren't chart-modeled.
   "iso_raise_standard",
+  // A preflop OPEN of a hand the chart folds from this seat, in a spot the RFI chart doesn't model
+  // cleanly (a limped pot, or any off-chart open reaching the heuristic fallthrough). It is graded by
+  // PREFLOP yardsticks — position + hand strength + the open's EV — NOT by the postflop aggression
+  // heuristic (which wrongly framed a normal open as a "semi-bluff with no made hand", iter-22 MAJOR-1a).
+  // A marginally-loose open (small -EV) is ⚠️ thin; a clearly-losing junk open is ❌ mistake. Off-model
+  // (gtoClaim false): facing limpers isn't chart-modeled, so we don't claim GTO authority.
+  "loose_open",
   "good_preflop_discipline",
   // Street-neutral "a disciplined fold" — used for a sound fold on any street (e.g. a correct river
   // fold) so the tag never claims "preflop" about a postflop decision (iter-03 #4).

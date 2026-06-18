@@ -131,8 +131,12 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
         ? input.smallBlind * 2
         : FALLBACK_BIG_BLIND;
 
-  const branch = escalateThinValueIfLosing(
-    route(input, madeHand, openSizeBb, betPotFraction, betPotMultiple),
+  const branch = escalateLooseOpenIfLosing(
+    escalateThinValueIfLosing(
+      route(input, madeHand, openSizeBb, betPotFraction, betPotMultiple),
+      ev,
+      oneBigBlind,
+    ),
     ev,
     oneBigBlind,
   );
@@ -156,7 +160,10 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
     openSizeBb: branch.flagOversize ? openSizeBb : undefined,
     betTooSmall: branch.flagUndersize ?? false,
     overbetPotMultiple: branch.flagGrossOverbet ? branch.overbetPotMultiple : undefined,
-    // The going-forward EV the "Show the numbers" table shows, so the copy can RECONCILE its words
+    // A loose preflop OPEN (chart folds, hero raised, off-model) — drives the preflop "loose open"
+    // copy: a position + strength reason with the correct "raise" verb, never the postflop
+    // semi-bluff/"no made hand"/"push" framing (iter-22 MAJOR-1a).
+    looseOpen: branch.conceptTags.includes("loose_open"),
     // with the displayed figure (iter-16 #1, #2) — never to change a verdict, only to phrase honestly.
     ev,
   });
@@ -195,6 +202,7 @@ export function analyze(input: AnalyzeInput): DecisionAnalysis {
       ...(branch.flagGrossOverbet && branch.overbetPotMultiple !== undefined
         ? { overbetPotMultiple: branch.overbetPotMultiple }
         : {}),
+      ...(branch.conceptTags.includes("loose_open") ? { looseOpen: true } : {}),
     },
   };
 }
@@ -243,6 +251,13 @@ const FALLBACK_BIG_BLIND = 2;
 // puts the reviewer's two real data points on the right sides: a value bet at ≈ −0.5 BB (iter-17,
 // explicitly accepted as thin) stays ⚠️ thin; the iter-18 case at ≈ −2.4 BB becomes ❌ mistake.
 const THIN_VALUE_LOSS_BB = 1.5;
+
+// A loose preflop OPEN (the `loose_open` path) is ⚠️ thin while only marginally -EV; once its raise EV
+// drops below −LOOSE_OPEN_LOSS_BB it is a ❌ mistake (iter-22 MINOR #4). The reviewer's J9o CO min-raise
+// at ≈ −1 BB must stay ⚠️ thin (a marginally-loose open), while a clearly-junk open that loses more
+// becomes ❌ mistake. Set just below the J9o anchor (≈ −1 BB) so −1 BB stays thin and a clearly-losing
+// open (≈ −1.5 BB+) escalates. Denominated in BB like THIN_VALUE_LOSS_BB.
+const LOOSE_OPEN_LOSS_BB = 1.5;
 
 // In addition to the absolute-loss gate, the bet must be MATERIALLY worse than the best alternative
 // (checking — `ev.call` is the CHECK row when facing no bet) by more than the EV noise margin (≈ 1 BB
@@ -369,20 +384,34 @@ function route(
     // small epsilon so float/rounding never false-positives a clean blinds-only pot.
     input.potBefore > blindsPosted + input.bigBlind! / 2;
 
-  // A reasonable ISOLATION raise over limpers (iter-14 #5). In a limped pot the RFI chart is off-model
-  // (it assumes first-in), so the equity branch once graded a fine iso-raise "⚠️ thin", contradicting
-  // the clean-RFI chart that marks the same hand "raise". When the hero RAISES a hand the RFI chart
-  // WOULD open from this position, it's a standard iso — grade it good, and the copy explains the
-  // limpers difference. Off-model (gtoClaim false): limpers aren't chart-modeled, so we don't claim GTO.
+  // A preflop OPEN/iso-raise in a LIMPED pot is graded by PREFLOP yardsticks, never by the postflop
+  // aggression heuristic (iter-22 MAJOR-1a). The RFI chart is off-model in a limped pot (it assumes
+  // first-in), so:
+  //   • a hand the chart WOULD open first-in → a standard ISOLATION raise → ✅ good (iter-14 #5);
+  //   • a hand the chart FOLDS → a LOOSE OPEN → graded thin/mistake by its EV magnitude (loose_open),
+  //     with PREFLOP framing (position + strength), NOT "semi-bluff / no made hand / push".
+  // Routed BEFORE the postflop heuristics so a limped-pot open never falls through to aggressionBranch.
   if (
     isLimpedPot &&
     action === "raise" &&
     input.hand &&
     input.position &&
-    chartApplies(input.position, "unopened") &&
-    lookupChart(input.hand, input.position, "unopened") === "raise"
+    chartApplies(input.position, "unopened")
   ) {
-    return isoRaiseBranch(input.hand);
+    if (lookupChart(input.hand, input.position, "unopened") === "raise") {
+      return isoRaiseBranch(input.hand);
+    }
+    // A LOOSE open. A grossly OVERSIZED loose open (e.g. a 101 BB shove of 85s) is still flagged for
+    // its absurd SIZE on top of the loose-open framing (iter-22 keeps the iter-16 #3 oversize-open
+    // behavior): layer the gross-overbet size critique (lenient preflop cutoff ~8×) onto the loose
+    // open so a reckless shove never loses its size flag. A normal 2–3 BB loose open stays a clean
+    // loose open. The EV-magnitude escalation (escalateLooseOpenIfLosing) still applies downstream.
+    return withGrossOverbet(
+      looseOpenBranch(),
+      betPotMultiple,
+      PREFLOP_OVERBET_POT_MULTIPLE,
+      equityPct,
+    );
   }
 
   // 1. Preflop chart branch — the only place we claim GTO-ish correctness (gtoClaim=true).
@@ -394,6 +423,27 @@ function route(
     input.facing &&
     chartApplies(input.position, input.facing)
   ) {
+    // A preflop CALL of a hand the chart FOLDS is graded by POT ODDS, not solely the chart's fold
+    // range (iter-22 MAJOR-1b). The BB-vs-raise chart folds many hands that are nonetheless a clear,
+    // correct call at the price (e.g. completing $4 into a ~$32 pot needs ~11% and a hand can have
+    // ~18%). When the price is CLEARLY met (the callBranch grades it good/thin), DEFER to the price —
+    // grade it exactly like callBranch and reconcile in the copy — instead of emitting a ❌
+    // "the math favors folding" verdict whose number (equity ≥ needed) contradicts it. When the price
+    // is NOT met (callBranch would grade it a mistake), the chart's fold agrees with the price, so the
+    // chart branch's call_too_wide mistake stands. gtoClaim stays false on a price-deferred call (the
+    // chart's default is fold; we're overriding by price, so we don't claim GTO authority).
+    // GATED on the chart recommending FOLD: a hand the chart RAISES or CALLS is a correct CONTINUE —
+    // the chart branch already grades it (✅ for a call match, ⚠️ for a raise-vs-call aggression
+    // mismatch), so we must NOT override that into a flat price-good (that would erase a legitimate
+    // "raise, don't just call" thin). Only the over-FOLD (chart-fold) case is the one the price rescues.
+    if (
+      action === "call" &&
+      input.toCall > 0 &&
+      lookupChart(input.hand, input.position, input.facing) === "fold"
+    ) {
+      const priceBranch = callBranch(equityPct, potOdds(input.potBefore, input.toCall));
+      if (priceBranch.verdict !== "mistake") return priceBranch;
+    }
     // Flag the SIZE only on a first-in OPEN (raise, nothing to call) that's absurdly large; a 3-bet
     // facing a raise is intentionally not size-checked by this BB-based rule.
     const isOpen = action === "raise" && input.facing === "unopened";
@@ -413,6 +463,22 @@ function route(
           equityPct,
         );
   }
+
+  // A PREFLOP OPEN (raise, facing no prior raise) that reaches this fallthrough is an off-chart open (a
+  // limped pot whose chart doesn't apply, or a seat with no RFI chart) — it must NOT be graded by the
+  // postflop aggression heuristic, which frames an open as a "semi-bluff with no made hand that loses
+  // money on a push" (iter-22 MAJOR-1a). A preflop open is never a made-hand spot and never a "push"
+  // (the hero min-raised). Grade it as a loose open by PREFLOP yardsticks instead. A chart-open hand
+  // here would already have been caught by the iso-raise/chart branches above; only off-chart FOLD
+  // hands fall through. A preflop raise FACING A RAISE (a 3-bet/4-bet) is NOT an open — it continues to
+  // the heuristic/overbet path below so a gross 4-bet shove still flags (iter-13 #2).
+  if (street === "preflop" && action === "raise" && input.facing === "unopened") {
+    return looseOpenBranch();
+  }
+
+  // A PREFLOP call that reaches this fallthrough (no chart applies to the seat) is graded by the price,
+  // exactly like the postflop callBranch — see the pot-odds deference applied to the chart branch for
+  // seats the chart DOES cover (iter-22 MAJOR-1b).
 
   // 2..5 postflop / no-chart heuristics.
   if (action === "check") return checkBranch(equityPct);
@@ -505,6 +571,51 @@ function preflopBranch(
   }
   // raise-vs-call mismatch: right to continue, wrong aggression level → thin.
   return { ...base, verdict: "thin", severity: 1, conceptTags: tags };
+}
+
+// A LOOSE preflop OPEN of a hand the chart folds, in a spot the RFI chart doesn't model cleanly (a
+// limped pot, or an off-chart seat). Graded by PREFLOP yardsticks — NOT the postflop aggression
+// heuristic that wrongly framed a normal open as a "semi-bluff with no made hand that loses on a
+// push" (iter-22 MAJOR-1a). The base verdict is ⚠️ thin (a marginally-loose open is only slightly
+// -EV); `escalateLooseOpenIfLosing` bumps a clearly-losing junk open to ❌ mistake by its EV
+// magnitude. Off-model (gtoClaim false): facing limpers/off-chart isn't chart-modeled. The copy
+// (explain.ts `preflop` loose-open path) gives a position + strength reason and the correct "raise"
+// verb — never "bet"/"push"/"no made hand"/"semi-bluff".
+function looseOpenBranch(): Branch {
+  return {
+    kind: "preflop",
+    gtoClaim: false,
+    verdict: "thin",
+    severity: 1,
+    // chartActionForExplain=fold + heroDeviates=true drive the preflop "loose open" copy and the
+    // Conceptual `conceptualPreflopDeviation` plain reason (chart folds, hero raised → too weak here).
+    chartActionForExplain: "fold",
+    heroDeviates: true,
+    conceptTags: ["loose_open", "preflop_chart_deviation"],
+  };
+}
+
+// A loose preflop OPEN is "thin" while only marginally -EV; once it bleeds CLEARLY-negative money it
+// is a ❌ mistake (iter-22 MINOR #4). Mirrors `escalateThinValueIfLosing`: the discriminator is the
+// raise's absolute EV magnitude in BB. Anchored to the reviewer's two data points — a J9o CO min-raise
+// at ≈ −1 BB stays ⚠️ thin; a clearly-losing junk open (e.g. ≈ −2 BB+) becomes ❌ mistake. Only ever
+// touches the loose_open path; every other branch passes through unchanged.
+function escalateLooseOpenIfLosing(
+  branch: Branch,
+  ev: { fold: number; call: number; raise: number },
+  bigBlind: number,
+): Branch {
+  if (branch.verdict !== "thin" || !branch.conceptTags.includes("loose_open")) return branch;
+  const lossThreshold = -LOOSE_OPEN_LOSS_BB * bigBlind;
+  if (ev.raise >= lossThreshold) return branch; // marginally-loose → stays ⚠️ thin
+  return {
+    ...branch,
+    verdict: "mistake",
+    severity: 2,
+    conceptTags: branch.conceptTags.includes("played_too_wide")
+      ? branch.conceptTags
+      : [...branch.conceptTags, "played_too_wide"],
+  };
 }
 
 // A standard isolation raise over limpers (iter-14 #5): the RFI chart would open this hand first-in,

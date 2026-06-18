@@ -39,6 +39,36 @@ describe("ActionBar", () => {
     expect(onAction).toHaveBeenCalledWith({ type: "raise", amount: 100 });
   });
 
+  // iter-22 NIT #8: the slider uses a FINE step (1 small blind = $1 at $1/$2) so a precise size can be
+  // dialed by keyboard — the default (max−min)/100 jumped ~$48 on a deep stack (the reviewer's gripe).
+  it("uses a fine 1-small-blind slider step for precise keyboard sizing (iter-22 NIT #8)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "call", "raise"], toCall: 8, minRaiseTo: 16, maxRaiseTo: 1000 }}
+        onAction={vi.fn()}
+        bigBlind={2}
+      />,
+    );
+    expect(screen.getByRole("slider")).toHaveAttribute("step", "1"); // 1 SB, not ~$10/$48
+  });
+
+  // iter-22 NIT #8: a subtle "overbet" hint appears when the chosen size puts MORE than the pot in —
+  // no hard block, just a cue. Absent for an at-or-below-pot size.
+  it("shows an overbet hint only when the size exceeds the pot (iter-22 NIT #8)", () => {
+    render(
+      <ActionBar
+        legal={{ toAct: 0, actions: ["fold", "check", "bet"], toCall: 0, minRaiseTo: 2, maxRaiseTo: 500 }}
+        onAction={vi.fn()}
+        pot={20}
+      />,
+    );
+    const slider = screen.getByRole("slider");
+    fireEvent.change(slider, { target: { value: "10" } }); // half pot → no hint
+    expect(screen.queryByTestId("overbet-hint")).not.toBeInTheDocument();
+    fireEvent.change(slider, { target: { value: "50" } }); // 50 into a 20 pot → overbet
+    expect(screen.getByTestId("overbet-hint")).toBeInTheDocument();
+  });
+
   it("exposes ½/¾/pot quick-sizing buttons that set a pot-relative, legal amount (FR-52)", () => {
     const onAction = vi.fn();
     render(

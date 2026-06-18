@@ -135,10 +135,14 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.conceptTags).toContain("good_preflop_discipline");
   });
 
-  // iter-12 #3: a LIMPED pot (callers ahead, no raiser) is off-model for the RFI chart. An iso-raise
-  // over a lone limper must NOT be graded as a chart deviation against the RFI fold range — it's graded
-  // by equity/heuristics (gtoClaim false), so the off-model note can explain it.
-  it("treats an iso-raise over a limper as OFF-MODEL, not a chart deviation (KTo from MP)", () => {
+  // iter-12 #3 / iter-22 MAJOR-1a: a LIMPED pot (callers ahead, no raiser) is off-model for the RFI
+  // chart. An open of a hand the chart FOLDS (KTo from MP) is a LOOSE OPEN — off-model (gtoClaim false,
+  // no chart authority), graded by PREFLOP yardsticks (position + strength), NOT the postflop
+  // aggression heuristic that wrongly framed a normal open as a "semi-bluff with no made hand that
+  // loses on a push". REWRITTEN from the iter-12 assertion "not a chart deviation": the reviewer
+  // confirms an off-chart limped-pot open IS off the chart and must read as a loose RAISE with a
+  // position/strength reason — never a postflop semi-bluff.
+  it("grades an off-chart open in a limped pot as a LOOSE OPEN, not a postflop semi-bluff (KTo MP, iter-22)", () => {
     // $1/$2 table, blinds = $3. A lone limper completes → potBefore $5 (> $3 + $1). facing unopened.
     const a = analyze({
       action: "raise",
@@ -154,7 +158,12 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     });
     expect(a.gtoClaim).toBe(false); // off-model — no chart authority
     expect(a.chart).toBeUndefined();
-    expect(a.conceptTags).not.toContain("preflop_chart_deviation");
+    expect(a.conceptTags).toContain("loose_open");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("raising"); // correct verb — never "betting"
+    expect(lower).not.toContain("semi-bluff");
+    expect(lower).not.toContain("no made hand");
+    expect(lower).not.toContain("push");
   });
 
   it("still grades a true RFI spot (blinds-only pot) against the chart (KTo from MP folds)", () => {
@@ -994,5 +1003,182 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(typeof a.numbers.ev.fold).toBe("number");
     expect(typeof a.numbers.ev.call).toBe("number");
     expect(typeof a.numbers.ev.raise).toBe("number");
+  });
+
+  // ============================================================================================
+  // iter-22 — SYSTEMIC preflop grading fix. The reviewer (docs/playtest/reviews/iter-22.md) hit two
+  // MAJORs: (1) limped-pot / off-chart preflop OPENS were graded by the POSTFLOP aggression heuristic
+  // → framed as "semi-bluff with no made hand that loses on a push" (nonsense preflop); (2) a cheap BB
+  // CALL getting a clear price was graded ❌ "the math favors folding" while its own number (equity ≥
+  // needed) said the opposite. Preflop decisions must be graded by PREFLOP yardsticks: position + the
+  // chart for opens, POT ODDS for calls — never the postflop aggression heuristic.
+  // ============================================================================================
+
+  // (a) Hand 1: J9o CO open in a LIMPED pot (chart-fold hand), ≈ −1 BB EV → ⚠️ thin, NOT a mistake;
+  // copy mentions position/strength, the correct "raise" verb, and contains NO postflop framing.
+  it("(iter-22 MAJOR-1a) a marginally-loose CO open in a limped pot grades ⚠️ thin, not a mistake", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5, // SB 1 + BB 2 + a 2 limp = 5 → a limped pot, off-model for the RFI chart
+      toCall: 0,
+      equityPct: 22, // the reviewer's J9o CO win% vs the table
+      street: "preflop",
+      hand: hand("Jh", "9c"), // J9o — the RFI chart folds this from CO (only J9s opens)
+      position: "CO",
+      facing: "unopened",
+      raiseToAmount: 4,
+      raiseToExtra: 2, // a min-raise → EV ≈ −0.5..−1 BB (the reviewer saw −$1), inside the thin band
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).toBe("thin"); // marginally loose, not a blunder (reviewer MINOR #4 severity)
+    expect(a.conceptTags).toContain("loose_open");
+    expect(a.gtoClaim).toBe(false); // off-model — limpers aren't chart-modeled
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("raising"); // correct verb — never "betting"/"push"
+    expect(lower).toMatch(/loose|easily-dominated/); // a strength reason
+    expect(lower).toContain("late position"); // a position reason
+    expect(lower).not.toContain("semi-bluff");
+    expect(lower).not.toContain("no made hand");
+    expect(lower).not.toContain("push");
+    expect(lower).not.toContain("betting");
+  });
+
+  // (a, Conceptual) the SAME spot at Conceptual depth gives a PLAIN, digit-free reason (reviewer
+  // MAJOR-2) — never the old vague "raising with little behind it — there's not enough here".
+  it("(iter-22 MAJOR-2) the loose-open Conceptual reason is plain and digit-free", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5,
+      toCall: 0,
+      equityPct: 22,
+      coachingDepth: "conceptual",
+      street: "preflop",
+      hand: hand("Jh", "9c"),
+      position: "CO",
+      facing: "unopened",
+      raiseToAmount: 4,
+      raiseToExtra: 2,
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.plainExplanation).not.toContain("%");
+    expect(a.plainExplanation).not.toContain("$");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("too weak to raise"); // a real strength reason
+    expect(lower).toContain("play poorly after the flop");
+    expect(lower).not.toContain("little behind it"); // the old vague non-reason
+    expect(lower).not.toContain("there's not enough here");
+  });
+
+  // (b) a clearly-junk loose open (low equity, clearly -EV) → ❌ mistake with PREFLOP framing.
+  it("(iter-22 MINOR #4) a clearly-junk loose open grades ❌ mistake with preflop framing", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5,
+      toCall: 0,
+      equityPct: 9, // 72o — genuine junk
+      street: "preflop",
+      hand: hand("7h", "2d"),
+      position: "UTG",
+      facing: "unopened",
+      raiseToAmount: 6,
+      raiseToExtra: 8, // clearly -EV (well beyond the −1.5 BB loose-open threshold)
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).toBe("mistake");
+    expect(a.severity).toBe(2);
+    expect(a.conceptTags).toContain("loose_open");
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("raising"); // still a RAISE, never "betting"/"push"
+    expect(lower).not.toContain("semi-bluff");
+    expect(lower).not.toContain("no made hand");
+    expect(lower).not.toContain("push");
+  });
+
+  // (c) an open of a chart-open hand in a limped pot → ✅ good (a standard isolation raise).
+  it("(iter-22) a chart-open hand opened in a limped pot grades ✅ good (iso raise)", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5,
+      toCall: 0,
+      equityPct: 55,
+      street: "preflop",
+      hand: hand("Ah", "Qd"), // AQo — the RFI chart opens this from CO
+      position: "CO",
+      facing: "unopened",
+      raiseToAmount: 8,
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).toBe("good");
+    expect(a.conceptTags).toContain("iso_raise_standard");
+    expect(a.plainExplanation.toLowerCase()).toContain("isolation raise");
+  });
+
+  // (d) Hand 4: BB CALL of $4 into a ~$32 pot (needs ~11%, equity ~18%) → NOT a mistake; the copy must
+  // NEVER say "the math favors folding" when equity ≥ needed (the number would contradict the words).
+  it("(iter-22 MAJOR-1b) a BB call getting a clear price is NOT a mistake (defers to pot odds)", () => {
+    const a = analyze({
+      action: "call",
+      potBefore: 32,
+      toCall: 4,
+      equityPct: 18, // ≥ the ~11% the price requires
+      street: "preflop",
+      hand: hand("As", "7d"), // A7o — the BB-vs-raise chart FOLDS this, but the price supports calling
+      position: "BB",
+      facing: "raise",
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).not.toBe("mistake"); // the price is clearly met
+    expect(a.conceptTags).not.toContain("call_too_wide");
+    expect(a.gtoClaim).toBe(false); // chart's default is fold; we override by price, so no GTO claim
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).not.toContain("favors folding");
+    expect(lower).toContain("win"); // the pot-odds price framing
+  });
+
+  // (e) a BB call CLEARLY below the price → still call_too_wide mistake, with an AGREEING number.
+  it("(iter-22 MAJOR-1b) a BB call clearly below the price is still a call_too_wide mistake", () => {
+    const a = analyze({
+      action: "call",
+      potBefore: 11,
+      toCall: 8, // need 8/19 ≈ 42%
+      equityPct: 18, // clearly below the price → folding genuinely is better
+      street: "preflop",
+      hand: hand("As", "7d"),
+      position: "BB",
+      facing: "raise",
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).toBe("mistake");
+    expect(a.conceptTags).toContain("call_too_wide");
+    // The number now AGREES with the verdict: 18% equity is well below the ~42% the price needs.
+    expect(a.numbers.equityPct).toBeLessThan(a.numbers.potOddsPct ?? 100);
+  });
+
+  // (f) Hand 2: the borderline BB-equivalent fold (≈15% vs 14% needed) must STILL read "about
+  // break-even … folding is fine" — the excellent existing borderline-price treatment is preserved.
+  // (MP has no vs-raise chart, so a fold facing a 3-bet routes through the price/foldBranch.)
+  it("(iter-22) the Hand-2 borderline fold (≈15% vs 14%) still reads break-even (not regressed)", () => {
+    const a = analyze({
+      action: "fold",
+      potBefore: 68, // pot ~$79 after the $11 call; need 11/79 ≈ 14%
+      toCall: 11,
+      equityPct: 15, // a hair above the need → about break-even
+      street: "preflop",
+      hand: hand("4s", "7s"),
+      position: "MP", // no vs-raise chart → graded by price, not the chart
+      facing: "raise",
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).toBe("good"); // a fine fold, not punished
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("about equal"); // "calling and folding are about equal here, so folding is fine"
+    expect(lower).toContain("folding is fine");
   });
 });

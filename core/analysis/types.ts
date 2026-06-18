@@ -66,4 +66,8 @@ export interface ExplanationInput {
   // The pot-multiple of a GROSS overbet bet/raise (iter-13 #2), so a re-formatted sentence still flags
   // the absurd size ("shoving ~13× the pot"). Present only when the overbet flag fired.
   overbetPotMultiple?: number;
+  // True when this is a LOOSE preflop OPEN (chart folds, hero raised, off-model — iter-22 MAJOR-1a),
+  // so a re-formatted sentence keeps the preflop position+strength "raise" framing rather than the
+  // postflop semi-bluff/"no made hand" copy. Present only on a loose-open decision.
+  looseOpen?: boolean;
 }
