@@ -3,6 +3,36 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.24.0] — 2026-06-18
+
+### Reviewer-iteration-19 fixes — every number on the panel now reads as the same advice
+
+A nineteenth independent first-time-user playtest (`docs/playtest/reviews/iter-19.md`) again found
+**zero major or flow issues** and confirmed the grading buckets, decision-not-outcome integrity, and
+EV/verdict agreement all hold under deliberate stress. Four copy/presentation nuances remained where
+a number could be read against the verdict. Presentation only; no equity/EV math, verdict bucketing,
+or `HandRecord` schema changes.
+
+### Fixed
+
+- **The Mental Math dollar-EV line endorses the line you took.** On a spot where checking is the
+  praised play, "Show the dollar EV" used to show only "Betting is worth about $14" — read alone, it
+  looked like advice to bet. On a good check it now reads "Checking is worth about $17 on average —
+  more than betting ($14) — so checking is right" (`components/MentalMathSection.tsx`).
+- **The recap no longer says a +EV play "loses money on average."** A reckless oversized shove is
+  graded a mistake for its sizing, but against over-folding opponents its shown EV can be slightly
+  positive — so the won-with-a-flagged-play recap no longer makes a flat "loses money on average"
+  claim there; it frames it as a reckless size you can't rely on. A genuinely negative-EV flagged
+  play (a no-equity bluff, a too-wide call) still says "loses money on average." The play is still
+  graded a mistake either way (`components/HandRecap.tsx`).
+- **Strict depth now shows the equity bar.** Strict is a numbers depth (only Conceptual is
+  digit-free), but its no-chart fallback kept inline percentages in the sentence while hiding the
+  equity bar and the EV table. Strict now shows the equity bar, win-% line, and "Show the numbers"
+  like Equity; Conceptual stays fully digit-free (`components/FeedbackPanel.tsx`).
+- **The recap merges two actions on the same street.** Checking and then folding to a bet on the
+  same street used to appear as two separate rows; they now read as one line ("Turn — you checked,
+  then folded to a bet") (`components/HandRecap.tsx`).
+
 ## [0.23.0] — 2026-06-18
 
 ### Reviewer-iteration-18 fixes — a clearly-losing value bet is a mistake, not "thin"
