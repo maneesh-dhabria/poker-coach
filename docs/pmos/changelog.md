@@ -3,6 +3,48 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.25.0] — 2026-06-18
+
+### Reviewer-iteration-20 fixes — a break-even fold no longer argues with itself
+
+A twentieth independent first-time-user playtest (`docs/playtest/reviews/iter-20.md`) again confirmed
+the grading buckets, decision-not-outcome integrity, and EV/verdict agreement hold under stress, and
+surfaced one self-contradiction plus four smaller inconsistencies — two of them regressions from
+recent rounds. Presentation and one store/UI source-of-truth fix; no equity/EV math, verdict
+bucketing, or `HandRecord` schema changes.
+
+### Fixed
+
+- **A break-even fold no longer contradicts itself.** Folding a hand whose equity exactly meets the
+  price (e.g. win ~22%, need ~22%) used to show "Folding is right — you don't have the odds" in the
+  headline while the equity bar directly below read "that gap is why continuing makes money over
+  time." Inside the borderline band (|equity − need| ≤ 3) a good fold now reads as one coherent
+  break-even message in both the headline and the equity-bar line ("calling and folding are about
+  equal here, so folding is fine"); it never claims "you don't have the odds" or "continuing makes
+  money." Clear folds keep the confident wording. The equity-bar line now keys off the band and the
+  action you took, not raw equity-vs-need (`core/analysis/explain.ts`, `components/FeedbackPanel.tsx`).
+- **Conceptual stays digit-free on a freshly-dealt hand (regression).** With Conceptual selected,
+  dealing a new hand used to render the full Equity view until you re-toggled the depth: the panel
+  depth control updated the session settings but not the game store's own depth copy, which the next
+  deal reads to build the hand's flow. The active depth is now the single source of truth for both
+  the next deal and the in-play re-derive, so Conceptual is digit-free from the first decision with
+  no re-toggle (`store/gameStore.ts`).
+- **A "called too wide" preflop mistake now shows the same numbers as the matching fold.** A priced
+  preflop call graded a mistake was missing the "need ~X%" marker and the "Show the numbers" EV table
+  that the priced fold shows; both now render for priced preflop calls regardless of the grade
+  (`components/FeedbackPanel.tsx`).
+- **The bet slider no longer offers an uncallable overbet.** When you cover the table, the bet/raise
+  size offered is now capped to the largest amount a still-in opponent can actually match (their
+  remaining stack plus chips already in this hand); a short-stacked hero still offers their all-in.
+  Display-only cap — engine legality and side-pot logic are untouched (`core/engine/gameEngine.ts`,
+  `components/ActionBar.tsx`, `components/table/PokerTable.tsx`, `core/handFlow.ts`).
+- **The recap names the play that actually cost you.** "The play to review" now ranks flagged plays by
+  the chips you committed first (severity breaks ties), so a stack-losing oversized shove outranks a
+  trivial $2 preflop mistake (`components/HandRecap.tsx`).
+- **Merged recap rows drop the misleading single pot.** A row that merges two actions on one street
+  no longer tags a single "· pot $X" (which showed only the first action's pot); single-action rows
+  keep theirs (`components/HandRecap.tsx`).
+
 ## [0.24.0] — 2026-06-18
 
 ### Reviewer-iteration-19 fixes — every number on the panel now reads as the same advice
