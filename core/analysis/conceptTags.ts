@@ -33,6 +33,11 @@ export const CONCEPT_TAGS = [
   "overfold_vs_aggression",
   "wrong_sizing",
   "preflop_chart_deviation",
+  // A reasonable preflop ISOLATION raise over limpers, of a hand the RFI chart would open first-in
+  // (iter-14 #5). The clean-RFI chart assumes first-in, so the equity branch once graded a fine iso
+  // "⚠️ thin", contradicting the chart's "raise". This tag marks it a standard iso (good), with copy
+  // explaining the limpers difference. Off-model (gtoClaim false) — limpers aren't chart-modeled.
+  "iso_raise_standard",
   "good_preflop_discipline",
   // Street-neutral "a disciplined fold" — used for a sound fold on any street (e.g. a correct river
   // fold) so the tag never claims "preflop" about a postflop decision (iter-03 #4).

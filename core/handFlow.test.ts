@@ -61,6 +61,70 @@ describe("HandFlow interactive driver", () => {
   });
 });
 
+// iter-14 #1/#2: an in-play coaching-depth change re-derives every already-graded decision at the new
+// depth (copy-only change — verdict/equity/tags are depth-independent), and bakes it for future ones.
+describe("HandFlow.reanalyzeAt (in-play depth re-derive)", () => {
+  function playToOneDecision() {
+    const flow = startHand({
+      config: { smallBlind: 1, bigBlind: 2, startingStackBb: 100 },
+      seats: [
+        { seat: 0, name: "You", isHero: true, stack: 200, persona: null },
+        { seat: 1, name: "Sta", isHero: false, stack: 200, persona: personaFor("Calling Station", "Beginner") },
+      ],
+      buttonIndex: 1,
+      rng: mulberry32(9),
+      sessionId: "s",
+      handNumber: 1,
+      coachingDepth: "equity",
+    });
+    let guard = 0;
+    while (!flow.isOver() && flow.isHeroTurn() && guard++ < 30) {
+      const spot = flow.heroSpot();
+      const eq = equity({
+        hero: spot.hole,
+        board: spot.board,
+        numOpponents: Math.max(1, spot.numActiveOpponents),
+        iterations: 300,
+        seed: 5 + guard,
+      }).equityPct;
+      const action = spot.legal.actions.includes("check")
+        ? { type: "check" as const }
+        : { type: "call" as const };
+      flow.heroAct(action, eq);
+    }
+    return flow;
+  }
+
+  it("re-derives recorded decisions to the new depth, preserving verdict/equity (copy-only)", () => {
+    const flow = playToOneDecision();
+    expect(flow.decisions().length).toBeGreaterThanOrEqual(1);
+    const before = flow.decisions().map((d) => ({
+      depth: d.analysis.coachingDepth,
+      verdict: d.analysis.verdict,
+      eq: d.analysis.numbers.equityPct,
+      tags: d.analysis.conceptTags,
+    }));
+    expect(before.every((b) => b.depth === "equity")).toBe(true);
+
+    const changed = flow.reanalyzeAt("conceptual");
+    expect(changed).toBe(true);
+    expect(flow.coachingDepth()).toBe("conceptual");
+    flow.decisions().forEach((d, i) => {
+      // Depth (and therefore the COPY) switched...
+      expect(d.analysis.coachingDepth).toBe("conceptual");
+      // ...but the verdict / equity / tags are depth-independent and UNCHANGED.
+      expect(d.analysis.verdict).toBe(before[i].verdict);
+      expect(d.analysis.numbers.equityPct).toBe(before[i].eq);
+      expect(d.analysis.conceptTags).toEqual(before[i].tags);
+    });
+  });
+
+  it("is a no-op when the depth is unchanged", () => {
+    const flow = playToOneDecision();
+    expect(flow.reanalyzeAt("equity")).toBe(false);
+  });
+});
+
 describe("latestActionPerSeat (observation #3 — per-seat badges)", () => {
   it("keeps only each seat's most recent action", () => {
     const log: ActionRecord[] = [

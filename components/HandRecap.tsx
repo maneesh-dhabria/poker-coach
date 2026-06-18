@@ -86,6 +86,51 @@ function counts(decisions: HeroDecisionRecord[]) {
   return c;
 }
 
+// The single flagged decision the "where the leak is" line should point at (iter-14 #4): the MOST
+// SEVERE one (❌ over ⚠️ via analysis.severity), breaking ties by the largest chips the hero committed
+// on that decision (the bigger chip swing is the bigger lesson) — so a stack-losing overbet shove is
+// what's highlighted, not a minor earlier min-raise. Returns null when nothing is flagged.
+function mostSevereFlagged(decisions: HeroDecisionRecord[]): HeroDecisionRecord | null {
+  const chips = (d: HeroDecisionRecord) =>
+    Math.max(d.heroAction.amount ?? 0, d.spot.toCall ?? 0);
+  let best: HeroDecisionRecord | null = null;
+  for (const d of decisions) {
+    if (d.analysis.verdict === "good") continue;
+    if (
+      !best ||
+      d.analysis.severity > best.analysis.severity ||
+      (d.analysis.severity === best.analysis.severity && chips(d) > chips(best))
+    ) {
+      best = d;
+    }
+  }
+  return best;
+}
+
+// A short, readable phrase naming the leak play for the "where the leak is" pointer (iter-14 #4):
+// e.g. "your turn bet of $185", "your preflop raise to $4", "your river call of $8". Conceptual stays
+// digit-free ("your turn bet"). Reads naturally inside the recap sentence.
+function leakPlayPhrase(d: HeroDecisionRecord, unit: MoneyUnit, conceptual: boolean): string {
+  const street = (STREET_LABEL[d.street] ?? d.street).toLowerCase();
+  const a = d.heroAction;
+  const money = (n: number) => formatMoney(n, unit, BIG_BLIND);
+  const level = a.toAmount ?? a.amount;
+  switch (a.action) {
+    case "bet":
+      return conceptual ? `your ${street} bet` : `your ${street} bet of ${money(level)}`;
+    case "raise":
+      return conceptual ? `your ${street} raise` : `your ${street} raise to ${money(level)}`;
+    case "call":
+      return conceptual ? `your ${street} call` : `your ${street} call of ${money(a.amount)}`;
+    case "check":
+      return `your ${street} check`;
+    case "fold":
+      return `your ${street} fold`;
+    default:
+      return `your ${street} play`;
+  }
+}
+
 export function HandRecap({
   decisions,
   heroNet,
@@ -111,6 +156,13 @@ export function HandRecap({
   // leaked digits. Depth is per-decision; treat the recap as conceptual when EVERY graded decision is
   // (a single-depth session — the normal case — so any mixed-depth session keeps its digits).
   const conceptual = decisions.every((d) => d.analysis.coachingDepth === "conceptual");
+
+  // The flagged decision the "leak" pointer should reference — the most severe one, biggest chip
+  // swing on a tie (iter-14 #4). Used to name the actual play ("your turn bet of $185") rather than a
+  // generic "a play above", so the biggest mistake is what gets highlighted.
+  const leak = mostSevereFlagged(decisions);
+  const leakIcon = leak ? VERDICT_META[leak.analysis.verdict].icon : "⚠️";
+  const leakPhrase = leak ? leakPlayPhrase(leak, displayUnit, conceptual) : "";
 
   // Did the hero actually CONTEST this hand (so a loss can be a "played well, unlucky" beat) rather
   // than fold cheaply for the blind? Contesting = voluntarily putting chips in (a call/bet/raise) OR
@@ -218,8 +270,8 @@ export function HandRecap({
               so spell out that the verdicts grade the decision, not this one outcome. */}
           {heroNet !== null && heroNet >= 0 && flagged ? (
             <p data-testid="recap-reconcile" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
-              You won this hand, but the {c.mistake > 0 ? "❌" : "⚠️"} above flags a play that loses money
-              on average — results swing hand to hand, so we grade the decision, not the outcome.
+              You won this hand, but the {leakIcon} above — {leakPhrase} — flags a play that loses money
+              on average; results swing hand to hand, so we grade the decision, not the outcome.
             </p>
           ) : null}
 
@@ -243,7 +295,7 @@ export function HandRecap({
               "review the flagged play" note instead of silence. */}
           {heroNet !== null && heroNet < 0 && flagged ? (
             <p data-testid="recap-loss-flagged" style={{ fontSize: 13, color: "var(--ink-soft)", marginTop: 8 }}>
-              You lost this hand, and the {c.mistake > 0 ? "❌" : "⚠️"} above flags a play to review —
+              You lost this hand, and the {leakIcon} above — {leakPhrase} — is the play to review:
               that&apos;s where the leak is, not variance.
             </p>
           ) : null}

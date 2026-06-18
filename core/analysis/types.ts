@@ -37,7 +37,7 @@ export interface DecisionAnalysis {
 // unit. Mirrors the money-bearing fields of explain.ts's ExplainParams (kept structural to avoid a
 // circular import). All numeric amounts are in dollars.
 export interface ExplanationInput {
-  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
+  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold" | "isoraise";
   action: HeroAction;
   potBefore: number;
   toCall: number;

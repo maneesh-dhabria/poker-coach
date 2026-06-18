@@ -317,6 +317,48 @@ describe("gross-overbet copy keeps the direction but flags the SIZE (iter-13 #2)
     expect(s).not.toMatch(/\d/);
     expect(s.toLowerCase()).toMatch(/bigger|size it down/);
   });
+
+  // iter-14 #3: a MARGINAL-edge overbet into a MULTIWAY pot gets the sharper "risks your whole stack
+  // to win a little" framing, naming the player count.
+  it("(iter-14 #3) a marginal multiway overbet warns about the whole stack and names the player count", () => {
+    const s = buildExplanation({
+      ...overbet("equity", "aggression", 53),
+      numActiveOpponents: 2,
+    }).toLowerCase();
+    expect(s).toMatch(/whole stack|win a little/);
+    expect(s).toMatch(/2 players/);
+    expect(s).toMatch(/size down/);
+  });
+});
+
+// iter-14 #5: a standard isolation raise over limpers reconciles with the chart and never reads "thin".
+describe("isolation-raise copy reconciles with the chart over limpers (iter-14 #5)", () => {
+  const iso = (depth: CoachingDepth): ExplainParams => ({
+    kind: "isoraise",
+    verdict: "good",
+    depth,
+    unit: "usd",
+    action: "raise",
+    potBefore: 5,
+    toCall: 0,
+    equityPct: 43,
+    potOddsPct: 0,
+    hand: ["Kh", "Qd"],
+    position: "SB",
+  });
+
+  it("equity depth: names it an isolation raise and explains the chart assumes first-in", () => {
+    const s = buildExplanation(iso("equity")).toLowerCase();
+    expect(s).toContain("isolation raise");
+    expect(s).toContain("limpers");
+    expect(s).not.toContain("thin");
+  });
+
+  it("conceptual depth: explains the iso in plain words with NO digits", () => {
+    const s = buildExplanation(iso("conceptual"));
+    expect(s).not.toMatch(/\d/);
+    expect(s.toLowerCase()).toContain("isolation raise");
+  });
 });
 
 describe("oversized preflop open copy flags the SIZE (iter-06 #3)", () => {

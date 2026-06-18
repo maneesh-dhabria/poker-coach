@@ -145,6 +145,7 @@ export function MentalMathSection({
   enabled,
   verdictEquityPct,
   betBeatsCheck,
+  actionEv,
   frozen,
 }: {
   enabled: boolean;
@@ -156,6 +157,11 @@ export function MentalMathSection({
   // verdict's EV table shows on the same card (iter-11 #4). True when betting is the higher-EV action
   // (analysis ev.raise > ev.call) — then Step 6 recommends betting, not "take the free card".
   betBeatsCheck?: boolean;
+  // The verdict's EV rows (analysis.numbers.ev) — the SAME figures the "Show the numbers" table shows.
+  // The dollar-EV note picks the row matching the action it names (bet → ev.raise, call → ev.call) so
+  // it can never show the CHECK figure under a "Betting is worth…" label (iter-14 #8). Optional so
+  // older callers/tests fall back to the trueWin×pot estimate.
+  actionEv?: { fold: number; call: number; raise: number };
   // The frozen decision the verdict describes (iter-12 #2). When present, Mental Math builds from
   // THIS snapshot (board/street/opponent-count/made-hand) so it can never drift to a later board than
   // the verdict it sits under. Absent (older records, no decision yet) ⇒ fall back to the live store.
@@ -299,13 +305,13 @@ export function MentalMathSection({
           {estimate.status === "river" && (
             <>
               <Note>No cards left to come on the river — you either have your hand or you don&apos;t.</Note>
-              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} />
+              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
             </>
           )}
           {estimate.status === "no-draw" && (
             <>
               <Note>{noDrawSummary(estimate, trueWinPct)}</Note>
-              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} />
+              <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
             </>
           )}
           {estimate.status === "ok" && (
@@ -317,6 +323,7 @@ export function MentalMathSection({
               displayUnit={displayUnit}
               conceptual={conceptual}
               betBeatsCheck={betBeatsCheck}
+              actionEv={actionEv}
               heroBet={frozen?.heroAction === "bet" || frozen?.heroAction === "raise"}
               outsOverride={outsOverride}
               setOutsOverride={setOutsOverride}
@@ -338,6 +345,7 @@ function Steps({
   displayUnit,
   conceptual,
   betBeatsCheck,
+  actionEv,
   heroBet,
   outsOverride,
   setOutsOverride,
@@ -351,6 +359,7 @@ function Steps({
   displayUnit: "usd" | "bb";
   conceptual: boolean;
   betBeatsCheck?: boolean;
+  actionEv?: { fold: number; call: number; raise: number };
   // Whether the hero actually bet/raised this free street (iter-13 #1) — threaded into conclusionFrom
   // so Step 6 reconciles with a ❌/⚠️ bet verdict instead of saying "just take the free card".
   heroBet?: boolean;
@@ -573,7 +582,7 @@ function Steps({
           );
         })()}
 
-      <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} />
+      <TrueEquityCheck estimate={estimate} trueWinPct={trueWinPct} input={input} displayUnit={displayUnit} actionEv={actionEv} />
     </div>
   );
 }
@@ -583,23 +592,33 @@ function TrueEquityCheck({
   trueWinPct,
   input,
   displayUnit,
+  actionEv,
 }: {
   estimate: MentalEstimate;
   trueWinPct: number | null;
   input: MentalInput;
   displayUnit: "usd" | "bb";
+  actionEv?: { fold: number; call: number; raise: number };
 }) {
   if (trueWinPct == null) return null;
 
   const hit = estimate.ruleHitPct;
   const exact = estimate.exactHitPct;
   const potAfter = (estimate.potOdds?.potAfterCall ?? input.potBefore + input.toCall);
-  const evCall = (trueWinPct / 100) * potAfter - input.toCall;
   // Match the dollar-EV verb to the ACTUAL action so the line never says "Calling" about a bet
   // (iter-08 #2). When there's a bet to call (toCall > 0) the hero is calling; with no bet to face
-  // (toCall === 0) the money goes in as a bet, so the EV is the value of betting. The math
-  // (trueWin × pot − toCall) is identical — toCall is 0 for a bet — only the label changes.
+  // (toCall === 0) the money goes in as a bet, so the EV is the value of betting.
   const evVerb = input.toCall > 0 ? "Calling" : "Betting";
+  // Use the verdict's EV row that MATCHES the named action — the SAME figure the "Show the numbers"
+  // table shows: a bet uses ev.raise, a call uses ev.call (iter-14 #8). Falling back to the
+  // trueWin×pot estimate once put the CHECK figure under a "Betting is worth…" label. Only when no
+  // analysis EV was threaded (older callers) do we recompute.
+  const evValue =
+    actionEv !== undefined
+      ? input.toCall > 0
+        ? actionEv.call
+        : actionEv.raise
+      : (trueWinPct / 100) * potAfter - input.toCall;
 
   return (
     <div
@@ -635,7 +654,7 @@ function TrueEquityCheck({
           {displayUnit === "bb" ? "Show the BB EV ▸" : "Show the dollar EV ▸"}
         </summary>
         <p data-testid="mm-ev" style={{ margin: "6px 0 0", fontSize: 12, color: "var(--ink-soft)" }}>
-          {evVerb} is worth about {money(evCall, displayUnit)} on average (based on the true equity).
+          {evVerb} is worth about {money(evValue, displayUnit)} on average (based on the true equity).
         </p>
       </details>
     </div>

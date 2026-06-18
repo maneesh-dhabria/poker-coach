@@ -307,7 +307,9 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
     it("a flagged loss shows the consistent 'review the flagged play' note", () => {
       render(<HandRecap decisions={[oversizedShove()]} heroNet={-200} handComplete />);
       const note = screen.getByTestId("recap-loss-flagged");
-      expect(note.textContent).toMatch(/flags a play to review/i);
+      // iter-14 #4: the leak line now NAMES the specific most-severe flagged play rather than a
+      // generic "a play above" — it still points at a play to review and disclaims variance.
+      expect(note.textContent).toMatch(/is the play to review/i);
       expect(note.textContent).toMatch(/not variance/i);
     });
 
@@ -318,6 +320,36 @@ describe("HandRecap (observation #4 — end-of-hand review)", () => {
       render(<HandRecap decisions={decisions} heroNet={-30} handComplete />);
       expect(screen.queryByTestId("recap-variance")).toBeNull();
       expect(screen.getByTestId("recap-loss-flagged")).toBeInTheDocument();
+    });
+
+    // iter-14 #4: the "leak" line points at the MOST SEVERE flagged decision (❌ over ⚠️; ties broken by
+    // the biggest chip swing), naming the actual play — not a generic earlier one.
+    it("(iter-14 #4) the leak line names the most-severe flagged play (a ❌ over a ⚠️)", () => {
+      const decisions = [
+        // A minor ⚠️ preflop min-raise (small chips).
+        decision("preflop", "raise", 2, { action: "raise", potBefore: 3, toCall: 0, equityPct: 40, street: "preflop", hand: ["8h", "Jc"], position: "BB", facing: "unopened", bigBlind: 2, smallBlind: 1 }, 4),
+        // A ❌ mistake stack-off on the turn (bigger chips) — this is the real leak.
+        decision("turn", "call", 185, { action: "call", potBefore: 200, toCall: 185, equityPct: 8, street: "turn", numActiveOpponents: 2 }),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-200} handComplete />);
+      const note = screen.getByTestId("recap-loss-flagged").textContent ?? "";
+      // Points at the ❌ turn play, names it, and uses the ❌ icon (not the ⚠️ preflop min-raise).
+      expect(note).toMatch(/❌/);
+      expect(note).toMatch(/turn/i);
+      expect(note).not.toMatch(/preflop/i);
+    });
+
+    it("(iter-14 #4) ties on severity break by the biggest chip swing", () => {
+      const decisions = [
+        // ⚠️ thin preflop min-raise (small chips).
+        decision("preflop", "raise", 2, { action: "raise", potBefore: 3, toCall: 0, equityPct: 40, street: "preflop", hand: ["8h", "Jc"], position: "BB", facing: "unopened", bigBlind: 2, smallBlind: 1 }, 4),
+        // ⚠️ thin oversized turn shove (big chips) — same severity, bigger swing → the leak.
+        decision("turn", "bet", 185, { action: "bet", potBefore: 45, toCall: 0, equityPct: 53, street: "turn", numActiveOpponents: 2, hole: ["Jh", "Td"], board: ["Ks", "9c", "Jd", "4h"], raiseToAmount: 185 }, 185),
+      ];
+      render(<HandRecap decisions={decisions} heroNet={-200} handComplete />);
+      const note = screen.getByTestId("recap-loss-flagged").textContent ?? "";
+      expect(note).toMatch(/turn/i);
+      expect(note).not.toMatch(/preflop/i);
     });
 
     it("an ALL-GOOD contested loss STILL shows the variance footer (no regression)", () => {

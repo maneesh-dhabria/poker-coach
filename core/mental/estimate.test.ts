@@ -212,6 +212,42 @@ describe("detectMadeHand", () => {
     const m = detectMadeHand(hole("Ks", "9h"), h(["Kd", "9c", "2s"]));
     expect(m!.label).toBe("two pair");
   });
+
+  // iter-14 #6: pair-rank label is accurate relative to the board ranks. On A,6,2,4 a pair of 4s sits
+  // in the lower half of the four board ranks → BOTTOM pair, not "middle pair" as the old rule said.
+  it("(iter-14 #6) calls a pair of 4s on A,6,2,4 BOTTOM pair, not middle pair", () => {
+    const m = detectMadeHand(hole("Th", "4c"), h(["Ah", "6c", "2d", "4s"]));
+    expect(m).not.toBeNull();
+    expect(m!.label).toBe("bottom pair");
+  });
+
+  it("(iter-14 #6) still calls the exact-middle board rank middle pair (J on K,J,9)", () => {
+    const m = detectMadeHand(hole("Jh", "5c"), h(["Kd", "Jc", "9s"]));
+    expect(m!.label).toBe("middle pair");
+  });
+
+  it("(iter-14 #6) calls the lowest board rank bottom pair (2 on A,K,2)", () => {
+    const m = detectMadeHand(hole("2h", "5c"), h(["Ad", "Kc", "2s"]));
+    expect(m!.label).toBe("bottom pair");
+  });
+});
+
+// iter-14 #7: the no-draw / no-made-hand summary is ACTION-AWARE. Facing a bet (a CALL decision) it
+// must NOT say "betting as a bluff or giving up" — that's bet/check phrasing for a different spot.
+describe("no-draw no-made-hand summary is action-aware (iter-14 #7)", () => {
+  it("on a CALL (toCall > 0) says calling pays off with little equity, not 'betting as a bluff'", () => {
+    const e = buildMentalEstimate({ ...base, toCall: 20, hole: hole("9h", "5c"), board: h(["Kh", "Qd", "2d"]), street: "flop" });
+    expect(e.madeHand).toBeNull();
+    const s = e.plainSummary.toLowerCase();
+    expect(s).toContain("calling");
+    expect(s).not.toContain("betting as a bluff");
+  });
+
+  it("on a free street (toCall 0) keeps the bet/give-up phrasing", () => {
+    const e = buildMentalEstimate({ ...base, toCall: 0, hole: hole("9h", "5c"), board: h(["Kh", "Qd", "2d"]), street: "flop" });
+    expect(e.madeHand).toBeNull();
+    expect(e.plainSummary.toLowerCase()).toContain("betting as a bluff");
+  });
 });
 
 describe("made-hand reconciliation (findings #1/#2/#3)", () => {

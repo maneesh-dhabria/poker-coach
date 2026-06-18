@@ -657,6 +657,104 @@ describe("analyze (T8: preflop charts, heuristics, depth, honesty)", () => {
     expect(a.verdict).toBe("good");
   });
 
+  // iter-14 #3: the postflop overbet threshold is lowered (≥3×) so a clearly-reckless ~4× stack-off
+  // with a MARGINAL edge flags ⚠️ even with decent equity — the reviewer's $185-into-$45 turn shove.
+  it("(iter-14 #3) flags a ~4× pot postflop shove with a marginal 53% edge for size", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 45,
+      toCall: 0,
+      equityPct: 53, // marginal middle pair, ahead but thin
+      street: "turn",
+      numActiveOpponents: 2,
+      hole: ["Jh", "Td"],
+      board: ["Ks", "9c", "Jd", "4h"], // middle pair of jacks
+      raiseToAmount: 185, // ~4.1× the pot — a reckless whole-stack overbet
+    });
+    expect(a.conceptTags).toContain("oversize_bet");
+    expect(a.verdict).toBe("thin"); // a ✅ value bet downgraded to ⚠️ for size
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("size down");
+    expect(lower).toMatch(/whole stack|win a little/);
+    expect(lower).toContain("2 players"); // multiway danger named
+  });
+
+  it("(iter-14 #3) does NOT flag a 1.5× pot value bet", () => {
+    const a = analyze({
+      action: "bet",
+      potBefore: 40,
+      toCall: 0,
+      equityPct: 72,
+      street: "flop",
+      numActiveOpponents: 1,
+      hole: ["Ah", "Ad"],
+      board: ["As", "7c", "2d"],
+      raiseToAmount: 60, // 1.5× the pot — a fat but reasonable value bet
+    });
+    expect(a.conceptTags).not.toContain("oversize_bet");
+    expect(a.verdict).toBe("good");
+  });
+
+  it("(iter-14 #3) does NOT flag a standard preflop 3-bet (~2.5×) under the lenient preflop cutoff", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 9,
+      toCall: 6,
+      equityPct: 58,
+      street: "preflop",
+      hand: hand("Ah", "Ks"),
+      position: "BTN",
+      facing: "raise",
+      raiseToAmount: 27, // 3× the pot — a standard 3-bet, under the ~8× preflop cutoff
+      bigBlind: 2,
+    });
+    expect(a.conceptTags).not.toContain("oversize_bet");
+  });
+
+  // iter-14 #5: a reasonable ISOLATION raise over limpers of a hand the RFI chart would open is graded
+  // ✅ (a standard iso), NOT ⚠️ thin — and the copy explains the limpers difference from the chart.
+  it("(iter-14 #5) grades an iso-raise over limpers of a chart-open hand as a standard iso, not thin", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5, // SB 1 + BB 2 + a 2 limp = 5 → a limped pot, off-model for the RFI chart
+      toCall: 0,
+      equityPct: 43, // raw heads-up-ish equity the equity branch once called "thin"
+      street: "preflop",
+      hand: hand("Kh", "Qd"), // KQo — the RFI chart opens this from SB
+      position: "SB",
+      facing: "unopened",
+      raiseToAmount: 8,
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.verdict).toBe("good");
+    expect(a.conceptTags).toContain("iso_raise_standard");
+    expect(a.gtoClaim).toBe(false); // off-model — limpers aren't chart-modeled
+    const lower = a.plainExplanation.toLowerCase();
+    expect(lower).toContain("isolation raise");
+    expect(lower).toContain("limpers");
+  });
+
+  it("(iter-14 #5) still grades a TRUE first-in RFI fold-range hand off the chart (no limped-pot escape)", () => {
+    // No limpers (pot is just the blinds) → the clean RFI chart applies and a junk open is still a ❌.
+    const a = analyze({
+      action: "raise",
+      potBefore: 3, // SB 1 + BB 2 only — no limper
+      toCall: 0,
+      equityPct: 30,
+      street: "preflop",
+      hand: hand("7h", "2d"), // a hand the chart folds
+      position: "UTG",
+      facing: "unopened",
+      raiseToAmount: 6,
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.gtoClaim).toBe(true); // chart applies — clean RFI spot
+    expect(a.conceptTags).not.toContain("iso_raise_standard");
+    expect(a.verdict).toBe("mistake");
+  });
+
   // iter-06 #6: an essentially-breakeven price-branch call (edge within a small band of 0) grades
   // ⚠️ thin, not ❌ mistake; a clearly -EV call stays a mistake.
   it("grades a near-breakeven call as thin, not a mistake (#6)", () => {

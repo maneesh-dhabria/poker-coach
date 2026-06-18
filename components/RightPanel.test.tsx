@@ -6,9 +6,45 @@ import { RightPanel } from "@/components/RightPanel";
 import { useSessionStore, defaultSettings } from "@/store/sessionStore";
 import { useGameStore } from "@/store/gameStore";
 import { analyze } from "@/core/analysis/analyze";
-import { Card } from "@/core/cards";
+import { Card, mulberry32 } from "@/core/cards";
+import { startHand } from "@/core/handFlow";
+import { personaFor } from "@/core/bots/personas";
+import { equity } from "@/core/equity/equity";
 
 const c = (s: string) => s as Card;
+
+// A REAL HandFlow played to at least one hero decision — so an in-play depth switch exercises the
+// genuine re-derive path (gameStore.setCoachingDepth → flow.reanalyzeAt), not a hand-swapped double.
+function realFlowWithOneDecision() {
+  const flow = startHand({
+    config: { smallBlind: 1, bigBlind: 2, startingStackBb: 100 },
+    seats: [
+      { seat: 0, name: "You", isHero: true, stack: 200, persona: null },
+      { seat: 1, name: "Sta", isHero: false, stack: 200, persona: personaFor("Calling Station", "Beginner") },
+    ],
+    buttonIndex: 1,
+    rng: mulberry32(9),
+    sessionId: "s",
+    handNumber: 1,
+    coachingDepth: "equity",
+  });
+  let guard = 0;
+  while (!flow.isOver() && flow.isHeroTurn() && guard++ < 30) {
+    const spot = flow.heroSpot();
+    const eq = equity({
+      hero: spot.hole,
+      board: spot.board,
+      numOpponents: Math.max(1, spot.numActiveOpponents),
+      iterations: 300,
+      seed: 5 + guard,
+    }).equityPct;
+    const action = spot.legal.actions.includes("check")
+      ? { type: "check" as const }
+      : { type: "call" as const };
+    flow.heroAct(action, eq);
+  }
+  return flow;
+}
 
 // Minimal HandFlow stand-in exposing only what RightPanel reads.
 function fakeFlow(opts: { street?: string; heroTurn?: boolean; over?: boolean } = {}) {
@@ -144,31 +180,39 @@ describe("RightPanel", () => {
     expect(off.textContent).not.toMatch(/when the hand ends/i);
   });
 
-  // iter-13 #3: in-play coaching controls let the user change depth / toggle feedback WITHOUT a new
-  // session — writing through setSettings (the same field the setup screen sets).
-  it("changing coaching depth in-play updates the rendered feedback depth immediately", () => {
-    const flopVerdict = (depth: "equity" | "conceptual") => ({
-      decisionId: "h1-d2",
-      street: "flop",
-      spot: { potBefore: 32, toCall: 12, position: "BTN", stackBb: 100, numActiveOpponents: 1, facing: "unopened" },
-      heroAction: { action: "call", amount: 12 },
-      analysis: analyze({ action: "call", potBefore: 32, toCall: 12, equityPct: 47, unit: "usd", coachingDepth: depth }),
-    });
-    act(() =>
-      useGameStore.setState({ flow: fakeFlow({ street: "flop", heroTurn: false }) as never, feedback: flopVerdict("equity") as never, tick: 1 }),
-    );
+  // iter-13 #3 / iter-14 #1+#2: in-play coaching controls change depth WITHOUT a new session. The
+  // switch must take FULL effect on the CURRENT hand via the REAL re-derive path (no hand swap):
+  // Conceptual strips ALL digits (equity bar gone), Strict shows the chart badge / off-model note.
+  it("(iter-14 #1) an in-play switch to Conceptual makes the panel digit-free for an ALREADY-DECIDED spot", () => {
+    const flow = realFlowWithOneDecision();
+    const latest = flow.decisions()[flow.decisions().length - 1];
+    act(() => useGameStore.setState({ flow: flow as never, feedback: latest as never, tick: 1 }));
     render(<RightPanel />);
-    // Equity depth shows the equity bar.
+    // Equity depth shows the equity bar with digits.
     expect(screen.getByTestId("equity-bar")).toBeInTheDocument();
-    // Switch depth in-play to Conceptual via the control.
-    fireEvent.change(screen.getByTestId("inplay-depth"), { target: { value: "conceptual" } });
+    // Switch depth in-play to Conceptual via the control — the gameStore re-derives the recorded
+    // decision through flow.reanalyzeAt; NO manual feedback swap.
+    act(() => fireEvent.change(screen.getByTestId("inplay-depth"), { target: { value: "conceptual" } }));
     expect(useSessionStore.getState().settings.coachingDepth).toBe("conceptual");
-    // Re-render the feedback at the new depth (the verdict the panel reads is depth-tagged).
-    act(() =>
-      useGameStore.setState({ feedback: flopVerdict("conceptual") as never, tick: 2 }),
-    );
-    // Conceptual hides the equity bar (no numbers).
+    // Conceptual: the equity bar (and its digits) are gone — fully switched, not half.
     expect(screen.queryByTestId("equity-bar")).toBeNull();
+    const panel = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(panel).not.toMatch(/\d+%/); // no percentages anywhere on the verdict card
+  });
+
+  it("(iter-14 #2) an in-play switch to Strict shows the chart badge or off-model note for the decided spot", () => {
+    const flow = realFlowWithOneDecision();
+    const latest = flow.decisions()[flow.decisions().length - 1];
+    act(() => useGameStore.setState({ flow: flow as never, feedback: latest as never, tick: 1 }));
+    render(<RightPanel />);
+    act(() => fireEvent.change(screen.getByTestId("inplay-depth"), { target: { value: "strict" } }));
+    expect(useSessionStore.getState().settings.coachingDepth).toBe("strict");
+    // Strict must NOT silently look like Equity: either the gtoClaim "chart-based" badge (a chart spot)
+    // or the explicit "No baseline chart covers this spot" note (off-model) is present.
+    const panel = screen.getByTestId("feedback-panel").textContent ?? "";
+    const hasBadge = /chart-based/.test(panel);
+    const hasOffModel = screen.queryByTestId("off-model-note") !== null;
+    expect(hasBadge || hasOffModel).toBe(true);
   });
 
   it("toggling instant feedback off/on in-play hides/shows the live verdict panel", () => {

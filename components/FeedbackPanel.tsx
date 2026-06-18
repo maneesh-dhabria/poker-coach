@@ -32,13 +32,23 @@ const TAG_LABELS: Record<string, string> = {
   good_preflop_discipline: "Good discipline",
   good_fold_discipline: "Good fold",
   preflop_chart_deviation: "Off the chart",
+  iso_raise_standard: "Isolation raise",
   value_bet_missed: "Missed value",
   call_correct_price: "Right price",
 };
 
 // Humanize a concept tag for a small context chip — a clean label when known, else the prettified
-// slug ("some_new_tag" → "some new tag").
-function tagLabel(tag: string): string {
+// slug ("some_new_tag" → "some new tag"). Action-aware for the chart-approved tag (iter-14 #9):
+// "Good discipline" reads as restraint, which fits a FOLD but not an aggressive RAISE — a standard
+// chart open is labeled "Standard open"/"On-chart" instead. (The same tag covers a sound fold and a
+// non-deviating raise/call.)
+function tagLabel(tag: string, action?: string): string {
+  if (tag === "good_preflop_discipline" && (action === "raise" || action === "bet")) {
+    return "Standard open";
+  }
+  if (tag === "good_preflop_discipline" && action === "call") {
+    return "On-chart call";
+  }
   return TAG_LABELS[tag] ?? tag.replace(/_/g, " ");
 }
 
@@ -337,7 +347,7 @@ export function FeedbackPanel({
                 padding: "1px 8px",
               }}
             >
-              {tagLabel(t)}
+              {tagLabel(t, analysis.explanationInput?.action)}
             </span>
           ))}
         </div>
@@ -407,6 +417,11 @@ export function FeedbackPanel({
         enabled={enabled}
         verdictEquityPct={eq}
         betBeatsCheck={ev.raise > ev.call}
+        // The verdict's EV rows (the SAME numbers the "Show the numbers" table shows). Mental Math's
+        // dollar-EV note must use the BET row (ev.raise) for a bet and the CALL row (ev.call) for a
+        // call — not its own trueWin×pot recompute, which once showed the CHECK figure under a "Betting
+        // is worth…" label (iter-14 #8). Single source: read the analysis EV, don't recompute.
+        actionEv={ev}
         frozen={frozenMentalContext(analysis)}
       />
     </aside>

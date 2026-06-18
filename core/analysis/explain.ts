@@ -38,7 +38,7 @@ const BIG_BLIND = 2; // the W2 table plays $1/$2; persistent config arrives late
 const NO_EQUITY_PCT = 20;
 
 export interface ExplainParams {
-  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
+  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold" | "isoraise";
   verdict: Verdict;
   depth: CoachingDepth;
   unit: Unit;
@@ -116,7 +116,20 @@ export function buildExplanation(p: ExplainParams): string {
       return aggression(p);
     case "freecheckfold":
       return freeCheckFold(p);
+    case "isoraise":
+      return isoRaise(p);
   }
+}
+
+// A standard isolation raise over limpers (iter-14 #5). The RFI chart would open this hand first-in;
+// here there are limpers, so it's an isolation raise — a fine, standard play. The copy EXPLAINS the
+// difference from the chart (chart assumes first-in) so a newcomer cross-checking the References chart
+// is never left with "the chart says raise but the live coach says thin" unreconciled.
+function isoRaise(p: ExplainParams): string {
+  const label = p.hand ? handLabel(p.hand) : "this hand";
+  const where = p.position ? ` from ${p.position}` : "";
+  const win = Math.round(p.equityPct);
+  return `Raising ${label}${where} here is a fine, standard play. The Preflop Chart assumes you're first in, but here there are limpers — so this is an isolation raise: you raise to play the pot heads-up against a weak limping range, where your ~${win}% plays well. Going for it is right.`;
 }
 
 // Re-format the plain explanation for a decision in a different display unit (iter-04 #3). This is
@@ -264,11 +277,27 @@ function valuecheck(p: ExplainParams): string {
 // A gross overbet's SIZE critique (iter-13 #2). The DIRECTION can be right (good equity), so we keep
 // the "right" read and append a "risks a huge amount to win a tiny pot — size down" clause. Used by
 // both the postflop aggression branch and the preflop (3-bet/4-bet) branch. Plain words at conceptual.
-function overbetClause(multiple: number, noun: string, conceptual: boolean): string {
+// When the edge is only MARGINAL (a thin value bet) and the pot is MULTIWAY, the size critique is
+// sharper — a marginal edge against several players risks the whole stack to win a little — so the
+// clause names that (iter-14 #3). `marginal`/`opponents` default off so existing callers are unchanged.
+function overbetClause(
+  multiple: number,
+  noun: string,
+  conceptual: boolean,
+  marginal = false,
+  numOpponents = 0,
+): string {
+  const vsPlayers =
+    marginal && numOpponents >= 2 ? ` and against ${numOpponents} players` : "";
   if (conceptual)
-    return `, but that's a much bigger ${noun} than the pot — it risks a huge amount to win a tiny pot, so size it down`;
+    return marginal
+      ? `, but that's a much bigger ${noun} than the pot${vsPlayers} — with only a marginal edge it risks your whole stack to win a little, so size it down`
+      : `, but that's a much bigger ${noun} than the pot — it risks a huge amount to win a tiny pot, so size it down`;
   const x = Math.round(multiple);
-  return `, but ${noun === "raise" ? "shoving" : "betting"} ~${x}× the pot risks a huge amount to win a tiny pot — size down`;
+  const verb = noun === "raise" ? "shoving" : "betting";
+  if (marginal)
+    return `, but ${verb} ~${x}× the pot with only a marginal edge${vsPlayers} risks your whole stack to win a little — size down`;
+  return `, but ${verb} ~${x}× the pot risks a huge amount to win a tiny pot — size down`;
 }
 
 function aggression(p: ExplainParams): string {
@@ -287,7 +316,11 @@ function aggression(p: ExplainParams): string {
         : p.equityPct >= NO_EQUITY_PCT
           ? `${act} with ~${win}% can be a fine semi-bluff`
           : `${act} with only ~${win}%`;
-    return `${dir}${overbetClause(p.overbetPotMultiple, noun, false)}.`;
+    // A value bet that's only a MARGINAL edge (~50–60%) into a MULTIWAY pot earns the sharper "risks
+    // your whole stack to win a little" framing (iter-14 #3) — a thin edge vs several players is exactly
+    // the reckless stack-off the threshold now catches.
+    const marginal = p.equityPct >= 50 && p.equityPct < 60;
+    return `${dir}${overbetClause(p.overbetPotMultiple, noun, false, marginal, p.numActiveOpponents ?? 0)}.`;
   }
   // A grossly UNDER-sized value bet (iter-08 #1): you're ahead, but this bet is far too small to do
   // its job — it charges draws almost nothing and barely builds the pot. Praise the read, flag the
@@ -433,5 +466,9 @@ function conceptual(p: ExplainParams): string {
     }
     case "freecheckfold":
       return "There was no bet to fold to — checking is free. Never fold when you can see the next card for nothing.";
+    case "isoraise":
+      // A standard iso raise over limpers, plain words, no numbers (iter-14 #5). Explains the chart
+      // difference so the conceptual learner still understands why this isn't graded against the chart.
+      return "Raising here is a fine, standard play. The chart assumes you're first in, but there are limpers — so this is an isolation raise, raising to play heads-up against a weak limping range. Going for it is right.";
   }
 }

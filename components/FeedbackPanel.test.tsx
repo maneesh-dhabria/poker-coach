@@ -426,6 +426,93 @@ describe("FeedbackPanel — concept-tag chips use clean labels (iter-10 #7)", ()
     expect(text).not.toMatch(/made hand thin value/); // no crammed slug
     expect(text).toMatch(/Bet too small/); // bet_too_small → clean label too
   });
+
+  // iter-14 #9: the chart-approved RAISE chip reads "Standard open", not "Good discipline" (which
+  // implies restraint and mismatches an aggressive raise). Folds keep the discipline wording.
+  it("(iter-14 #9) labels a chart-approved RAISE 'Standard open', not 'Good discipline'", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 3,
+      toCall: 0,
+      equityPct: 55,
+      street: "preflop",
+      hand: ["Ah", "Ks"],
+      position: "BTN",
+      facing: "unopened", // a standard first-in open the chart approves
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    expect(a.conceptTags).toContain("good_preflop_discipline");
+    render(<FeedbackPanel analysis={a} enabled />);
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/Standard open/);
+    expect(text).not.toMatch(/Good discipline/);
+  });
+
+  it("(iter-14 #9) keeps 'Good discipline' for a chart-approved FOLD", () => {
+    const a = analyze({
+      action: "fold",
+      potBefore: 9,
+      toCall: 6,
+      equityPct: 28,
+      street: "preflop",
+      hand: ["7h", "2d"],
+      position: "SB",
+      facing: "raise", // a sound preflop fold
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+    render(<FeedbackPanel analysis={a} enabled />);
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/Good discipline/);
+  });
+});
+
+// iter-14 #5: a standard iso-raise over limpers renders the "Isolation raise" chip, reconciling copy,
+// and (in Strict) the off-model note — never a silent "thin" that contradicts the chart.
+describe("FeedbackPanel — isolation raise over limpers (iter-14 #5)", () => {
+  const iso = () =>
+    analyze({
+      action: "raise",
+      potBefore: 5, // limped pot
+      toCall: 0,
+      equityPct: 43,
+      street: "preflop",
+      hand: ["Kh", "Qd"],
+      position: "SB",
+      facing: "unopened",
+      raiseToAmount: 8,
+      bigBlind: 2,
+      smallBlind: 1,
+    });
+
+  it("renders the 'Isolation raise' chip and reconciling copy, not a thin verdict", () => {
+    const a = iso();
+    expect(a.verdict).toBe("good");
+    render(<FeedbackPanel analysis={a} enabled />);
+    const text = screen.getByTestId("feedback-panel").textContent ?? "";
+    expect(text).toMatch(/Isolation raise/);
+    expect(text).toMatch(/limpers/i);
+  });
+
+  it("in Strict, shows the off-model note (limpers aren't chart-modeled), never silently like Equity", () => {
+    const a = analyze({
+      action: "raise",
+      potBefore: 5,
+      toCall: 0,
+      equityPct: 43,
+      street: "preflop",
+      hand: ["Kh", "Qd"],
+      position: "SB",
+      facing: "unopened",
+      raiseToAmount: 8,
+      bigBlind: 2,
+      smallBlind: 1,
+      coachingDepth: "strict",
+    });
+    render(<FeedbackPanel analysis={a} enabled />);
+    expect(screen.getByTestId("off-model-note")).toBeInTheDocument();
+  });
 });
 
 describe("FeedbackPanel — explanation sentence honors the display unit (iter-04 #3)", () => {

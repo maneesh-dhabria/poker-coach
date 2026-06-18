@@ -306,6 +306,28 @@ describe("MentalMathSection — dollar-EV verb matches the action (iter-08 #2)",
     expect(ev).toMatch(/Calling is worth/);
     expect(ev).not.toMatch(/Betting is worth/);
   });
+
+  // iter-14 #8: when the verdict's EV rows are threaded in, the dollar-EV note for a BET uses the BET
+  // row (ev.raise) — the SAME figure the "Show the numbers" table shows — never the CHECK row.
+  it("(iter-14 #8) the 'Betting is worth' figure uses the BET (ev.raise) row, not the check figure", () => {
+    setFlow(
+      fakeFlow({
+        hole: [c("Qs"), c("Qd")],
+        board: [c("Qh"), c("4h"), c("8c"), c("2d")],
+        street: "turn",
+        toCall: 0,
+        potBefore: 45,
+      }),
+    );
+    // The verdict EV table: check $24 / bet $27 (the reviewer's exact mismatch). The note must show $27.
+    render(
+      <MentalMathSection enabled verdictEquityPct={85} actionEv={{ fold: 0, call: 24, raise: 27 }} />,
+    );
+    const ev = screen.getByTestId("mm-ev").textContent ?? "";
+    expect(ev).toMatch(/Betting is worth/);
+    expect(ev).toContain("$27");
+    expect(ev).not.toContain("$24");
+  });
 });
 
 describe("MentalMathSection — Conceptual depth renders nothing numeric (iter-09 #2)", () => {

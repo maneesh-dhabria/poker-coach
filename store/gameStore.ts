@@ -6,6 +6,7 @@ import { mulberry32 } from "@/core/cards";
 import { Action } from "@/core/engine/gameEngine";
 import { HandFlow, startHand, FlowSeatInit } from "@/core/handFlow";
 import { HeroDecisionRecord } from "@/core/history/handRecord";
+import { CoachingDepth } from "@/core/analysis/types";
 import { requestEquity } from "@/core/equity/equityClient";
 import { Settings } from "@/store/sessionStore";
 import { useBankrollStore } from "@/store/bankrollStore";
@@ -40,6 +41,7 @@ interface GameState {
   configure: (sessionId: string, settings: Settings, seed?: number) => void;
   newHand: () => void;
   heroAct: (action: Action) => Promise<void>;
+  setCoachingDepth: (depth: CoachingDepth) => void;
   saveHand: () => Promise<void>;
 }
 
@@ -129,6 +131,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     const decision = flow.heroAct(action, equityPct);
     set((s) => ({ feedback: decision, busy: false, tick: s.tick + 1 }));
     if (flow.isOver()) await get().saveHand();
+  },
+
+  // Apply an in-play coaching-depth change to the CURRENT hand (iter-14 #1/#2). Re-derives every
+  // already-graded decision (the review list) AND the latest decision the FeedbackPanel reads (the
+  // `feedback` record) at the new depth, and bakes the depth for all future decisions in this hand —
+  // so an in-play switch takes FULL effect, exactly as if the session had started at that depth
+  // (no half-switched panel, no stale baked copy). Depth only changes COPY, so this is deterministic.
+  setCoachingDepth: (depth) => {
+    const { flow } = get();
+    // Guard for older flow instances / test doubles that predate reanalyzeAt — a depth change then
+    // still flows through setSettings for future hands, just without the current-hand re-derive.
+    if (!flow || typeof flow.reanalyzeAt !== "function") return;
+    const changed = flow.reanalyzeAt(depth);
+    if (!changed) return;
+    // Re-read the latest decision from the (now re-derived) flow so the panel's `feedback` is fresh.
+    const decisions = flow.decisions();
+    const latest = decisions.length > 0 ? decisions[decisions.length - 1] : null;
+    set((s) => ({ feedback: latest ?? s.feedback, tick: s.tick + 1 }));
   },
 
   saveHand: async () => {

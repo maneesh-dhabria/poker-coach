@@ -1,6 +1,7 @@
 "use client";
 // Setup screen (spec FR-50, FR-55; wireframe 02): choose opponent count (1–5 → true 6-max),
 // per-seat style×skill, whole-table presets, coaching depth, and the feedback toggle, then deal.
+import { useState } from "react";
 import { useSessionStore } from "@/store/sessionStore";
 import { personaFor, tablePreset, Style, Skill, PresetName } from "@/core/bots/personas";
 import { BotParams } from "@/core/bots/botEngine";
@@ -69,6 +70,12 @@ function resizePersonas(personas: BotParams[], n: number): BotParams[] {
 export function SetupScreen({ onDeal }: { onDeal: () => void }) {
   const settings = useSessionStore((s) => s.settings);
   const setSettings = useSessionStore((s) => s.setSettings);
+  // Whether the user has EXPLICITLY applied a preset this session (iter-14 #10). The default per-bot
+  // mix happens to equal the "balanced" template, so auto-highlighting by value made "balanced" look
+  // pre-selected on load before the user chose anything — confusing. We highlight a preset only once
+  // the user actually clicks it (or after they hand-edit a bot back into an exact preset). Until then,
+  // no preset is highlighted.
+  const [presetTouched, setPresetTouched] = useState(false);
 
   const setOpponents = (n: number) =>
     setSettings({ numOpponents: n, personas: resizePersonas(settings.personas, n) });
@@ -84,7 +91,11 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
     setSettings({ personas });
   };
 
-  const selectedPreset = activePreset(settings.personas, settings.numOpponents);
+  // Only show a preset as selected once the user has explicitly applied one (iter-14 #10) — never on
+  // the initial default, even though the default mix matches the "balanced" template.
+  const selectedPreset = presetTouched
+    ? activePreset(settings.personas, settings.numOpponents)
+    : null;
 
   return (
     // No-scroll setup shell (spec FR-05/FR-06, NFR-01): fills one viewport at ≥1280×800; the page
@@ -139,7 +150,10 @@ export function SetupScreen({ onDeal }: { onDeal: () => void }) {
               title={PRESET_INFO[p]}
               variant={selectedPreset === p ? "primary" : "ghost"}
               selected={selectedPreset === p}
-              onClick={() => setSettings({ personas: tablePreset(p, settings.numOpponents) })}
+              onClick={() => {
+                setPresetTouched(true);
+                setSettings({ personas: tablePreset(p, settings.numOpponents) });
+              }}
             >
               {p}
             </Button>

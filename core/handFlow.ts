@@ -4,7 +4,7 @@
 import { Card, RNG } from "@/core/cards";
 import { createHand, Hand, Action, LegalActions } from "@/core/engine/gameEngine";
 import { decide, BotParams } from "@/core/bots/botEngine";
-import { analyze } from "@/core/analysis/analyze";
+import { analyze, AnalyzeInput } from "@/core/analysis/analyze";
 import { Position, Facing } from "@/core/charts/preflop";
 import { assignPositions } from "@/core/positions";
 import { CoachingDepth } from "@/core/analysis/types";
@@ -108,11 +108,22 @@ export class HandFlow {
   private positionById: Map<number, Position>;
   private actions: ActionRecord[] = [];
   private heroDecisions: HeroDecisionRecord[] = [];
+  // The exact AnalyzeInput used to grade each hero decision, EXCLUDING coachingDepth — kept so an
+  // in-play depth change can RE-DERIVE every already-graded decision at the new depth without a new
+  // session (iter-14 #1/#2). Depth only changes the explanation COPY (the verdict/equity/tags are
+  // depth-independent), so re-running analyze() on the same inputs at a new depth is deterministic
+  // and safe. Parallel to heroDecisions (same index).
+  private analyzeInputs: Omit<AnalyzeInput, "coachingDepth">[] = [];
+  // The coaching depth currently baked into the recorded analyses. Starts at the session's deal-time
+  // depth; an in-play change updates it (and re-derives the analyses) so the current hand tracks the
+  // live setting rather than a stale baked depth (iter-14 #1/#2).
+  private currentDepth: CoachingDepth;
   private prevStreet: Street | null = null;
   private raisedThisStreet = false;
 
   constructor(input: StartFlowInput) {
     this.input = input;
+    this.currentDepth = input.coachingDepth ?? "equity";
     const n = input.seats.length;
     this.positions = assignPositions(n, input.buttonIndex);
     this.heroSeatId = input.seats.find((s) => s.isHero)!.seat;
@@ -224,13 +235,14 @@ export class HandFlow {
       ...(toAmount !== undefined ? { toAmount } : {}),
     });
 
-    const analysis = analyze({
+    // The depth-INDEPENDENT analyze inputs for this decision (depth is applied separately so an
+    // in-play depth change can re-derive the copy — iter-14 #1/#2). Stored parallel to heroDecisions.
+    const analyzeInput: Omit<AnalyzeInput, "coachingDepth"> = {
       action: action.type,
       potBefore: spot.potBefore,
       toCall: spot.toCall,
       equityPct,
       unit: "usd",
-      coachingDepth: this.input.coachingDepth ?? "equity",
       street: spot.street,
       numActiveOpponents: spot.numActiveOpponents,
       hand: spot.hole,
@@ -245,7 +257,9 @@ export class HandFlow {
       bigBlind: this.input.config.bigBlind,
       // The small blind too, so analyze can detect a limped pot (off-model for the RFI chart, iter-12 #3).
       smallBlind: this.input.config.smallBlind,
-    });
+    };
+    this.analyzeInputs.push(analyzeInput);
+    const analysis = analyze({ ...analyzeInput, coachingDepth: this.currentDepth });
 
     const decision: HeroDecisionRecord = {
       decisionId: `h${this.input.handNumber}-d${this.heroDecisions.length + 1}`,
@@ -270,6 +284,31 @@ export class HandFlow {
 
   decisions(): HeroDecisionRecord[] {
     return this.heroDecisions;
+  }
+
+  /** The coaching depth currently baked into the recorded analyses. */
+  coachingDepth(): CoachingDepth {
+    return this.currentDepth;
+  }
+
+  /**
+   * Re-derive EVERY already-graded hero decision at a new coaching depth, and use it for all FUTURE
+   * decisions in this hand (iter-14 #1/#2). Depth only changes the explanation COPY — the
+   * verdict/equity/conceptTags are depth-independent — so re-running analyze() on the same frozen
+   * per-decision inputs is deterministic and safe (no recompute of equity or the engine). After this
+   * the FeedbackPanel + HandRecap read fully-switched analyses (no half-switched/stale baked copy).
+   * No-op when the depth is unchanged. Returns true when anything changed.
+   */
+  reanalyzeAt(depth: CoachingDepth): boolean {
+    if (depth === this.currentDepth) return false;
+    this.currentDepth = depth;
+    for (let i = 0; i < this.heroDecisions.length; i++) {
+      this.heroDecisions[i] = {
+        ...this.heroDecisions[i],
+        analysis: analyze({ ...this.analyzeInputs[i], coachingDepth: depth }),
+      };
+    }
+    return true;
   }
 
   /** The full ordered action log (hero + bots), for the UI's per-seat action badges + chip

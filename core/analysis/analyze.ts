@@ -59,7 +59,7 @@ interface Branch {
   verdict: Verdict;
   severity: 0 | 1 | 2 | 3;
   conceptTags: ConceptTag[];
-  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold";
+  kind: "price" | "preflop" | "valuecheck" | "aggression" | "freecheckfold" | "isoraise";
   gtoClaim: boolean;
   chart?: { applies: boolean; chartAction: string; heroDeviates: boolean };
   chartActionForExplain?: ChartAction;
@@ -194,19 +194,30 @@ const UNDERSIZE_BET_FRACTION = 0.15;
 // 33% aggression cutoff) it's a real light/thin semi-bluff, not "no equity" (iter-09 #6b).
 const NO_EQUITY_PCT = 20;
 
-// A bet/raise this many times the pot (or larger) is a GROSS overbet whose SIZE is flagged even when
-// the direction/equity is fine (iter-13 #2). Deliberately conservative: a normal pot-sized bet is 1×,
-// a standard 3-bet/4-bet is ~2× the small preflop pot, and a forced short-stack shove caps at ~1× the
-// pot — so 5× is well beyond any standard sizing and only catches absurd overbets (e.g. shoving 92 into
-// a 7 pot ≈ 13×). It does NOT flag forced near-all-in shoves (their pot-multiple stays low).
-const GROSS_OVERBET_POT_MULTIPLE = 5;
+// POSTFLOP: a bet/raise this many times the pot (or larger) is a gross overbet whose SIZE is flagged
+// even when the direction/equity is fine (iter-13 #2, threshold lowered iter-14 #3). A normal pot-sized
+// bet is 1×, a fat overbet ~1.5–2×; 3× catches a clearly-reckless stack-off (e.g. shoving $185 into a
+// $45 pot ≈ 4.1× with a marginal 53% hand vs two players) while a standard 2/3-pot or 1.5×-pot value bet
+// stays clean. A forced short-stack shove caps at ~1× the pot (the stack, not a choice), so it's excluded.
+const POSTFLOP_OVERBET_POT_MULTIPLE = 3;
+
+// PREFLOP non-open raises (3-bets/4-bets/shoves) keep a much more lenient cutoff: a standard 3-bet is
+// ~2× and a 4-bet can reach ~2.5–3× the small preflop pot, so only a clearly-absurd preflop shove (e.g.
+// 92 into a 7 pot ≈ 13×) should flag — never a normal 3-bet/4-bet (iter-13 #2, kept conservative #3).
+const PREFLOP_OVERBET_POT_MULTIPLE = 8;
 
 // Apply the gross-overbet SIZE critique on top of an aggression-branch result (iter-13 #2). The
 // direction/equity grade is kept; the size is flagged with a ⚠️ (a ✅ value bet downgrades to ⚠️
-// "Oversized" so a 13×-pot shove is never praised without comment, while an already-flagged thin/❌ bet
-// keeps its severity and just gains the size tag).
-function withGrossOverbet(branch: Branch, betPotMultiple?: number): Branch {
-  if (betPotMultiple === undefined || betPotMultiple < GROSS_OVERBET_POT_MULTIPLE) return branch;
+// "Oversized" so an oversized shove is never praised without comment, while an already-flagged thin/❌
+// bet keeps its severity and just gains the size tag). `threshold` lets postflop and preflop use
+// different cutoffs (postflop ~3×, preflop ~8×) — postflop reckless stack-offs flag, normal preflop
+// 3-bets/4-bets don't (iter-14 #3).
+function withGrossOverbet(
+  branch: Branch,
+  betPotMultiple: number | undefined,
+  threshold: number,
+): Branch {
+  if (betPotMultiple === undefined || betPotMultiple < threshold) return branch;
   const tags: ConceptTag[] = branch.conceptTags.includes("oversize_bet")
     ? branch.conceptTags
     : [...branch.conceptTags, "oversize_bet"];
@@ -249,6 +260,22 @@ function route(
     // small epsilon so float/rounding never false-positives a clean blinds-only pot.
     input.potBefore > blindsPosted + input.bigBlind! / 2;
 
+  // A reasonable ISOLATION raise over limpers (iter-14 #5). In a limped pot the RFI chart is off-model
+  // (it assumes first-in), so the equity branch once graded a fine iso-raise "⚠️ thin", contradicting
+  // the clean-RFI chart that marks the same hand "raise". When the hero RAISES a hand the RFI chart
+  // WOULD open from this position, it's a standard iso — grade it good, and the copy explains the
+  // limpers difference. Off-model (gtoClaim false): limpers aren't chart-modeled, so we don't claim GTO.
+  if (
+    isLimpedPot &&
+    action === "raise" &&
+    input.hand &&
+    input.position &&
+    chartApplies(input.position, "unopened") &&
+    lookupChart(input.hand, input.position, "unopened") === "raise"
+  ) {
+    return isoRaiseBranch(input.hand);
+  }
+
   // 1. Preflop chart branch — the only place we claim GTO-ish correctness (gtoClaim=true).
   if (
     street === "preflop" &&
@@ -265,9 +292,12 @@ function route(
     const chartBranch = preflopBranch(input.hand, input.position, input.facing, action, oversize);
     // A NON-open preflop raise (3-bet/4-bet/shove) isn't size-checked by the BB-open rule above, so a
     // grossly oversized 4-bet (e.g. shoving 92 into a 7 pot) once drew no size critique even when the
-    // direction was ✅ (iter-13 #2). Apply the pot-multiple overbet flag to non-open raises here. An
-    // open that's already BB-flagged keeps that flag (don't double-flag the same open).
-    return isOpen ? chartBranch : withGrossOverbet(chartBranch, betPotMultiple);
+    // direction was ✅ (iter-13 #2). Apply the pot-multiple overbet flag to non-open raises here at the
+    // LENIENT preflop cutoff (~8×) so a normal 3-bet/4-bet (~2–3×) never flags (iter-14 #3). An open
+    // that's already BB-flagged keeps that flag (don't double-flag the same open).
+    return isOpen
+      ? chartBranch
+      : withGrossOverbet(chartBranch, betPotMultiple, PREFLOP_OVERBET_POT_MULTIPLE);
   }
 
   // 2..5 postflop / no-chart heuristics.
@@ -276,9 +306,16 @@ function route(
     const undersize =
       betPotFraction !== undefined && betPotFraction < UNDERSIZE_BET_FRACTION;
     const aggression = aggressionBranch(equityPct, madeHand, undersize);
-    // A grossly oversized postflop bet/raise (a ≥5×-pot overbet) gets a ⚠️ size critique even with good
-    // equity (iter-13 #2). An undersized bet can't also be a gross overbet, so the flags never collide.
-    return undersize ? aggression : withGrossOverbet(aggression, betPotMultiple);
+    // A grossly oversized bet/raise gets a ⚠️ size critique even with good equity (iter-13 #2). The
+    // POSTFLOP threshold (~3×, lowered iter-14 #3) catches a reckless stack-off, but a PREFLOP raise that
+    // reaches this heuristic fallthrough (an off-chart 3-bet/4-bet — only BB has a vs-raise chart) must
+    // keep the LENIENT preflop cutoff (~8×) so a normal 2–3× 3-bet is never flagged (iter-14 #3). Pick the
+    // threshold by street. An undersized bet can't also be a gross overbet, so the flags never collide.
+    const overbetThreshold =
+      street === "preflop" ? PREFLOP_OVERBET_POT_MULTIPLE : POSTFLOP_OVERBET_POT_MULTIPLE;
+    return undersize
+      ? aggression
+      : withGrossOverbet(aggression, betPotMultiple, overbetThreshold);
   }
   if (action === "fold") {
     // No chips to call means checking is free — folding forfeits a free look at the pot and is
@@ -348,6 +385,20 @@ function preflopBranch(
   }
   // raise-vs-call mismatch: right to continue, wrong aggression level → thin.
   return { ...base, verdict: "thin", severity: 1, conceptTags: tags };
+}
+
+// A standard isolation raise over limpers (iter-14 #5): the RFI chart would open this hand first-in,
+// so raising to isolate the limpers is a fine, standard play — never "⚠️ thin". Off-model (gtoClaim
+// false) because limpers aren't chart-modeled; the explanation reconciles by saying the chart assumes
+// first-in but here there are limpers, so this is an iso raise.
+function isoRaiseBranch(_hand: [Card, Card]): Branch {
+  return {
+    kind: "isoraise",
+    gtoClaim: false,
+    verdict: "good",
+    severity: 0,
+    conceptTags: ["iso_raise_standard"],
+  };
 }
 
 function checkBranch(equityPct: number): Branch {

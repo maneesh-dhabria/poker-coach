@@ -28,6 +28,15 @@ const DEPTH_OPTIONS: { value: CoachingDepth; label: string }[] = [
 function InPlayControls() {
   const settings = useSessionStore((s) => s.settings);
   const setSettings = useSessionStore((s) => s.setSettings);
+  const setCoachingDepth = useGameStore((s) => s.setCoachingDepth);
+  // An in-play depth change must take FULL effect on the CURRENT hand, not just future ones (iter-14
+  // #1/#2): write the setting (so future hands + the live Mental Math read it) AND re-derive every
+  // already-graded decision of the current hand at the new depth (so the panel/recap fully switch —
+  // no digits left over at Conceptual, the chart badge / off-model note appearing at Strict).
+  const changeDepth = (depth: CoachingDepth) => {
+    setSettings({ coachingDepth: depth });
+    setCoachingDepth(depth);
+  };
   return (
     <div
       data-testid="inplay-controls"
@@ -49,7 +58,7 @@ function InPlayControls() {
         <select
           data-testid="inplay-depth"
           value={settings.coachingDepth}
-          onChange={(e) => setSettings({ coachingDepth: e.target.value as CoachingDepth })}
+          onChange={(e) => changeDepth(e.target.value as CoachingDepth)}
           style={{
             background: "var(--panel)",
             color: "var(--ink)",

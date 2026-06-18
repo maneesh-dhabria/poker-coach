@@ -55,6 +55,47 @@ describe("gameStore", () => {
   });
 });
 
+// iter-14 #1/#2: setCoachingDepth re-derives the current hand's recorded decisions + the panel's
+// feedback at the new depth, so an in-play switch takes full effect without a new session.
+describe("gameStore.setCoachingDepth (in-play depth)", () => {
+  it("re-derives the recorded decisions + feedback to the new depth, preserving the verdict", async () => {
+    const settings = {
+      ...defaultSettings(),
+      numOpponents: 1,
+      personas: [personaFor("Calling Station", "Beginner")],
+    };
+    useGameStore.getState().configure("sess-x", settings, 42);
+    useGameStore.getState().newHand();
+
+    let guard = 0;
+    while (!useGameStore.getState().flow!.isOver() && guard++ < 50) {
+      const flow = useGameStore.getState().flow!;
+      if (!flow.isHeroTurn()) break;
+      const acts = flow.heroSpot().legal.actions;
+      const action = acts.includes("check")
+        ? { type: "check" as const }
+        : acts.includes("call")
+          ? { type: "call" as const }
+          : { type: "fold" as const };
+      await useGameStore.getState().heroAct(action);
+    }
+
+    const before = useGameStore.getState().feedback!;
+    expect(before.analysis.coachingDepth).toBe("equity");
+
+    useGameStore.getState().setCoachingDepth("conceptual");
+    const after = useGameStore.getState().feedback!;
+    // The feedback the panel reads is now at the new depth (copy switched)...
+    expect(after.analysis.coachingDepth).toBe("conceptual");
+    // ...the verdict is depth-independent and unchanged...
+    expect(after.analysis.verdict).toBe(before.analysis.verdict);
+    // ...and every recorded decision in the current hand is re-derived too.
+    expect(
+      useGameStore.getState().flow!.decisions().every((d) => d.analysis.coachingDepth === "conceptual"),
+    ).toBe(true);
+  });
+});
+
 describe("sessionStore.mentalMathOpen (FR-18)", () => {
   it("defaults collapsed and the setter toggles it", () => {
     expect(useSessionStore.getState().mentalMathOpen).toBe(false);

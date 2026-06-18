@@ -26,12 +26,23 @@ export function detectMadeHand(hole: [Card, Card], board: Card[]): MadeHand | nu
   const labelFor = (): string => {
     switch (category) {
       case HandCategory.Pair: {
-        // Pin the pair to top/middle/bottom relative to the board so the copy reads like a player.
+        // Pin the pair to top/middle/bottom relative to the board so the copy reads like a player
+        // (iter-14 #6). Rank the paired card among the DISTINCT board ranks (high→low): the top board
+        // rank is top pair; otherwise its position in that ordering decides middle vs bottom. With four
+        // distinct board ranks (e.g. A,6,4,2) a pair of the 4 sits in the lower half, so it's BOTTOM
+        // pair, not middle — the prior rule only called the single lowest rank "bottom" and mislabeled
+        // everything else "middle".
         const paired = holeVals.find((v) => board.some((c) => rankValue(c) === v));
         if (paired === undefined) return "a pair"; // a hole pair (e.g. pocket pair under the board)
         if (paired >= boardMax) return "top pair";
-        const boardVals = board.map(rankValue).sort((a, b) => b - a);
-        return paired <= (boardVals[boardVals.length - 1] ?? 0) ? "bottom pair" : "middle pair";
+        const distinctDesc = Array.from(new Set(board.map(rankValue))).sort((a, b) => b - a);
+        const idx = distinctDesc.indexOf(paired);
+        const n = distinctDesc.length;
+        if (idx <= 0) return "top pair";
+        // Lower half of the board ranks (strictly past the midpoint) → bottom pair; the exact middle of
+        // an odd count stays "middle". For [K,J,9] the J is the exact middle → middle pair; for
+        // [A,6,4,2] the 4 is at 2/3 → bottom pair.
+        return idx / (n - 1) > 0.5 ? "bottom pair" : "middle pair";
       }
       case HandCategory.TwoPair:
         return "two pair";
@@ -236,8 +247,13 @@ export function buildMentalEstimate(input: MentalInput): MentalEstimate {
       madeHand
         ? `No extra outs to count — but you already have ${madeHand.label}, so you're often ahead already.`
         // No draw AND no made hand → don't hedge "you may already have the best hand" when the hero
-        // is holding air (it's false). Say honestly that they're likely behind (iter-10 #6).
-        : "No clear draw and no made hand yet — you're likely behind, so you'd be betting as a bluff or giving up.",
+        // is holding air (it's false). Say honestly that they're likely behind (iter-10 #6). Make the
+        // ACTION-suffix match the decision the hero faces (iter-14 #7): facing a bet (toCall > 0) is a
+        // CALL decision, so "calling just pays off with little equity" — never "betting as a bluff",
+        // which describes a bet/check spot, not the call actually faced.
+        : toCall > 0
+          ? "No clear draw and no made hand yet — you're likely behind, so calling here just pays off with little equity."
+          : "No clear draw and no made hand yet — you're likely behind, so you'd be betting as a bluff or giving up.",
     );
     e.outs = breakdown;
     e.potOdds = potOdds;
