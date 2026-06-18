@@ -3,6 +3,40 @@
 All notable changes to Poker Coach are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/); versions track `package.json`.
 
+## [0.22.0] — 2026-06-18
+
+### Reviewer-iteration-17 fixes — a reckless overbet is a mistake, even with a weak pair
+
+A seventeenth independent first-time-user playtest (`docs/playtest/reviews/iter-17.md`) again
+found **zero major or flow issues** and confirmed result-independent grading, EV-tone agreement,
+the depth control, chart cross-checks, and over-fold detection all hold. It caught an edge the
+previous overbet fix missed plus a few copy items. Coaching grade/copy only; no equity/EV/pot-odds
+math changed; no `HandRecord` schema change.
+
+### Fixed
+
+- **A reckless low-equity overbet now counts as a mistake even when you hold a weak pair.** The
+  earlier fix only escalated an oversized punt to ❌ when the hero had *no* made hand, so a 6×-pot
+  shove of an underpair (~9% to win, EV check $2 vs bet −$18) still landed in the ⚠️ "thin" bucket —
+  and "thin" means "marginal-to-slightly-losing," which a −$18 punt is not. The gross-overbet
+  escalation is now gated on equity alone: an oversized bet/shove with equity below the value
+  threshold grades ❌ mistake (and tallies as one) whether or not there's a weak made hand, while an
+  oversized bet made while genuinely ahead keeps its ⚠️ "size down" treatment (`core/analysis/analyze.ts`).
+- **That overbet no longer reads "Thin value."** There's no value in betting a 9%-to-win hand, so on
+  the low-equity overbet mistake the "Thin value" chip is dropped in favor of a "No value" chip
+  alongside the "Oversized" badge (`core/analysis/conceptTags.ts`, `components/FeedbackPanel.tsx`).
+- **Mental Math now points to the right tab.** Its preflop note said "see the Preflop Chart tab," but
+  the tab is labeled References — it now reads "see the Preflop Chart in the References tab"
+  (`core/mental/estimate.ts`, `components/MentalMathSection.tsx`).
+- **A razor-thin price decision is no longer presented as clear-cut.** When your equity is within a
+  few points of the break-even need, a ✅ good fold/call now adds a brief "though it's close"
+  acknowledgement; clear folds/calls keep their confident wording (`core/analysis/explain.ts`).
+
+### Notes
+
+- At 700×500 the seat cards and bet chips get quite small — pure smallness, nothing clips or
+  overlaps — left as an accepted scale-to-fit tradeoff.
+
 ## [0.21.0] — 2026-06-18
 
 ### Reviewer-iteration-16 fixes — the words and the tally now agree with the dollar EV
